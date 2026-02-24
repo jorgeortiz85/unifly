@@ -316,7 +316,7 @@ async fn handle_policies(
                         serde_json::to_string(&ordering).unwrap_or_default()
                     }
                     crate::cli::OutputFormat::Yaml => {
-                        serde_yaml::to_string(&ordering).unwrap_or_default()
+                        serde_yml::to_string(&ordering).unwrap_or_default()
                     }
                 };
                 output::print_output(&out, global.quiet);

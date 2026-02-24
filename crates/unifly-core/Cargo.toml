@@ -1,6 +1,6 @@
 [package]
 name = "unifly-core"
-description = "Business logic and shared services for unifly"
+description = "Reactive data layer, domain models, and controller orchestration for UniFi network management"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

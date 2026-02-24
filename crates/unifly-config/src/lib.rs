@@ -202,6 +202,14 @@ pub fn save_config(cfg: &Config) -> Result<(), ConfigError> {
     }
     let toml_str = toml::to_string_pretty(cfg)?;
     std::fs::write(&path, toml_str)?;
+
+    // Restrict config file to owner-only access (may contain plaintext credentials)
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
+    }
+
     Ok(())
 }
 
@@ -318,7 +326,7 @@ pub fn profile_to_controller_config(
     } else if let Some(ref ca_path) = profile.ca_cert {
         TlsVerification::CustomCa(ca_path.clone())
     } else {
-        TlsVerification::DangerAcceptInvalid // local controllers typically self-signed
+        TlsVerification::SystemDefaults
     };
 
     let timeout = Duration::from_secs(profile.timeout.unwrap_or(30));

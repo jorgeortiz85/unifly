@@ -320,7 +320,7 @@ impl StatsScreen {
                 ),
                 Span::styled(bar, Style::default().fg(color)),
                 Span::styled(
-                    format!(" {:>6}", bytes_str),
+                    format!(" {bytes_str:>6}"),
                     Style::default().fg(theme::DIM_WHITE),
                 ),
             ]));

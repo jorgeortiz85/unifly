@@ -27,7 +27,7 @@ pub fn should_color(mode: &ColorMode) -> bool {
 ///
 /// - `table`: uses the `Tabled` derive to build a pretty table
 /// - `json` / `json-compact`: serializes the original data via serde
-/// - `yaml`: serializes via serde_yaml
+/// - `yaml`: serializes via serde_yml
 /// - `plain`: calls `id_fn` on each item to emit one identifier per line
 pub fn render_list<T, R>(
     format: &OutputFormat,
@@ -108,5 +108,5 @@ fn render_json<T: serde::Serialize + ?Sized>(data: &T, compact: bool) -> String 
 
 /// YAML output.
 pub(crate) fn render_yaml<T: serde::Serialize + ?Sized>(data: &T) -> String {
-    serde_yaml::to_string(data).expect("serialization should not fail")
+    serde_yml::to_string(data).expect("serialization should not fail")
 }
