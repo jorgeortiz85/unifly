@@ -209,5 +209,4 @@ impl DataStore {
 
         let _ = self.last_full_refresh.send(Some(Utc::now()));
     }
-
 }

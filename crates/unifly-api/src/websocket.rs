@@ -37,8 +37,8 @@ use rustls::ClientConfig;
 use rustls_pki_types::CertificateDer;
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
-use tokio_tungstenite::tungstenite::{self, ClientRequestBuilder};
 use tokio_tungstenite::Connector;
+use tokio_tungstenite::tungstenite::{self, ClientRequestBuilder};
 use tokio_util::sync::CancellationToken;
 use url::Url;
 

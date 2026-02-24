@@ -1563,8 +1563,8 @@ fn apply_device_sync(store: &DataStore, data: &serde_json::Value) {
         (Some(used), Some(total)) if total > 0 => Some((used as f64 / total as f64) * 100.0),
         _ => None,
     };
-    let load_averages: [Option<f64>; 3] = ["loadavg_1", "loadavg_5", "loadavg_15"]
-        .map(|key| parse_f64_field(sys, key));
+    let load_averages: [Option<f64>; 3] =
+        ["loadavg_1", "loadavg_5", "loadavg_15"].map(|key| parse_f64_field(sys, key));
 
     // Uplink bandwidth: check "uplink" object or top-level fields
     let uplink = data.get("uplink");
