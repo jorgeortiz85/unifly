@@ -97,7 +97,11 @@ jobs:
 
       - name: "Update workspace version"
         run: |
-          sed -i 's/^version = ".*"/version = "${{ steps.version.outputs.version }}"/' Cargo.toml
+          VERSION="${{ steps.version.outputs.version }}"
+          # Update workspace package version
+          sed -i 's/^version = ".*"/version = "'"$VERSION"'"/' Cargo.toml
+          # Update internal crate dependency version pins
+          sed -i '/path = "crates\//s/version = "[^"]*"/version = "'"$VERSION"'"/' Cargo.toml
           cargo update -w
 
       - name: "Build"
