@@ -8,13 +8,17 @@
 //!
 //! ```rust,ignore
 //! use unifly_api::websocket::{WebSocketHandle, ReconnectConfig};
+//! use unifly_api::transport::TlsMode;
 //! use tokio_util::sync::CancellationToken;
 //! use url::Url;
 //!
 //! let cancel = CancellationToken::new();
 //! let ws_url = Url::parse("wss://192.168.1.1/proxy/network/wss/s/default/events")?;
 //!
-//! let handle = WebSocketHandle::connect(ws_url, ReconnectConfig::default(), cancel.clone(), None)?;
+//! let handle = WebSocketHandle::connect(
+//!     ws_url, ReconnectConfig::default(), cancel.clone(), None,
+//!     TlsMode::DangerAcceptInvalid,
+//! )?;
 //! let mut rx = handle.subscribe();
 //!
 //! while let Ok(event) = rx.recv().await {
@@ -24,17 +28,22 @@
 //! handle.shutdown();
 //! ```
 
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
 use futures_util::StreamExt;
+use rustls::ClientConfig;
+use rustls_pki_types::CertificateDer;
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 use tokio_tungstenite::tungstenite::{self, ClientRequestBuilder};
+use tokio_tungstenite::Connector;
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
 use crate::error::Error;
+use crate::transport::TlsMode;
 
 // ── Broadcast channel capacity ───────────────────────────────────────
 
@@ -118,12 +127,13 @@ impl WebSocketHandle {
         reconnect: ReconnectConfig,
         cancel: CancellationToken,
         cookie: Option<String>,
+        tls_mode: TlsMode,
     ) -> Result<Self, Error> {
         let (event_tx, event_rx) = broadcast::channel(EVENT_CHANNEL_CAPACITY);
 
         let task_cancel = cancel.clone();
         tokio::spawn(async move {
-            ws_loop(ws_url, event_tx, reconnect, task_cancel, cookie).await;
+            ws_loop(ws_url, event_tx, reconnect, task_cancel, cookie, tls_mode).await;
         });
 
         Ok(Self { event_rx, cancel })
@@ -152,6 +162,7 @@ async fn ws_loop(
     reconnect: ReconnectConfig,
     cancel: CancellationToken,
     cookie: Option<String>,
+    tls_mode: TlsMode,
 ) {
     let mut attempt: u32 = 0;
 
@@ -159,7 +170,7 @@ async fn ws_loop(
         tokio::select! {
             biased;
             () = cancel.cancelled() => break,
-            result = connect_and_read(&ws_url, &event_tx, &cancel, cookie.as_deref()) => {
+            result = connect_and_read(&ws_url, &event_tx, &cancel, cookie.as_deref(), &tls_mode) => {
                 match result {
                     // Clean disconnect (server close frame or stream ended).
                     // Reset attempt counter and reconnect immediately.
@@ -220,6 +231,7 @@ async fn connect_and_read(
     event_tx: &broadcast::Sender<Arc<UnifiEvent>>,
     cancel: &CancellationToken,
     cookie: Option<&str>,
+    tls_mode: &TlsMode,
 ) -> Result<(), Error> {
     tracing::info!(url = %url, "Connecting to WebSocket");
 
@@ -233,9 +245,12 @@ async fn connect_and_read(
         request = request.with_header("Cookie", cookie_val);
     }
 
-    let (ws_stream, _response) = tokio_tungstenite::connect_async(request)
-        .await
-        .map_err(|e| Error::WebSocketConnect(e.to_string()))?;
+    let connector = build_tls_connector(tls_mode)?;
+
+    let (ws_stream, _response) =
+        tokio_tungstenite::connect_async_tls_with_config(request, None, false, connector)
+            .await
+            .map_err(|e| Error::WebSocketConnect(e.to_string()))?;
 
     tracing::info!("WebSocket connected");
 
@@ -353,6 +368,93 @@ fn event_from_raw(msg_type: &str, data: &serde_json::Value) -> UnifiEvent {
             .map(String::from),
         datetime: data["datetime"].as_str().map(String::from),
         extra: data.clone(),
+    }
+}
+
+// ── TLS connector ────────────────────────────────────────────────────
+
+/// Build a [`Connector`] matching the given [`TlsMode`].
+///
+/// - `System`: returns `None` (uses default webpki-roots verification).
+/// - `CustomCa`: loads a PEM CA file into a custom root store.
+/// - `DangerAcceptInvalid`: disables all certificate verification.
+fn build_tls_connector(tls_mode: &TlsMode) -> Result<Option<Connector>, Error> {
+    match tls_mode {
+        TlsMode::System => Ok(None),
+        TlsMode::CustomCa(path) => {
+            let root_store = load_root_store(path)?;
+            let tls_config = ClientConfig::builder()
+                .with_root_certificates(root_store)
+                .with_no_client_auth();
+            Ok(Some(Connector::Rustls(Arc::new(tls_config))))
+        }
+        TlsMode::DangerAcceptInvalid => {
+            let tls_config = ClientConfig::builder()
+                .dangerous()
+                .with_custom_certificate_verifier(Arc::new(NoVerifier))
+                .with_no_client_auth();
+            Ok(Some(Connector::Rustls(Arc::new(tls_config))))
+        }
+    }
+}
+
+/// Load a PEM CA file into a [`rustls::RootCertStore`].
+fn load_root_store(path: &Path) -> Result<rustls::RootCertStore, Error> {
+    use rustls_pki_types::pem::PemObject;
+
+    let mut root_store = rustls::RootCertStore::empty();
+    for cert in CertificateDer::pem_file_iter(path)
+        .map_err(|e| Error::Tls(format!("failed to read CA cert: {e}")))?
+    {
+        let cert = cert.map_err(|e| Error::Tls(format!("invalid PEM in CA file: {e}")))?;
+        root_store
+            .add(cert)
+            .map_err(|e| Error::Tls(format!("invalid CA cert: {e}")))?;
+    }
+    Ok(root_store)
+}
+
+/// Certificate verifier that accepts any server certificate.
+///
+/// Only used when `TlsMode::DangerAcceptInvalid` is selected (self-signed
+/// controllers). This is intentionally insecure.
+#[derive(Debug)]
+struct NoVerifier;
+
+impl rustls::client::danger::ServerCertVerifier for NoVerifier {
+    fn verify_server_cert(
+        &self,
+        _end_entity: &CertificateDer<'_>,
+        _intermediates: &[CertificateDer<'_>],
+        _server_name: &rustls::pki_types::ServerName<'_>,
+        _ocsp_response: &[u8],
+        _now: rustls::pki_types::UnixTime,
+    ) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
+        Ok(rustls::client::danger::ServerCertVerified::assertion())
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        _message: &[u8],
+        _cert: &CertificateDer<'_>,
+        _dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        _message: &[u8],
+        _cert: &CertificateDer<'_>,
+        _dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        rustls::crypto::ring::default_provider()
+            .signature_verification_algorithms
+            .supported_schemes()
     }
 }
 

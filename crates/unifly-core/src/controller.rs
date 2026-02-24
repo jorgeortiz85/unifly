@@ -343,12 +343,14 @@ impl Controller {
             return;
         }
 
+        let ws_tls = tls_to_transport(&self.inner.config.tls);
         let ws_cancel = cancel.child_token();
         let handle = match WebSocketHandle::connect(
             ws_url,
             ReconnectConfig::default(),
             ws_cancel.clone(),
             cookie,
+            ws_tls,
         ) {
             Ok(h) => h,
             Err(e) => {
