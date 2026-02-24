@@ -205,7 +205,8 @@ impl DashboardScreen {
         let x_min = data.first().map_or(0.0, |&(x, _)| x);
         let x_max = data.last().map_or(1.0, |&(x, _)| x);
         let x_range = (x_max - x_min).max(1.0);
-        let step = x_range / target_density as f64;
+        #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
+        let step = x_range / (target_density as f64);
 
         let mut result = Vec::with_capacity(target_density + 1);
         let mut data_idx = 0;
