@@ -373,7 +373,7 @@ impl OnboardingScreen {
 
         // Background
         frame.render_widget(
-            Block::default().style(Style::default().bg(theme::BG_DARK)),
+            Block::default().style(Style::default().bg(theme::bg_base())),
             panel,
         );
 
@@ -384,7 +384,7 @@ impl OnboardingScreen {
                 Span::styled(
                     "UniFi Setup",
                     Style::default()
-                        .fg(theme::NEON_CYAN)
+                        .fg(theme::accent_secondary())
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(" "),
@@ -392,7 +392,7 @@ impl OnboardingScreen {
             .title_alignment(Alignment::Center)
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
-            .border_style(Style::default().fg(theme::ELECTRIC_PURPLE));
+            .border_style(Style::default().fg(theme::accent_primary()));
 
         let inner = block.inner(panel);
         frame.render_widget(block, panel);
@@ -410,13 +410,13 @@ impl OnboardingScreen {
                 let step_num = i + 1;
                 let style = match step_num.cmp(&current) {
                     std::cmp::Ordering::Equal => Style::default()
-                        .fg(theme::ELECTRIC_PURPLE)
+                        .fg(theme::accent_primary())
                         .add_modifier(Modifier::BOLD),
-                    std::cmp::Ordering::Less => Style::default().fg(theme::SUCCESS_GREEN),
-                    std::cmp::Ordering::Greater => Style::default().fg(theme::BORDER_GRAY),
+                    std::cmp::Ordering::Less => Style::default().fg(theme::success()),
+                    std::cmp::Ordering::Greater => Style::default().fg(theme::border_unfocused()),
                 };
                 let sep = if i < steps.len() - 1 {
-                    Span::styled(" > ", Style::default().fg(theme::BORDER_GRAY))
+                    Span::styled(" > ", Style::default().fg(theme::border_unfocused()))
                 } else {
                     Span::raw("")
                 };
@@ -445,9 +445,9 @@ impl OnboardingScreen {
         let label_area = Rect::new(area.x, area.y, area.width, 1);
 
         let label_style = if active {
-            Style::default().fg(theme::NEON_CYAN)
+            Style::default().fg(theme::accent_secondary())
         } else {
-            Style::default().fg(theme::DIM_WHITE)
+            Style::default().fg(theme::text_secondary())
         };
         frame.render_widget(Paragraph::new(Span::styled(label, label_style)), label_area);
 
@@ -458,9 +458,9 @@ impl OnboardingScreen {
         };
 
         let border_color = if active {
-            theme::ELECTRIC_PURPLE
+            theme::accent_primary()
         } else {
-            theme::BORDER_GRAY
+            theme::border_unfocused()
         };
 
         let block = Block::default()
@@ -478,7 +478,10 @@ impl OnboardingScreen {
             display
         };
         frame.render_widget(
-            Paragraph::new(Span::styled(text, Style::default().fg(theme::NEON_CYAN))),
+            Paragraph::new(Span::styled(
+                text,
+                Style::default().fg(theme::accent_secondary()),
+            )),
             inner,
         );
     }
@@ -614,7 +617,7 @@ impl Component for OnboardingScreen {
     fn render(&self, frame: &mut Frame, area: Rect) {
         // Full-screen dark background
         frame.render_widget(
-            Block::default().style(Style::default().bg(theme::BG_DARK)),
+            Block::default().style(Style::default().bg(theme::bg_base())),
             area,
         );
 
@@ -635,13 +638,13 @@ impl Component for OnboardingScreen {
         // Error line
         if let Some(ref err) = self.error {
             frame.render_widget(
-                Paragraph::new(Span::styled(err, Style::default().fg(theme::ERROR_RED)))
+                Paragraph::new(Span::styled(err, Style::default().fg(theme::error())))
                     .alignment(Alignment::Center),
                 layout[2],
             );
         } else if let Some(ref err) = self.test_error {
             frame.render_widget(
-                Paragraph::new(Span::styled(err, Style::default().fg(theme::ERROR_RED)))
+                Paragraph::new(Span::styled(err, Style::default().fg(theme::error())))
                     .alignment(Alignment::Center),
                 layout[2],
             );
@@ -690,7 +693,7 @@ impl OnboardingScreen {
             Paragraph::new(Line::from(vec![Span::styled(
                 "Welcome to UniFi TUI",
                 Style::default()
-                    .fg(theme::NEON_CYAN)
+                    .fg(theme::accent_secondary())
                     .add_modifier(Modifier::BOLD),
             )]))
             .alignment(Alignment::Center),
@@ -700,11 +703,11 @@ impl OnboardingScreen {
         let desc = vec![
             Line::from(Span::styled(
                 "No configuration found. This wizard will help you",
-                Style::default().fg(theme::DIM_WHITE),
+                Style::default().fg(theme::text_secondary()),
             )),
             Line::from(Span::styled(
                 "connect to your UniFi controller.",
-                Style::default().fg(theme::DIM_WHITE),
+                Style::default().fg(theme::text_secondary()),
             )),
         ];
         frame.render_widget(Paragraph::new(desc).alignment(Alignment::Center), layout[1]);
@@ -712,7 +715,7 @@ impl OnboardingScreen {
         frame.render_widget(
             Paragraph::new(Span::styled(
                 "Press Enter to begin",
-                Style::default().fg(theme::ELECTRIC_PURPLE),
+                Style::default().fg(theme::accent_primary()),
             ))
             .alignment(Alignment::Center),
             layout[2],
@@ -731,7 +734,7 @@ impl OnboardingScreen {
             Paragraph::new(Span::styled(
                 "Enter your controller URL",
                 Style::default()
-                    .fg(theme::NEON_CYAN)
+                    .fg(theme::accent_secondary())
                     .add_modifier(Modifier::BOLD),
             ))
             .alignment(Alignment::Center),
@@ -755,7 +758,7 @@ impl OnboardingScreen {
             Paragraph::new(Span::styled(
                 "Choose authentication method",
                 Style::default()
-                    .fg(theme::NEON_CYAN)
+                    .fg(theme::accent_secondary())
                     .add_modifier(Modifier::BOLD),
             ))
             .alignment(Alignment::Center),
@@ -774,16 +777,16 @@ impl OnboardingScreen {
             let selected = i == self.auth_mode_index;
             let marker = if selected { "\u{25B8} " } else { "  " };
             let marker_style = if selected {
-                Style::default().fg(theme::ELECTRIC_PURPLE)
+                Style::default().fg(theme::accent_primary())
             } else {
-                Style::default().fg(theme::BORDER_GRAY)
+                Style::default().fg(theme::border_unfocused())
             };
             let label_style = if selected {
                 Style::default()
-                    .fg(theme::NEON_CYAN)
+                    .fg(theme::accent_secondary())
                     .add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(theme::DIM_WHITE)
+                Style::default().fg(theme::text_secondary())
             };
 
             lines.push(Line::from(vec![
@@ -792,7 +795,7 @@ impl OnboardingScreen {
             ]));
             lines.push(Line::from(Span::styled(
                 format!("    {}", mode.description()),
-                Style::default().fg(theme::BORDER_GRAY),
+                Style::default().fg(theme::border_unfocused()),
             )));
             lines.push(Line::from(""));
         }
@@ -807,7 +810,7 @@ impl OnboardingScreen {
             Paragraph::new(Span::styled(
                 "Enter credentials",
                 Style::default()
-                    .fg(theme::NEON_CYAN)
+                    .fg(theme::accent_secondary())
                     .add_modifier(Modifier::BOLD),
             ))
             .alignment(Alignment::Center),
@@ -887,7 +890,7 @@ impl OnboardingScreen {
             Paragraph::new(Span::styled(
                 "Enter site name",
                 Style::default()
-                    .fg(theme::NEON_CYAN)
+                    .fg(theme::accent_secondary())
                     .add_modifier(Modifier::BOLD),
             ))
             .alignment(Alignment::Center),
@@ -908,15 +911,15 @@ impl OnboardingScreen {
         if self.testing {
             let throbber = throbber_widgets_tui::Throbber::default()
                 .label("  Testing connection...")
-                .style(Style::default().fg(theme::NEON_CYAN))
-                .throbber_style(Style::default().fg(theme::ELECTRIC_PURPLE));
+                .style(Style::default().fg(theme::accent_secondary()))
+                .throbber_style(Style::default().fg(theme::accent_primary()));
 
             frame.render_stateful_widget(throbber, layout[0], &mut self.throbber_state.clone());
 
             frame.render_widget(
                 Paragraph::new(Span::styled(
                     format!("  Connecting to {}", self.url_input.trim()),
-                    Style::default().fg(theme::BORDER_GRAY),
+                    Style::default().fg(theme::border_unfocused()),
                 )),
                 layout[1],
             );
@@ -926,13 +929,13 @@ impl OnboardingScreen {
                     Line::from(Span::styled(
                         "  Connection failed",
                         Style::default()
-                            .fg(theme::ERROR_RED)
+                            .fg(theme::error())
                             .add_modifier(Modifier::BOLD),
                     )),
                     Line::from(""),
                     Line::from(Span::styled(
                         format!("  {err}"),
-                        Style::default().fg(theme::ERROR_RED),
+                        Style::default().fg(theme::error()),
                     )),
                 ])
                 .wrap(Wrap { trim: false }),
@@ -955,13 +958,13 @@ impl OnboardingScreen {
                 Span::styled(
                     "  \u{2713} ",
                     Style::default()
-                        .fg(theme::SUCCESS_GREEN)
+                        .fg(theme::success())
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
                     "Connection successful!",
                     Style::default()
-                        .fg(theme::SUCCESS_GREEN)
+                        .fg(theme::success())
                         .add_modifier(Modifier::BOLD),
                 ),
             ]))
@@ -973,15 +976,15 @@ impl OnboardingScreen {
         let details = vec![
             Line::from(Span::styled(
                 "  Profile: default".to_string(),
-                Style::default().fg(theme::DIM_WHITE),
+                Style::default().fg(theme::text_secondary()),
             )),
             Line::from(Span::styled(
                 format!("  Controller: {}", self.url_input.trim()),
-                Style::default().fg(theme::DIM_WHITE),
+                Style::default().fg(theme::text_secondary()),
             )),
             Line::from(Span::styled(
                 format!("  Config saved: {}", saved_path.display()),
-                Style::default().fg(theme::DIM_WHITE),
+                Style::default().fg(theme::text_secondary()),
             )),
         ];
         frame.render_widget(Paragraph::new(details), layout[1]);
@@ -989,7 +992,7 @@ impl OnboardingScreen {
         frame.render_widget(
             Paragraph::new(Span::styled(
                 "Press Enter to launch the dashboard",
-                Style::default().fg(theme::ELECTRIC_PURPLE),
+                Style::default().fg(theme::accent_primary()),
             ))
             .alignment(Alignment::Center),
             layout[2],

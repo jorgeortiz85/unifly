@@ -176,49 +176,64 @@ impl ClientsScreen {
         let lines = vec![
             Line::from(""),
             Line::from(vec![
-                Span::styled("  Network        ", Style::default().fg(theme::DIM_WHITE)),
-                Span::styled(network, Style::default().fg(theme::NEON_CYAN)),
+                Span::styled(
+                    "  Network        ",
+                    Style::default().fg(theme::text_secondary()),
+                ),
+                Span::styled(network, Style::default().fg(theme::accent_secondary())),
                 Span::styled(
                     "       SSID         ",
-                    Style::default().fg(theme::DIM_WHITE),
+                    Style::default().fg(theme::text_secondary()),
                 ),
-                Span::styled(ssid, Style::default().fg(theme::NEON_CYAN)),
+                Span::styled(ssid, Style::default().fg(theme::accent_secondary())),
             ]),
             Line::from(vec![
-                Span::styled("  Signal         ", Style::default().fg(theme::DIM_WHITE)),
-                Span::styled(&signal, Style::default().fg(theme::NEON_CYAN)),
+                Span::styled(
+                    "  Signal         ",
+                    Style::default().fg(theme::text_secondary()),
+                ),
+                Span::styled(&signal, Style::default().fg(theme::accent_secondary())),
                 Span::styled(
                     "       Channel      ",
-                    Style::default().fg(theme::DIM_WHITE),
+                    Style::default().fg(theme::text_secondary()),
                 ),
-                Span::styled(&channel, Style::default().fg(theme::NEON_CYAN)),
+                Span::styled(&channel, Style::default().fg(theme::accent_secondary())),
             ]),
             Line::from(vec![
-                Span::styled("  TX             ", Style::default().fg(theme::DIM_WHITE)),
-                Span::styled(&tx, Style::default().fg(theme::CORAL)),
+                Span::styled(
+                    "  TX             ",
+                    Style::default().fg(theme::text_secondary()),
+                ),
+                Span::styled(&tx, Style::default().fg(theme::accent_tertiary())),
                 Span::styled(
                     "       RX           ",
-                    Style::default().fg(theme::DIM_WHITE),
+                    Style::default().fg(theme::text_secondary()),
                 ),
-                Span::styled(&rx, Style::default().fg(theme::CORAL)),
+                Span::styled(&rx, Style::default().fg(theme::accent_tertiary())),
             ]),
             Line::from(vec![
-                Span::styled("  Duration       ", Style::default().fg(theme::DIM_WHITE)),
-                Span::styled(&duration, Style::default().fg(theme::NEON_CYAN)),
+                Span::styled(
+                    "  Duration       ",
+                    Style::default().fg(theme::text_secondary()),
+                ),
+                Span::styled(&duration, Style::default().fg(theme::accent_secondary())),
             ]),
             Line::from(vec![
-                Span::styled("  Guest          ", Style::default().fg(theme::DIM_WHITE)),
-                Span::styled(guest, Style::default().fg(theme::DIM_WHITE)),
+                Span::styled(
+                    "  Guest          ",
+                    Style::default().fg(theme::text_secondary()),
+                ),
+                Span::styled(guest, Style::default().fg(theme::text_secondary())),
                 Span::styled(
                     "       Blocked      ",
-                    Style::default().fg(theme::DIM_WHITE),
+                    Style::default().fg(theme::text_secondary()),
                 ),
                 Span::styled(
                     blocked,
                     Style::default().fg(if client.blocked {
-                        theme::ERROR_RED
+                        theme::error()
                     } else {
-                        theme::DIM_WHITE
+                        theme::text_secondary()
                     }),
                 ),
             ]),
@@ -253,14 +268,14 @@ impl ClientsScreen {
 #[allow(dead_code)]
 fn client_type_span(client: &Client) -> Span<'static> {
     if client.is_guest {
-        return Span::styled("G", Style::default().fg(theme::ELECTRIC_YELLOW));
+        return Span::styled("G", Style::default().fg(theme::warning()));
     }
     match client.client_type {
-        ClientType::Wireless => Span::styled("W", Style::default().fg(theme::NEON_CYAN)),
-        ClientType::Wired => Span::styled("E", Style::default().fg(theme::DIM_WHITE)),
-        ClientType::Vpn => Span::styled("V", Style::default().fg(theme::ELECTRIC_PURPLE)),
-        ClientType::Teleport => Span::styled("T", Style::default().fg(theme::CORAL)),
-        _ => Span::styled("?", Style::default().fg(theme::DIM_WHITE)),
+        ClientType::Wireless => Span::styled("W", Style::default().fg(theme::accent_secondary())),
+        ClientType::Wired => Span::styled("E", Style::default().fg(theme::text_secondary())),
+        ClientType::Vpn => Span::styled("V", Style::default().fg(theme::accent_primary())),
+        ClientType::Teleport => Span::styled("T", Style::default().fg(theme::accent_tertiary())),
+        _ => Span::styled("?", Style::default().fg(theme::text_secondary())),
     }
 }
 
@@ -528,29 +543,29 @@ impl Component for ClientsScreen {
                     );
 
                     let type_color = if client.is_guest {
-                        theme::ELECTRIC_YELLOW
+                        theme::warning()
                     } else {
                         match client.client_type {
-                            ClientType::Wireless => theme::NEON_CYAN,
-                            ClientType::Vpn => theme::ELECTRIC_PURPLE,
-                            ClientType::Teleport => theme::CORAL,
-                            _ => theme::DIM_WHITE,
+                            ClientType::Wireless => theme::accent_secondary(),
+                            ClientType::Vpn => theme::accent_primary(),
+                            ClientType::Teleport => theme::accent_tertiary(),
+                            _ => theme::text_secondary(),
                         }
                     };
 
                     let signal_color = client.wireless.as_ref().and_then(|w| w.signal_dbm).map_or(
-                        theme::BORDER_GRAY,
+                        theme::border_unfocused(),
                         |dbm| {
                             if dbm >= -50 {
-                                theme::SUCCESS_GREEN
+                                theme::success()
                             } else if dbm >= -60 {
-                                theme::NEON_CYAN
+                                theme::accent_secondary()
                             } else if dbm >= -70 {
-                                theme::ELECTRIC_YELLOW
+                                theme::warning()
                             } else if dbm >= -80 {
-                                theme::CORAL
+                                theme::accent_tertiary()
                             } else {
-                                theme::ERROR_RED
+                                theme::error()
                             }
                         },
                     );
@@ -564,15 +579,15 @@ impl Component for ClientsScreen {
                     Row::new(vec![
                         Cell::from(type_str).style(Style::default().fg(type_color)),
                         Cell::from(name.to_string()).style(
-                            Style::default()
-                                .fg(theme::NEON_CYAN)
-                                .add_modifier(if is_selected {
+                            Style::default().fg(theme::accent_secondary()).add_modifier(
+                                if is_selected {
                                     Modifier::BOLD
                                 } else {
                                     Modifier::empty()
-                                }),
+                                },
+                            ),
                         ),
-                        Cell::from(ip).style(Style::default().fg(theme::CORAL)),
+                        Cell::from(ip).style(Style::default().fg(theme::accent_tertiary())),
                         Cell::from(mac),
                         Cell::from(signal.to_string()).style(Style::default().fg(signal_color)),
                         Cell::from(traffic),

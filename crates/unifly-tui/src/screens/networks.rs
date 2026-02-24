@@ -210,10 +210,10 @@ impl NetworksScreen {
             return;
         }
 
-        let label = Style::default().fg(theme::DIM_WHITE);
-        let value = Style::default().fg(theme::NEON_CYAN);
-        let enabled_style = Style::default().fg(theme::SUCCESS_GREEN);
-        let disabled_style = Style::default().fg(theme::BORDER_GRAY);
+        let label = Style::default().fg(theme::text_secondary());
+        let value = Style::default().fg(theme::accent_secondary());
+        let enabled_style = Style::default().fg(theme::success());
+        let disabled_style = Style::default().fg(theme::border_unfocused());
 
         let gateway_str = network
             .gateway_ip
@@ -288,12 +288,12 @@ impl NetworksScreen {
             Line::from(Span::styled(
                 " Network Config",
                 Style::default()
-                    .fg(theme::ELECTRIC_PURPLE)
+                    .fg(theme::accent_primary())
                     .add_modifier(Modifier::BOLD),
             )),
             Line::from(Span::styled(
                 " ─────────────────────────────────────────",
-                Style::default().fg(theme::BORDER_GRAY),
+                Style::default().fg(theme::border_unfocused()),
             )),
             Line::from(vec![
                 Span::styled("  Gateway IP    ", label),
@@ -314,12 +314,12 @@ impl NetworksScreen {
         lines.push(Line::from(Span::styled(
             " DHCP Server",
             Style::default()
-                .fg(theme::ELECTRIC_PURPLE)
+                .fg(theme::accent_primary())
                 .add_modifier(Modifier::BOLD),
         )));
         lines.push(Line::from(Span::styled(
             " ─────────────────────────────────────────",
-            Style::default().fg(theme::BORDER_GRAY),
+            Style::default().fg(theme::border_unfocused()),
         )));
         lines.push(Line::from(vec![
             Span::styled("  DHCP          ", label),
@@ -350,12 +350,12 @@ impl NetworksScreen {
         lines.push(Line::from(Span::styled(
             " Features",
             Style::default()
-                .fg(theme::ELECTRIC_PURPLE)
+                .fg(theme::accent_primary())
                 .add_modifier(Modifier::BOLD),
         )));
         lines.push(Line::from(Span::styled(
             " ─────────────────────────────────────────",
-            Style::default().fg(theme::BORDER_GRAY),
+            Style::default().fg(theme::border_unfocused()),
         )));
         lines.push(Line::from(vec![
             Span::styled("  Internet      ", label),
@@ -396,23 +396,23 @@ impl NetworksScreen {
             .title(" Edit Network ")
             .title_style(
                 Style::default()
-                    .fg(theme::ELECTRIC_YELLOW)
+                    .fg(theme::warning())
                     .add_modifier(Modifier::BOLD),
             )
             .borders(Borders::ALL)
             .border_type(BorderType::Double)
-            .border_style(Style::default().fg(theme::ELECTRIC_PURPLE));
+            .border_style(Style::default().fg(theme::accent_primary()));
 
         let inner = block.inner(overlay_area);
         frame.render_widget(block, overlay_area);
 
-        let label = Style::default().fg(theme::DIM_WHITE);
-        let value_style = Style::default().fg(theme::NEON_CYAN);
+        let label = Style::default().fg(theme::text_secondary());
+        let value_style = Style::default().fg(theme::accent_secondary());
         let focused_label = Style::default()
-            .fg(theme::ELECTRIC_YELLOW)
+            .fg(theme::warning())
             .add_modifier(Modifier::BOLD);
-        let enabled_style = Style::default().fg(theme::SUCCESS_GREEN);
-        let disabled_style = Style::default().fg(theme::BORDER_GRAY);
+        let enabled_style = Style::default().fg(theme::success());
+        let disabled_style = Style::default().fg(theme::border_unfocused());
 
         let mut lines = Vec::new();
 
@@ -444,7 +444,7 @@ impl NetworksScreen {
                 Span::styled(marker, lbl_style),
                 Span::styled(format!("{field_label:<14}"), lbl_style),
                 Span::styled(field_value, val_style),
-                Span::styled(cursor, Style::default().fg(theme::ELECTRIC_YELLOW)),
+                Span::styled(cursor, Style::default().fg(theme::warning())),
             ]));
         }
 
@@ -671,17 +671,18 @@ impl Component for NetworksScreen {
 
                 Row::new(vec![
                     Cell::from(format!("{prefix}{}", net.name)).style(
-                        Style::default()
-                            .fg(theme::NEON_CYAN)
-                            .add_modifier(if is_selected {
+                        Style::default().fg(theme::accent_secondary()).add_modifier(
+                            if is_selected {
                                 Modifier::BOLD
                             } else {
                                 Modifier::empty()
-                            }),
+                            },
+                        ),
                     ),
                     Cell::from(vlan),
-                    Cell::from(gateway).style(Style::default().fg(theme::CORAL)),
-                    Cell::from(subnet.to_string()).style(Style::default().fg(theme::CORAL)),
+                    Cell::from(gateway).style(Style::default().fg(theme::accent_tertiary())),
+                    Cell::from(subnet.to_string())
+                        .style(Style::default().fg(theme::accent_tertiary())),
                     Cell::from(dhcp),
                     Cell::from(mgmt),
                     Cell::from(ipv6),

@@ -182,35 +182,56 @@ impl DevicesScreen {
         let lines = vec![
             Line::from(""),
             Line::from(vec![
-                Span::styled("  State          ", Style::default().fg(theme::DIM_WHITE)),
+                Span::styled(
+                    "  State          ",
+                    Style::default().fg(theme::text_secondary()),
+                ),
                 state_span,
                 Span::styled(
                     format!(" {state_label}"),
-                    Style::default().fg(theme::DIM_WHITE),
+                    Style::default().fg(theme::text_secondary()),
                 ),
-                Span::styled("       Adopted     ", Style::default().fg(theme::DIM_WHITE)),
-                Span::styled(adopted, Style::default().fg(theme::NEON_CYAN)),
+                Span::styled(
+                    "       Adopted     ",
+                    Style::default().fg(theme::text_secondary()),
+                ),
+                Span::styled(adopted, Style::default().fg(theme::accent_secondary())),
             ]),
             Line::from(vec![
-                Span::styled("  Firmware       ", Style::default().fg(theme::DIM_WHITE)),
+                Span::styled(
+                    "  Firmware       ",
+                    Style::default().fg(theme::text_secondary()),
+                ),
                 Span::styled(
                     format!("{firmware} ({fw_status})"),
-                    Style::default().fg(theme::NEON_CYAN),
+                    Style::default().fg(theme::accent_secondary()),
                 ),
             ]),
             Line::from(vec![
-                Span::styled("  Uptime         ", Style::default().fg(theme::DIM_WHITE)),
-                Span::styled(uptime, Style::default().fg(theme::NEON_CYAN)),
+                Span::styled(
+                    "  Uptime         ",
+                    Style::default().fg(theme::text_secondary()),
+                ),
+                Span::styled(uptime, Style::default().fg(theme::accent_secondary())),
             ]),
             Line::from(vec![
-                Span::styled("  MAC            ", Style::default().fg(theme::DIM_WHITE)),
-                Span::styled(device.mac.to_string(), Style::default().fg(theme::CORAL)),
+                Span::styled(
+                    "  MAC            ",
+                    Style::default().fg(theme::text_secondary()),
+                ),
+                Span::styled(
+                    device.mac.to_string(),
+                    Style::default().fg(theme::accent_tertiary()),
+                ),
             ]),
             Line::from(vec![
-                Span::styled("  Type           ", Style::default().fg(theme::DIM_WHITE)),
+                Span::styled(
+                    "  Type           ",
+                    Style::default().fg(theme::text_secondary()),
+                ),
                 Span::styled(
                     format!("{:?}", device.device_type),
-                    Style::default().fg(theme::DIM_WHITE),
+                    Style::default().fg(theme::text_secondary()),
                 ),
             ]),
         ];
@@ -236,46 +257,46 @@ impl DevicesScreen {
         let cpu_color = device
             .stats
             .cpu_utilization_pct
-            .map_or(theme::DIM_WHITE, |v| {
+            .map_or(theme::text_secondary(), |v| {
                 if v < 50.0 {
-                    theme::SUCCESS_GREEN
+                    theme::success()
                 } else if v < 75.0 {
-                    theme::NEON_CYAN
+                    theme::accent_secondary()
                 } else if v < 90.0 {
-                    theme::ELECTRIC_YELLOW
+                    theme::warning()
                 } else {
-                    theme::ERROR_RED
+                    theme::error()
                 }
             });
 
         let mem_color = device
             .stats
             .memory_utilization_pct
-            .map_or(theme::DIM_WHITE, |v| {
+            .map_or(theme::text_secondary(), |v| {
                 if v < 50.0 {
-                    theme::SUCCESS_GREEN
+                    theme::success()
                 } else if v < 75.0 {
-                    theme::NEON_CYAN
+                    theme::accent_secondary()
                 } else if v < 90.0 {
-                    theme::ELECTRIC_YELLOW
+                    theme::warning()
                 } else {
-                    theme::ERROR_RED
+                    theme::error()
                 }
             });
 
         let lines = vec![
             Line::from(""),
             Line::from(vec![
-                Span::styled("  CPU     ", Style::default().fg(theme::DIM_WHITE)),
+                Span::styled("  CPU     ", Style::default().fg(theme::text_secondary())),
                 Span::styled(cpu, Style::default().fg(cpu_color)),
             ]),
             Line::from(vec![
-                Span::styled("  Memory  ", Style::default().fg(theme::DIM_WHITE)),
+                Span::styled("  Memory  ", Style::default().fg(theme::text_secondary())),
                 Span::styled(mem, Style::default().fg(mem_color)),
             ]),
             Line::from(vec![
-                Span::styled("  Load    ", Style::default().fg(theme::DIM_WHITE)),
-                Span::styled(load, Style::default().fg(theme::DIM_WHITE)),
+                Span::styled("  Load    ", Style::default().fg(theme::text_secondary())),
+                Span::styled(load, Style::default().fg(theme::text_secondary())),
             ]),
         ];
 
@@ -289,7 +310,7 @@ impl DevicesScreen {
         if device.radios.is_empty() {
             lines.push(Line::from(Span::styled(
                 "  No radio data available",
-                Style::default().fg(theme::BORDER_GRAY),
+                Style::default().fg(theme::border_unfocused()),
             )));
         } else {
             for radio in &device.radios {
@@ -305,12 +326,12 @@ impl DevicesScreen {
                     Span::styled(
                         format!("  {freq:<10}"),
                         Style::default()
-                            .fg(theme::NEON_CYAN)
+                            .fg(theme::accent_secondary())
                             .add_modifier(Modifier::BOLD),
                     ),
                     Span::styled(
                         format!("{ch:<8} {width}"),
-                        Style::default().fg(theme::DIM_WHITE),
+                        Style::default().fg(theme::text_secondary()),
                     ),
                 ]));
             }
@@ -326,7 +347,7 @@ impl DevicesScreen {
         if device.ports.is_empty() {
             lines.push(Line::from(Span::styled(
                 "  No port data available",
-                Style::default().fg(theme::BORDER_GRAY),
+                Style::default().fg(theme::border_unfocused()),
             )));
         } else {
             // Header
@@ -339,9 +360,9 @@ impl DevicesScreen {
                 let idx_str = port.index.to_string();
                 let name = port.name.as_deref().unwrap_or(&idx_str);
                 let state_color = match port.state {
-                    unifly_core::model::PortState::Up => theme::SUCCESS_GREEN,
-                    unifly_core::model::PortState::Down => theme::ERROR_RED,
-                    unifly_core::model::PortState::Unknown => theme::DIM_WHITE,
+                    unifly_core::model::PortState::Up => theme::success(),
+                    unifly_core::model::PortState::Down => theme::error(),
+                    unifly_core::model::PortState::Unknown => theme::text_secondary(),
                 };
                 let state_str = format!("{:?}", port.state);
                 let speed = port.speed_mbps.map_or_else(
@@ -362,14 +383,14 @@ impl DevicesScreen {
                 lines.push(Line::from(vec![
                     Span::styled(
                         format!("  {name:<6}"),
-                        Style::default().fg(theme::NEON_CYAN),
+                        Style::default().fg(theme::accent_secondary()),
                     ),
                     Span::styled(format!("{state_str:<8}"), Style::default().fg(state_color)),
                     Span::styled(
                         format!("{speed:<11}"),
-                        Style::default().fg(theme::DIM_WHITE),
+                        Style::default().fg(theme::text_secondary()),
                     ),
-                    Span::styled(poe, Style::default().fg(theme::DIM_WHITE)),
+                    Span::styled(poe, Style::default().fg(theme::text_secondary())),
                 ]));
             }
         }
@@ -559,21 +580,21 @@ impl Component for DevicesScreen {
         .split(table_area);
 
         let filter_text = if self.search_query.is_empty() {
-            Span::styled("[all]", Style::default().fg(theme::NEON_CYAN))
+            Span::styled("[all]", Style::default().fg(theme::accent_secondary()))
         } else {
             Span::styled(
                 format!("[\"{}\" ]", self.search_query),
-                Style::default().fg(theme::ELECTRIC_YELLOW),
+                Style::default().fg(theme::warning()),
             )
         };
         let filter_line = Line::from(vec![
-            Span::styled(" Filter: ", Style::default().fg(theme::DIM_WHITE)),
+            Span::styled(" Filter: ", Style::default().fg(theme::text_secondary())),
             filter_text,
-            Span::styled("  Sort: ", Style::default().fg(theme::DIM_WHITE)),
-            Span::styled("[name ↑]", Style::default().fg(theme::NEON_CYAN)),
+            Span::styled("  Sort: ", Style::default().fg(theme::text_secondary())),
+            Span::styled("[name ↑]", Style::default().fg(theme::accent_secondary())),
             Span::styled(
                 format!("  {:>width$}", format!("{shown} devices"), width = 20),
-                Style::default().fg(theme::DIM_WHITE),
+                Style::default().fg(theme::text_secondary()),
             ),
         ]);
         frame.render_widget(Paragraph::new(filter_line), header_layout[0]);
@@ -620,12 +641,12 @@ impl Component for DevicesScreen {
                     .map_or_else(|| "···".into(), bytes_fmt::fmt_uptime);
 
                 let status_color = match dev.state {
-                    DeviceState::Online => theme::SUCCESS_GREEN,
+                    DeviceState::Online => theme::success(),
                     DeviceState::Offline
                     | DeviceState::ConnectionInterrupted
-                    | DeviceState::Isolated => theme::ERROR_RED,
-                    DeviceState::PendingAdoption => theme::ELECTRIC_PURPLE,
-                    _ => theme::ELECTRIC_YELLOW,
+                    | DeviceState::Isolated => theme::error(),
+                    DeviceState::PendingAdoption => theme::accent_primary(),
+                    _ => theme::warning(),
                 };
 
                 let row_style = if is_selected {
@@ -638,16 +659,16 @@ impl Component for DevicesScreen {
                     Cell::from(format!("{prefix}{status}"))
                         .style(Style::default().fg(status_color)),
                     Cell::from(name.to_string()).style(
-                        Style::default()
-                            .fg(theme::NEON_CYAN)
-                            .add_modifier(if is_selected {
+                        Style::default().fg(theme::accent_secondary()).add_modifier(
+                            if is_selected {
                                 Modifier::BOLD
                             } else {
                                 Modifier::empty()
-                            }),
+                            },
+                        ),
                     ),
                     Cell::from(model.to_string()),
-                    Cell::from(ip).style(Style::default().fg(theme::CORAL)),
+                    Cell::from(ip).style(Style::default().fg(theme::accent_tertiary())),
                     Cell::from(cpu),
                     Cell::from(mem),
                     Cell::from(traffic),

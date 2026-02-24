@@ -9,16 +9,16 @@ use crate::theme;
 /// Returns a styled `Span` with the appropriate status dot and color.
 pub fn status_span(state: DeviceState) -> Span<'static> {
     let (symbol, color) = match state {
-        DeviceState::Online => ("●", theme::SUCCESS_GREEN),
+        DeviceState::Online => ("●", theme::success()),
         DeviceState::Offline | DeviceState::ConnectionInterrupted | DeviceState::Isolated => {
-            ("○", theme::ERROR_RED)
+            ("○", theme::error())
         }
-        DeviceState::PendingAdoption => ("◉", theme::ELECTRIC_PURPLE),
+        DeviceState::PendingAdoption => ("◉", theme::accent_primary()),
         DeviceState::Updating
         | DeviceState::GettingReady
         | DeviceState::Adopting
-        | DeviceState::Deleting => ("◐", theme::ELECTRIC_YELLOW),
-        _ => ("?", theme::DIM_WHITE),
+        | DeviceState::Deleting => ("◐", theme::warning()),
+        _ => ("?", theme::text_secondary()),
     };
     Span::styled(symbol.to_string(), Style::default().fg(color))
 }

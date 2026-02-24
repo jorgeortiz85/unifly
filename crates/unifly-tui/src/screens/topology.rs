@@ -284,16 +284,16 @@ impl Component for TopologyScreen {
             .paint(|ctx: &mut Context<'_>| {
                 for node in &nodes {
                     let border_color = match node.device_type {
-                        DeviceType::Gateway => theme::CORAL,
-                        DeviceType::Switch => theme::NEON_CYAN,
-                        DeviceType::AccessPoint => theme::ELECTRIC_PURPLE,
-                        _ => theme::DIM_WHITE,
+                        DeviceType::Gateway => theme::accent_tertiary(),
+                        DeviceType::Switch => theme::accent_secondary(),
+                        DeviceType::AccessPoint => theme::accent_primary(),
+                        _ => theme::text_secondary(),
                     };
 
                     let color = if node.state.is_online() {
                         border_color
                     } else {
-                        theme::ERROR_RED
+                        theme::error()
                     };
 
                     // Draw node rectangle
@@ -317,7 +317,10 @@ impl Component for TopologyScreen {
                         ctx.print(
                             node.x + 1.0,
                             node.y + 0.5,
-                            Span::styled(node.ip.clone(), Style::default().fg(theme::DIM_WHITE)),
+                            Span::styled(
+                                node.ip.clone(),
+                                Style::default().fg(theme::text_secondary()),
+                            ),
                         );
                     }
                 }
@@ -347,7 +350,7 @@ impl Component for TopologyScreen {
                             y1: gw_bottom,
                             x2: sw_cx,
                             y2: sw_top,
-                            color: theme::NEON_CYAN,
+                            color: theme::accent_secondary(),
                         });
                     }
                 }
@@ -364,7 +367,7 @@ impl Component for TopologyScreen {
                             y1: sw_bottom,
                             x2: ap_cx,
                             y2: ap_top,
-                            color: theme::ELECTRIC_PURPLE,
+                            color: theme::accent_primary(),
                         });
                     }
                 }

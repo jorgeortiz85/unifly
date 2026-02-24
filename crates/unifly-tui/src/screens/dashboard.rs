@@ -249,22 +249,22 @@ impl DashboardScreen {
 
         let title = Line::from(vec![
             Span::styled(" WAN Traffic ", theme::title_style()),
-            Span::styled("── ", Style::default().fg(theme::BORDER_GRAY)),
+            Span::styled("── ", Style::default().fg(theme::border_unfocused())),
             Span::styled(
                 format!("TX {} ↑", bytes_fmt::fmt_rate(current_tx)),
-                Style::default().fg(theme::NEON_CYAN),
+                Style::default().fg(theme::accent_secondary()),
             ),
             Span::styled("  ", Style::default()),
             Span::styled(
                 format!("RX {} ↓", bytes_fmt::fmt_rate(current_rx)),
-                Style::default().fg(theme::CORAL),
+                Style::default().fg(theme::accent_tertiary()),
             ),
             Span::styled(
                 format!(
                     "  Peak {} ",
                     bytes_fmt::fmt_rate(self.peak_rx.max(self.peak_tx))
                 ),
-                Style::default().fg(theme::BORDER_GRAY),
+                Style::default().fg(theme::border_unfocused()),
             ),
         ]);
 
@@ -279,7 +279,7 @@ impl DashboardScreen {
             frame.render_widget(block, area);
             frame.render_widget(
                 Paragraph::new("  Waiting for data…")
-                    .style(Style::default().fg(theme::BORDER_GRAY)),
+                    .style(Style::default().fg(theme::border_unfocused())),
                 inner,
             );
             return;
@@ -313,13 +313,13 @@ impl DashboardScreen {
         let rx_fill = Dataset::default()
             .marker(Marker::HalfBlock)
             .graph_type(GraphType::Bar)
-            .style(Style::default().fg(theme::RX_FILL))
+            .style(Style::default().fg(theme::rx_fill()))
             .data(&rx_fill_data);
 
         let tx_fill = Dataset::default()
             .marker(Marker::HalfBlock)
             .graph_type(GraphType::Bar)
-            .style(Style::default().fg(theme::TX_FILL))
+            .style(Style::default().fg(theme::tx_fill()))
             .data(&tx_fill_data);
 
         // ── Line edge datasets (Braille — rendered on top for crisp edges) ──
@@ -328,25 +328,25 @@ impl DashboardScreen {
             .name("TX")
             .marker(Marker::Braille)
             .graph_type(GraphType::Line)
-            .style(Style::default().fg(theme::NEON_CYAN))
+            .style(Style::default().fg(theme::accent_secondary()))
             .data(&self.bandwidth_tx);
 
         let rx_line = Dataset::default()
             .name("RX")
             .marker(Marker::Braille)
             .graph_type(GraphType::Line)
-            .style(Style::default().fg(theme::CORAL))
+            .style(Style::default().fg(theme::accent_tertiary()))
             .data(&self.bandwidth_rx);
 
         let y_labels = vec![
-            Span::styled("0", Style::default().fg(theme::BORDER_GRAY)),
+            Span::styled("0", Style::default().fg(theme::border_unfocused())),
             Span::styled(
                 bytes_fmt::fmt_rate_axis(y_max / 2.0),
-                Style::default().fg(theme::BORDER_GRAY),
+                Style::default().fg(theme::border_unfocused()),
             ),
             Span::styled(
                 bytes_fmt::fmt_rate_axis(y_max),
-                Style::default().fg(theme::BORDER_GRAY),
+                Style::default().fg(theme::border_unfocused()),
             ),
         ];
 
@@ -356,13 +356,13 @@ impl DashboardScreen {
             .x_axis(
                 Axis::default()
                     .bounds([x_min, x_max])
-                    .style(Style::default().fg(theme::BORDER_GRAY)),
+                    .style(Style::default().fg(theme::border_unfocused())),
             )
             .y_axis(
                 Axis::default()
                     .bounds([0.0, y_max])
                     .labels(y_labels)
-                    .style(Style::default().fg(theme::BORDER_GRAY)),
+                    .style(Style::default().fg(theme::border_unfocused())),
             );
 
         frame.render_widget(chart, area);
@@ -458,18 +458,18 @@ impl DashboardScreen {
             let fw = gw_version.or(gw.firmware_version.as_deref()).unwrap_or("─");
             let header = truncate_text(&format!("{model} ({fw})"), w.saturating_sub(4));
             lines.push(Line::from(vec![
-                Span::styled(" ◈ ", Style::default().fg(theme::ELECTRIC_PURPLE)),
+                Span::styled(" ◈ ", Style::default().fg(theme::accent_primary())),
                 Span::styled(
                     header,
                     Style::default()
-                        .fg(theme::NEON_CYAN)
+                        .fg(theme::accent_secondary())
                         .add_modifier(Modifier::BOLD),
                 ),
             ]));
         } else {
             lines.push(Line::from(Span::styled(
                 " No gateway",
-                Style::default().fg(theme::BORDER_GRAY),
+                Style::default().fg(theme::border_unfocused()),
             )));
         }
         lines.push(Line::from(""));
@@ -480,7 +480,7 @@ impl DashboardScreen {
             Line::from(vec![
                 Span::styled(
                     format!(" {label:<5}"),
-                    Style::default().fg(theme::DIM_WHITE),
+                    Style::default().fg(theme::text_secondary()),
                 ),
                 Span::styled(shown, Style::default().fg(color)),
             ])
@@ -489,32 +489,32 @@ impl DashboardScreen {
         lines.push(kv(
             "WAN",
             &wan_ip.unwrap_or_else(|| "─".into()),
-            theme::CORAL,
+            theme::accent_tertiary(),
         ));
         lines.push(kv(
             "IPv6",
             wan_ipv6.as_deref().unwrap_or("─"),
-            theme::LIGHT_BLUE,
+            theme::info(),
         ));
 
         if let Some(gw) = gw_ip {
-            lines.push(kv("GW", gw, theme::DIM_WHITE));
+            lines.push(kv("GW", gw, theme::text_secondary()));
         }
         if let Some(ref d) = dns {
-            lines.push(kv("DNS", d, theme::DIM_WHITE));
+            lines.push(kv("DNS", d, theme::text_secondary()));
         }
         if let Some(isp) = isp_name {
-            lines.push(kv("ISP", isp, theme::DIM_WHITE));
+            lines.push(kv("ISP", isp, theme::text_secondary()));
         }
 
         // Latency + Uptime on one line
         let lat_str = latency.map_or_else(|| "─".into(), |l| format!("{l:.0}ms"));
         let up_str = uptime.map_or_else(|| "─".into(), bytes_fmt::fmt_uptime);
         lines.push(Line::from(vec![
-            Span::styled(" Lat  ", Style::default().fg(theme::DIM_WHITE)),
-            Span::styled(lat_str, Style::default().fg(theme::NEON_CYAN)),
-            Span::styled("   Up ", Style::default().fg(theme::DIM_WHITE)),
-            Span::styled(up_str, Style::default().fg(theme::NEON_CYAN)),
+            Span::styled(" Lat  ", Style::default().fg(theme::text_secondary())),
+            Span::styled(lat_str, Style::default().fg(theme::accent_secondary())),
+            Span::styled("   Up ", Style::default().fg(theme::text_secondary())),
+            Span::styled(up_str, Style::default().fg(theme::accent_secondary())),
         ]));
 
         frame.render_widget(Paragraph::new(lines), inner);
@@ -544,10 +544,10 @@ impl DashboardScreen {
                 .find(|h| h.subsystem == sub)
                 .map(|h| h.status.as_str())
             {
-                Some("ok") => theme::SUCCESS_GREEN,
-                Some("warn" | "warning") => theme::ELECTRIC_YELLOW,
-                Some("error") => theme::ERROR_RED,
-                _ => theme::BORDER_GRAY,
+                Some("ok") => theme::success(),
+                Some("warn" | "warning") => theme::warning(),
+                Some("error") => theme::error(),
+                _ => theme::border_unfocused(),
             }
         };
 
@@ -574,7 +574,7 @@ impl DashboardScreen {
             let dot_color = status_color(sub);
             primary.push(Span::styled(
                 sub.to_uppercase(),
-                Style::default().fg(theme::DIM_WHITE),
+                Style::default().fg(theme::text_secondary()),
             ));
             primary.push(Span::styled(" ●", Style::default().fg(dot_color)));
             primary.push(Span::styled(
@@ -592,7 +592,7 @@ impl DashboardScreen {
             let dot_color = status_color(sub);
             secondary.push(Span::styled(
                 sub.to_uppercase(),
-                Style::default().fg(theme::DIM_WHITE),
+                Style::default().fg(theme::text_secondary()),
             ));
             secondary.push(Span::styled(" ●", Style::default().fg(dot_color)));
             secondary.push(Span::styled(
@@ -635,14 +635,14 @@ impl DashboardScreen {
             lines.push(Line::from(vec![
                 Span::styled(
                     format!(" {label:<5}"),
-                    Style::default().fg(theme::DIM_WHITE),
+                    Style::default().fg(theme::text_secondary()),
                 ),
                 Span::styled(bar, Style::default().fg(status_color(sub))),
                 Span::raw(" "),
                 Span::styled(
                     truncate_text(&rate, content_w.saturating_sub(8 + usize::from(bar_width))),
                     Style::default()
-                        .fg(theme::NEON_CYAN)
+                        .fg(theme::accent_secondary())
                         .add_modifier(Modifier::BOLD),
                 ),
             ]));
@@ -660,10 +660,10 @@ impl DashboardScreen {
             fmt_rate_compact(total_rx)
         );
         lines.push(Line::from(vec![
-            Span::styled(" Total", Style::default().fg(theme::DIM_WHITE)),
+            Span::styled(" Total", Style::default().fg(theme::text_secondary())),
             Span::styled(
                 format!(" {}", truncate_text(&aggregate, content_w)),
-                Style::default().fg(theme::LIGHT_BLUE),
+                Style::default().fg(theme::info()),
             ),
         ]));
 
@@ -689,12 +689,18 @@ impl DashboardScreen {
             content_w,
         );
         lines.push(Line::from(vec![
-            Span::styled(" Infra", Style::default().fg(theme::DIM_WHITE)),
-            Span::styled(format!(" {infra}"), Style::default().fg(theme::NEON_CYAN)),
+            Span::styled(" Infra", Style::default().fg(theme::text_secondary())),
+            Span::styled(
+                format!(" {infra}"),
+                Style::default().fg(theme::accent_secondary()),
+            ),
         ]));
         lines.push(Line::from(vec![
-            Span::styled(" Cli  ", Style::default().fg(theme::DIM_WHITE)),
-            Span::styled(format!(" {clients}"), Style::default().fg(theme::NEON_CYAN)),
+            Span::styled(" Cli  ", Style::default().fg(theme::text_secondary())),
+            Span::styled(
+                format!(" {clients}"),
+                Style::default().fg(theme::accent_secondary()),
+            ),
         ]));
 
         frame.render_widget(Paragraph::new(lines), inner);
@@ -722,11 +728,11 @@ impl DashboardScreen {
 
         let pct_bar_color = |pct: f64| -> ratatui::style::Color {
             if pct > 80.0 {
-                theme::ERROR_RED
+                theme::error()
             } else if pct > 50.0 {
-                theme::ELECTRIC_YELLOW
+                theme::warning()
             } else {
-                theme::NEON_CYAN
+                theme::accent_secondary()
             }
         };
 
@@ -737,22 +743,22 @@ impl DashboardScreen {
                 Line::from(vec![
                     Span::styled(
                         format!(" {label:<4}"),
-                        Style::default().fg(theme::DIM_WHITE),
+                        Style::default().fg(theme::text_secondary()),
                     ),
                     Span::styled(filled, Style::default().fg(pct_bar_color(pct))),
-                    Span::styled(empty, Style::default().fg(theme::BORDER_GRAY)),
+                    Span::styled(empty, Style::default().fg(theme::border_unfocused())),
                     Span::styled(
                         format!(" {pct:>5.1}%"),
-                        Style::default().fg(theme::DIM_WHITE),
+                        Style::default().fg(theme::text_secondary()),
                     ),
                 ])
             } else {
                 Line::from(vec![
                     Span::styled(
                         format!(" {label:<4}"),
-                        Style::default().fg(theme::DIM_WHITE),
+                        Style::default().fg(theme::text_secondary()),
                     ),
-                    Span::styled("─", Style::default().fg(theme::BORDER_GRAY)),
+                    Span::styled("─", Style::default().fg(theme::border_unfocused())),
                 ])
             };
             lines.push(line);
@@ -770,8 +776,8 @@ impl DashboardScreen {
             ) {
                 let load = truncate_text(&format!("{l1:.2} / {l5:.2} / {l15:.2}"), content_w);
                 lines.push(Line::from(vec![
-                    Span::styled(" Load ", Style::default().fg(theme::DIM_WHITE)),
-                    Span::styled(load, Style::default().fg(theme::NEON_CYAN)),
+                    Span::styled(" Load ", Style::default().fg(theme::text_secondary())),
+                    Span::styled(load, Style::default().fg(theme::accent_secondary())),
                 ]));
             }
         }
@@ -804,12 +810,12 @@ impl DashboardScreen {
         );
 
         lines.push(Line::from(vec![
-            Span::styled(" Dev  ", Style::default().fg(theme::DIM_WHITE)),
-            Span::styled(dev_summary, Style::default().fg(theme::NEON_CYAN)),
+            Span::styled(" Dev  ", Style::default().fg(theme::text_secondary())),
+            Span::styled(dev_summary, Style::default().fg(theme::accent_secondary())),
         ]));
         lines.push(Line::from(vec![
-            Span::styled(" Cli  ", Style::default().fg(theme::DIM_WHITE)),
-            Span::styled(cli_summary, Style::default().fg(theme::NEON_CYAN)),
+            Span::styled(" Cli  ", Style::default().fg(theme::text_secondary())),
+            Span::styled(cli_summary, Style::default().fg(theme::accent_secondary())),
         ]));
 
         frame.render_widget(Paragraph::new(lines), inner);
@@ -829,7 +835,8 @@ impl DashboardScreen {
 
         if self.networks.is_empty() {
             frame.render_widget(
-                Paragraph::new("  No networks").style(Style::default().fg(theme::BORDER_GRAY)),
+                Paragraph::new("  No networks")
+                    .style(Style::default().fg(theme::border_unfocused())),
                 inner,
             );
             return;
@@ -867,12 +874,18 @@ impl DashboardScreen {
                 Span::styled(
                     format!(" {name:<8}"),
                     Style::default()
-                        .fg(theme::NEON_CYAN)
+                        .fg(theme::accent_secondary())
                         .add_modifier(Modifier::BOLD),
                 ),
-                Span::styled(format!("{vlan:<3}"), Style::default().fg(theme::CORAL)),
-                Span::styled(subnet.to_string(), Style::default().fg(theme::DIM_WHITE)),
-                Span::styled(client_str, Style::default().fg(theme::ELECTRIC_YELLOW)),
+                Span::styled(
+                    format!("{vlan:<3}"),
+                    Style::default().fg(theme::accent_tertiary()),
+                ),
+                Span::styled(
+                    subnet.to_string(),
+                    Style::default().fg(theme::text_secondary()),
+                ),
+                Span::styled(client_str, Style::default().fg(theme::warning())),
             ]));
 
             // IPv6 sub-line (compact)
@@ -897,10 +910,10 @@ impl DashboardScreen {
                 };
 
                 lines.push(Line::from(vec![
-                    Span::styled(" ⬡ ", Style::default().fg(theme::BORDER_GRAY)),
+                    Span::styled(" ⬡ ", Style::default().fg(theme::border_unfocused())),
                     Span::styled(
                         format!("{mode} {prefix}{extras_str}"),
-                        Style::default().fg(theme::LIGHT_BLUE),
+                        Style::default().fg(theme::info()),
                     ),
                 ]));
             }
@@ -929,7 +942,7 @@ impl DashboardScreen {
 
         if aps.is_empty() {
             frame.render_widget(
-                Paragraph::new("  No APs").style(Style::default().fg(theme::BORDER_GRAY)),
+                Paragraph::new("  No APs").style(Style::default().fg(theme::border_unfocused())),
                 inner,
             );
             return;
@@ -962,19 +975,19 @@ impl DashboardScreen {
             Span::styled(
                 format!(" {:<name_width$}", "AP"),
                 Style::default()
-                    .fg(theme::BORDER_GRAY)
+                    .fg(theme::border_unfocused())
                     .add_modifier(Modifier::BOLD),
             ),
             Span::styled(
                 format!("{:>cli_col$}", "Cli"),
                 Style::default()
-                    .fg(theme::BORDER_GRAY)
+                    .fg(theme::border_unfocused())
                     .add_modifier(Modifier::BOLD),
             ),
             Span::styled(
                 format!("{:>exp_col$}", "Exp"),
                 Style::default()
-                    .fg(theme::BORDER_GRAY)
+                    .fg(theme::border_unfocused())
                     .add_modifier(Modifier::BOLD),
             ),
         ];
@@ -982,7 +995,7 @@ impl DashboardScreen {
             hdr.push(Span::styled(
                 format!(" {:<chan_width$}", "Chan"),
                 Style::default()
-                    .fg(theme::BORDER_GRAY)
+                    .fg(theme::border_unfocused())
                     .add_modifier(Modifier::BOLD),
             ));
         }
@@ -1051,11 +1064,11 @@ impl DashboardScreen {
 
             let exp_color = |e: u32| -> ratatui::style::Color {
                 if e >= 80 {
-                    theme::SUCCESS_GREEN
+                    theme::success()
                 } else if e >= 50 {
-                    theme::ELECTRIC_YELLOW
+                    theme::warning()
                 } else {
-                    theme::ERROR_RED
+                    theme::error()
                 }
             };
 
@@ -1063,12 +1076,12 @@ impl DashboardScreen {
                 Span::styled(
                     format!(" {ap_name:<name_width$}"),
                     Style::default()
-                        .fg(theme::NEON_CYAN)
+                        .fg(theme::accent_secondary())
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
                     format!("{cli:>cli_col$}"),
-                    Style::default().fg(theme::ELECTRIC_YELLOW),
+                    Style::default().fg(theme::warning()),
                 ),
             ];
 
@@ -1080,14 +1093,14 @@ impl DashboardScreen {
             } else {
                 spans.push(Span::styled(
                     format!("{:>exp_col$}", "─"),
-                    Style::default().fg(theme::BORDER_GRAY),
+                    Style::default().fg(theme::border_unfocused()),
                 ));
             }
 
             if chan_width >= 4 {
                 spans.push(Span::styled(
                     format!(" {ch_str}"),
-                    Style::default().fg(theme::BORDER_GRAY),
+                    Style::default().fg(theme::border_unfocused()),
                 ));
             }
 
@@ -1164,12 +1177,12 @@ impl DashboardScreen {
             lines.push(Line::from(vec![
                 Span::styled(
                     format!(" {display_name:<name_width$}"),
-                    Style::default().fg(theme::NEON_CYAN),
+                    Style::default().fg(theme::accent_secondary()),
                 ),
-                Span::styled(bar, Style::default().fg(theme::ELECTRIC_PURPLE)),
+                Span::styled(bar, Style::default().fg(theme::accent_primary())),
                 Span::styled(
                     format!(" {traffic:>6}"),
-                    Style::default().fg(theme::DIM_WHITE),
+                    Style::default().fg(theme::text_secondary()),
                 ),
             ]));
         }
@@ -1177,7 +1190,7 @@ impl DashboardScreen {
         if lines.is_empty() {
             lines.push(Line::from(Span::styled(
                 "  No clients",
-                Style::default().fg(theme::BORDER_GRAY),
+                Style::default().fg(theme::border_unfocused()),
             )));
         }
 
@@ -1192,7 +1205,7 @@ impl DashboardScreen {
         let footer = if event_count > 0 {
             Line::from(vec![Span::styled(
                 format!(" ↓ {event_count} event log "),
-                Style::default().fg(theme::BORDER_GRAY),
+                Style::default().fg(theme::border_unfocused()),
             )])
         } else {
             Line::from("")
@@ -1215,19 +1228,19 @@ impl DashboardScreen {
         let format_event = |evt: &Event, max_msg_width: usize| -> Vec<Span<'static>> {
             let time_str = evt.timestamp.format("%H:%M").to_string();
             let severity_color = match evt.severity {
-                EventSeverity::Error | EventSeverity::Critical => theme::ERROR_RED,
-                EventSeverity::Warning => theme::ELECTRIC_YELLOW,
-                EventSeverity::Info => theme::NEON_CYAN,
-                _ => theme::DIM_WHITE,
+                EventSeverity::Error | EventSeverity::Critical => theme::error(),
+                EventSeverity::Warning => theme::warning(),
+                EventSeverity::Info => theme::accent_secondary(),
+                _ => theme::text_secondary(),
             };
             let dot_color = match evt.severity {
-                EventSeverity::Error | EventSeverity::Critical => theme::ERROR_RED,
-                EventSeverity::Warning => theme::ELECTRIC_YELLOW,
-                _ => theme::SUCCESS_GREEN,
+                EventSeverity::Error | EventSeverity::Critical => theme::error(),
+                EventSeverity::Warning => theme::warning(),
+                _ => theme::success(),
             };
             let msg: String = evt.message.chars().take(max_msg_width).collect();
             vec![
-                Span::styled(time_str, Style::default().fg(theme::ELECTRIC_YELLOW)),
+                Span::styled(time_str, Style::default().fg(theme::warning())),
                 Span::styled(" ● ", Style::default().fg(dot_color)),
                 Span::styled(msg, Style::default().fg(severity_color)),
             ]
@@ -1237,7 +1250,7 @@ impl DashboardScreen {
         if recent.is_empty() {
             lines.push(Line::from(Span::styled(
                 " No events",
-                Style::default().fg(theme::BORDER_GRAY),
+                Style::default().fg(theme::border_unfocused()),
             )));
         } else if wide {
             // Two events per line
@@ -1330,7 +1343,7 @@ impl Component for DashboardScreen {
             Span::styled(" UniFi Dashboard ", theme::title_style()),
             Span::styled(
                 format!(" [{refresh_str}] "),
-                Style::default().fg(theme::BORDER_GRAY),
+                Style::default().fg(theme::border_unfocused()),
             ),
         ]);
 

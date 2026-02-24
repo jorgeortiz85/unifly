@@ -978,6 +978,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dirs"
+version = "6.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c3e8aa94d75141228480295a7d0e7feb620b1a5ad9f12bc40be62411e38cce4e"
+dependencies = [
+ "dirs-sys",
+]
+
+[[package]]
 name = "dirs-sys"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2169,6 +2178,18 @@ name = "once_cell_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
+
+[[package]]
+name = "opaline"
+version = "0.1.0"
+dependencies = [
+ "dirs",
+ "parking_lot",
+ "ratatui-core",
+ "serde",
+ "thiserror 2.0.18",
+ "toml 0.8.23",
+]
 
 [[package]]
 name = "option-ext"
@@ -4226,6 +4247,7 @@ dependencies = [
  "humantime",
  "indexmap",
  "insta",
+ "opaline",
  "pretty_assertions",
  "ratatui 0.30.0",
  "ratatui-macros",

@@ -125,7 +125,7 @@ impl StatsScreen {
             frame.render_widget(block, area);
             frame.render_widget(
                 Paragraph::new("  No bandwidth data yet")
-                    .style(Style::default().fg(theme::BORDER_GRAY)),
+                    .style(Style::default().fg(theme::border_unfocused())),
                 inner,
             );
             return;
@@ -164,13 +164,13 @@ impl StatsScreen {
         let rx_fill = Dataset::default()
             .marker(Marker::HalfBlock)
             .graph_type(GraphType::Bar)
-            .style(Style::default().fg(theme::RX_FILL))
+            .style(Style::default().fg(theme::rx_fill()))
             .data(&rx_fill_data);
 
         let tx_fill = Dataset::default()
             .marker(Marker::HalfBlock)
             .graph_type(GraphType::Bar)
-            .style(Style::default().fg(theme::TX_FILL))
+            .style(Style::default().fg(theme::tx_fill()))
             .data(&tx_fill_data);
 
         // ── Line edge datasets (Braille — rendered on top for crisp edges) ──
@@ -178,25 +178,25 @@ impl StatsScreen {
             .name("TX")
             .marker(Marker::Braille)
             .graph_type(GraphType::Line)
-            .style(Style::default().fg(theme::NEON_CYAN))
+            .style(Style::default().fg(theme::accent_secondary()))
             .data(&self.bandwidth_tx);
 
         let rx_line = Dataset::default()
             .name("RX")
             .marker(Marker::Braille)
             .graph_type(GraphType::Line)
-            .style(Style::default().fg(theme::CORAL))
+            .style(Style::default().fg(theme::accent_tertiary()))
             .data(&self.bandwidth_rx);
 
         let y_labels = vec![
-            Span::styled("0", Style::default().fg(theme::BORDER_GRAY)),
+            Span::styled("0", Style::default().fg(theme::border_unfocused())),
             Span::styled(
                 bytes_fmt::fmt_rate_axis(y_max / 2.0),
-                Style::default().fg(theme::BORDER_GRAY),
+                Style::default().fg(theme::border_unfocused()),
             ),
             Span::styled(
                 bytes_fmt::fmt_rate_axis(y_max),
-                Style::default().fg(theme::BORDER_GRAY),
+                Style::default().fg(theme::border_unfocused()),
             ),
         ];
 
@@ -206,13 +206,13 @@ impl StatsScreen {
             .x_axis(
                 Axis::default()
                     .bounds([x_min, x_max])
-                    .style(Style::default().fg(theme::BORDER_GRAY)),
+                    .style(Style::default().fg(theme::border_unfocused())),
             )
             .y_axis(
                 Axis::default()
                     .bounds([0.0, y_max])
                     .labels(y_labels)
-                    .style(Style::default().fg(theme::BORDER_GRAY)),
+                    .style(Style::default().fg(theme::border_unfocused())),
             );
 
         frame.render_widget(chart, area);
@@ -232,7 +232,7 @@ impl StatsScreen {
             frame.render_widget(block, area);
             frame.render_widget(
                 Paragraph::new("  No client data yet")
-                    .style(Style::default().fg(theme::BORDER_GRAY)),
+                    .style(Style::default().fg(theme::border_unfocused())),
                 inner,
             );
             return;
@@ -251,19 +251,19 @@ impl StatsScreen {
             .name("Clients")
             .marker(Marker::Braille)
             .graph_type(GraphType::Line)
-            .style(Style::default().fg(theme::ELECTRIC_PURPLE))
+            .style(Style::default().fg(theme::accent_primary()))
             .data(&self.client_counts);
 
         let chart = Chart::new(vec![dataset])
             .block(block)
             .x_axis(
                 Axis::default()
-                    .style(Style::default().fg(theme::BORDER_GRAY))
+                    .style(Style::default().fg(theme::border_unfocused()))
                     .bounds([x_min, x_max]),
             )
             .y_axis(
                 Axis::default()
-                    .style(Style::default().fg(theme::BORDER_GRAY))
+                    .style(Style::default().fg(theme::border_unfocused()))
                     .bounds([0.0, y_max.max(1.0)]),
             );
 
@@ -291,7 +291,7 @@ impl StatsScreen {
         if self.dpi_apps.is_empty() {
             frame.render_widget(
                 Paragraph::new("  No DPI data available")
-                    .style(Style::default().fg(theme::BORDER_GRAY)),
+                    .style(Style::default().fg(theme::border_unfocused())),
                 inner,
             );
             return;
@@ -299,7 +299,7 @@ impl StatsScreen {
 
         let max_rows = inner.height as usize;
         let bar_budget = inner.width.saturating_sub(26) as usize;
-        let colors = theme::CHART_SERIES;
+        let colors = theme::chart_series();
 
         // Scale bars relative to the largest app
         let max_bytes = self.dpi_apps.first().map_or(1, |(_, b)| *b).max(1);
@@ -316,12 +316,12 @@ impl StatsScreen {
             lines.push(Line::from(vec![
                 Span::styled(
                     format!("  {display_name:<14} "),
-                    Style::default().fg(theme::DIM_WHITE),
+                    Style::default().fg(theme::text_secondary()),
                 ),
                 Span::styled(bar, Style::default().fg(color)),
                 Span::styled(
                     format!(" {bytes_str:>6}"),
-                    Style::default().fg(theme::DIM_WHITE),
+                    Style::default().fg(theme::text_secondary()),
                 ),
             ]));
         }
@@ -349,7 +349,8 @@ impl StatsScreen {
 
         if self.dpi_categories.is_empty() {
             frame.render_widget(
-                Paragraph::new("  No category data").style(Style::default().fg(theme::BORDER_GRAY)),
+                Paragraph::new("  No category data")
+                    .style(Style::default().fg(theme::border_unfocused())),
                 inner,
             );
             return;
@@ -357,7 +358,7 @@ impl StatsScreen {
 
         let max_rows = inner.height as usize;
         let bar_budget = inner.width.saturating_sub(22) as usize;
-        let colors = theme::CHART_SERIES;
+        let colors = theme::chart_series();
         let total_bytes: u64 = self.dpi_categories.iter().map(|(_, b)| *b).sum();
 
         let mut lines = Vec::new();
@@ -375,12 +376,12 @@ impl StatsScreen {
             lines.push(Line::from(vec![
                 Span::styled(
                     format!("  {display_name:<12} "),
-                    Style::default().fg(theme::DIM_WHITE),
+                    Style::default().fg(theme::text_secondary()),
                 ),
                 Span::styled(bar, Style::default().fg(color)),
                 Span::styled(
                     format!(" {pct:>4.0}%"),
-                    Style::default().fg(theme::DIM_WHITE),
+                    Style::default().fg(theme::text_secondary()),
                 ),
             ]));
         }

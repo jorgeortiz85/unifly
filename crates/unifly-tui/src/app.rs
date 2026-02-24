@@ -994,9 +994,12 @@ impl App {
     fn render_status_bar(&self, frame: &mut Frame, area: Rect) {
         if self.search_active {
             let line = Line::from(vec![
-                Span::styled(" / ", Style::default().fg(theme::ELECTRIC_PURPLE)),
-                Span::styled(&self.search_query, Style::default().fg(theme::NEON_CYAN)),
-                Span::styled("█", Style::default().fg(theme::NEON_CYAN)),
+                Span::styled(" / ", Style::default().fg(theme::accent_primary())),
+                Span::styled(
+                    &self.search_query,
+                    Style::default().fg(theme::accent_secondary()),
+                ),
+                Span::styled("█", Style::default().fg(theme::accent_secondary())),
                 Span::styled("  Esc cancel  Enter submit", theme::key_hint()),
             ]);
             frame.render_widget(Paragraph::new(line), area);
@@ -1005,17 +1008,16 @@ impl App {
 
         let connection_indicator = match &self.connection_status {
             ConnectionStatus::Connected => {
-                Span::styled("● connected", Style::default().fg(theme::SUCCESS_GREEN))
+                Span::styled("● connected", Style::default().fg(theme::success()))
             }
             ConnectionStatus::Disconnected => {
-                Span::styled("○ disconnected", Style::default().fg(theme::ERROR_RED))
+                Span::styled("○ disconnected", Style::default().fg(theme::error()))
             }
-            ConnectionStatus::Reconnecting => Span::styled(
-                "◐ reconnecting",
-                Style::default().fg(theme::ELECTRIC_YELLOW),
-            ),
+            ConnectionStatus::Reconnecting => {
+                Span::styled("◐ reconnecting", Style::default().fg(theme::warning()))
+            }
             ConnectionStatus::Connecting => {
-                Span::styled("◐ connecting", Style::default().fg(theme::ELECTRIC_YELLOW))
+                Span::styled("◐ connecting", Style::default().fg(theme::warning()))
             }
         };
 
@@ -1032,7 +1034,7 @@ impl App {
         // Dim the entire screen behind the overlay
         frame.render_widget(Clear, area);
         frame.render_widget(
-            Block::default().style(Style::default().bg(theme::BG_DARK)),
+            Block::default().style(Style::default().bg(theme::bg_base())),
             area,
         );
 
@@ -1058,7 +1060,7 @@ impl App {
             Line::from(""),
             Line::from(vec![Span::styled(
                 "  Navigation",
-                Style::default().fg(theme::NEON_CYAN),
+                Style::default().fg(theme::accent_secondary()),
             )]),
             Line::from(Span::styled("  ─────────────", theme::key_hint())),
             Line::from(vec![
@@ -1096,7 +1098,7 @@ impl App {
             Line::from(""),
             Line::from(vec![Span::styled(
                 "  Global",
-                Style::default().fg(theme::NEON_CYAN),
+                Style::default().fg(theme::accent_secondary()),
             )]),
             Line::from(Span::styled("  ──────────────", theme::key_hint())),
             Line::from(vec![
@@ -1134,7 +1136,7 @@ impl App {
         // Dim the entire screen behind the dialog
         frame.render_widget(Clear, area);
         frame.render_widget(
-            Block::default().style(Style::default().bg(theme::BG_DARK)),
+            Block::default().style(Style::default().bg(theme::bg_base())),
             area,
         );
 
@@ -1150,7 +1152,7 @@ impl App {
             .title_style(theme::title_style())
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
-            .border_style(Style::default().fg(theme::ELECTRIC_YELLOW));
+            .border_style(Style::default().fg(theme::warning()));
 
         let inner = block.inner(dialog_area);
         frame.render_widget(block, dialog_area);
@@ -1158,7 +1160,7 @@ impl App {
         let text = vec![
             Line::from(Span::styled(
                 format!("  {confirm}"),
-                Style::default().fg(theme::DIM_WHITE),
+                Style::default().fg(theme::text_secondary()),
             )),
             Line::from(""),
             Line::from(vec![
@@ -1185,14 +1187,14 @@ impl App {
         let toast_area = Rect::new(area.x + x, area.y + y, width, height);
 
         let (border_color, icon) = match notif.level {
-            NotificationLevel::Success => (theme::SUCCESS_GREEN, "✓"),
-            NotificationLevel::Error => (theme::ERROR_RED, "✗"),
-            NotificationLevel::Warning => (theme::ELECTRIC_YELLOW, "!"),
-            NotificationLevel::Info => (theme::NEON_CYAN, "·"),
+            NotificationLevel::Success => (theme::success(), "✓"),
+            NotificationLevel::Error => (theme::error(), "✗"),
+            NotificationLevel::Warning => (theme::warning(), "!"),
+            NotificationLevel::Info => (theme::accent_secondary(), "·"),
         };
 
         frame.render_widget(
-            Block::default().style(Style::default().bg(theme::BG_DARK)),
+            Block::default().style(Style::default().bg(theme::bg_base())),
             toast_area,
         );
 
@@ -1206,7 +1208,7 @@ impl App {
 
         let line = Line::from(vec![
             Span::styled(format!(" {icon} "), Style::default().fg(border_color)),
-            Span::styled(&notif.message, Style::default().fg(theme::DIM_WHITE)),
+            Span::styled(&notif.message, Style::default().fg(theme::text_secondary())),
         ]);
         frame.render_widget(Paragraph::new(line), inner);
     }

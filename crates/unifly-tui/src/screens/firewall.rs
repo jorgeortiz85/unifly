@@ -122,9 +122,9 @@ impl FirewallScreen {
                 let enabled = if policy.enabled { "✓" } else { "✗" };
                 let action_str = format!("{:?}", policy.action);
                 let action_color = match policy.action {
-                    unifly_core::model::FirewallAction::Allow => theme::SUCCESS_GREEN,
-                    unifly_core::model::FirewallAction::Block => theme::ERROR_RED,
-                    unifly_core::model::FirewallAction::Reject => theme::CORAL,
+                    unifly_core::model::FirewallAction::Allow => theme::success(),
+                    unifly_core::model::FirewallAction::Block => theme::error(),
+                    unifly_core::model::FirewallAction::Reject => theme::accent_tertiary(),
                 };
                 let protocol = policy.protocol_summary.as_deref().unwrap_or("Any");
                 let src = policy.source_summary.as_deref().unwrap_or("─");
@@ -139,18 +139,18 @@ impl FirewallScreen {
                 Row::new(vec![
                     Cell::from(format!("{prefix}{idx}")),
                     Cell::from(enabled.to_string()).style(Style::default().fg(if policy.enabled {
-                        theme::SUCCESS_GREEN
+                        theme::success()
                     } else {
-                        theme::BORDER_GRAY
+                        theme::border_unfocused()
                     })),
                     Cell::from(policy.name.clone()).style(
-                        Style::default()
-                            .fg(theme::NEON_CYAN)
-                            .add_modifier(if is_selected {
+                        Style::default().fg(theme::accent_secondary()).add_modifier(
+                            if is_selected {
                                 Modifier::BOLD
                             } else {
                                 Modifier::empty()
-                            }),
+                            },
+                        ),
                     ),
                     Cell::from(action_str).style(Style::default().fg(action_color)),
                     Cell::from(protocol.to_string()),
@@ -203,13 +203,13 @@ impl FirewallScreen {
 
                 Row::new(vec![
                     Cell::from(format!("{prefix}{}", zone.name)).style(
-                        Style::default()
-                            .fg(theme::NEON_CYAN)
-                            .add_modifier(if is_selected {
+                        Style::default().fg(theme::accent_secondary()).add_modifier(
+                            if is_selected {
                                 Modifier::BOLD
                             } else {
                                 Modifier::empty()
-                            }),
+                            },
+                        ),
                     ),
                     Cell::from(format!("{net_count} networks")),
                 ])
@@ -249,8 +249,8 @@ impl FirewallScreen {
                 let rule_type = format!("{:?}", rule.rule_type);
                 let action_str = format!("{:?}", rule.action);
                 let action_color = match rule.action {
-                    unifly_core::model::AclAction::Allow => theme::SUCCESS_GREEN,
-                    unifly_core::model::AclAction::Block => theme::ERROR_RED,
+                    unifly_core::model::AclAction::Allow => theme::success(),
+                    unifly_core::model::AclAction::Block => theme::error(),
                 };
                 let src = rule.source_summary.as_deref().unwrap_or("─");
                 let dst = rule.destination_summary.as_deref().unwrap_or("─");
@@ -263,13 +263,13 @@ impl FirewallScreen {
 
                 Row::new(vec![
                     Cell::from(format!("{prefix}{}", rule.name)).style(
-                        Style::default()
-                            .fg(theme::NEON_CYAN)
-                            .add_modifier(if is_selected {
+                        Style::default().fg(theme::accent_secondary()).add_modifier(
+                            if is_selected {
                                 Modifier::BOLD
                             } else {
                                 Modifier::empty()
-                            }),
+                            },
+                        ),
                     ),
                     Cell::from(enabled.to_string()),
                     Cell::from(rule_type),

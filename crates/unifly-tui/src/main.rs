@@ -18,6 +18,7 @@ mod data_bridge;
 mod event;
 mod screen;
 mod screens;
+#[allow(dead_code)]
 mod theme;
 mod tui;
 mod widgets;
@@ -54,6 +55,10 @@ struct Cli {
     /// Config profile to use (defaults to the default_profile in config)
     #[arg(short = 'p', long, env = "UNIFI_PROFILE")]
     profile: Option<String>,
+
+    /// Theme name (e.g., nord, dracula, silkcircuit-neon)
+    #[arg(long, env = "UNIFLY_THEME")]
+    theme: Option<String>,
 
     /// Accept self-signed TLS certificates
     #[arg(short = 'k', long, env = "UNIFI_INSECURE")]
@@ -209,6 +214,13 @@ async fn main() -> Result<()> {
 
     // Tracing to file — hold the guard so logs flush on exit
     let _log_guard = setup_tracing(&cli);
+
+    // Initialize theme: CLI flag > config file > default
+    let config_theme = unifly_config::load_config()
+        .ok()
+        .and_then(|c| c.defaults.theme);
+    let theme_name = cli.theme.as_deref().or(config_theme.as_deref());
+    theme::initialize(theme_name);
 
     info!(
         url = cli.url.as_deref().unwrap_or("(not set)"),

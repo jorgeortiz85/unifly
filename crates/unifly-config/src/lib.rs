@@ -85,6 +85,10 @@ pub struct Defaults {
 
     #[serde(default = "default_timeout")]
     pub timeout: u64,
+
+    /// Theme name for the TUI (e.g., "nord", "dracula", "silkcircuit-neon").
+    #[serde(default)]
+    pub theme: Option<String>,
 }
 
 impl Default for Defaults {
@@ -94,6 +98,7 @@ impl Default for Defaults {
             color: default_color(),
             insecure: false,
             timeout: default_timeout(),
+            theme: None,
         }
     }
 }

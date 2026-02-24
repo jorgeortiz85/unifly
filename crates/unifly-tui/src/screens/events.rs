@@ -104,9 +104,9 @@ impl Component for EventsScreen {
     fn render(&self, frame: &mut Frame, area: Rect) {
         let count = self.events.len();
         let live_indicator = if self.paused {
-            Span::styled("PAUSED", Style::default().fg(theme::ELECTRIC_YELLOW))
+            Span::styled("PAUSED", Style::default().fg(theme::warning()))
         } else {
-            Span::styled("● LIVE", Style::default().fg(theme::SUCCESS_GREEN))
+            Span::styled("● LIVE", Style::default().fg(theme::success()))
         };
 
         let title = format!(" Events ({count}) ");
@@ -133,10 +133,10 @@ impl Component for EventsScreen {
 
         // Status line
         let status = Line::from(vec![
-            Span::styled("  Filter: ", Style::default().fg(theme::DIM_WHITE)),
-            Span::styled("[all]", Style::default().fg(theme::NEON_CYAN)),
-            Span::styled("  Type: ", Style::default().fg(theme::DIM_WHITE)),
-            Span::styled("[all]", Style::default().fg(theme::NEON_CYAN)),
+            Span::styled("  Filter: ", Style::default().fg(theme::text_secondary())),
+            Span::styled("[all]", Style::default().fg(theme::accent_secondary())),
+            Span::styled("  Type: ", Style::default().fg(theme::text_secondary())),
+            Span::styled("[all]", Style::default().fg(theme::accent_secondary())),
             Span::raw("  "),
             live_indicator,
         ]);
@@ -163,10 +163,10 @@ impl Component for EventsScreen {
         for event in self.events.get(start..end).unwrap_or_default() {
             let time_str = event.timestamp.format("%H:%M:%S%.3f").to_string();
             let severity_color = match event.severity {
-                EventSeverity::Error | EventSeverity::Critical => theme::ERROR_RED,
-                EventSeverity::Warning => theme::ELECTRIC_YELLOW,
-                EventSeverity::Info => theme::NEON_CYAN,
-                _ => theme::DIM_WHITE,
+                EventSeverity::Error | EventSeverity::Critical => theme::error(),
+                EventSeverity::Warning => theme::warning(),
+                EventSeverity::Info => theme::accent_secondary(),
+                _ => theme::text_secondary(),
             };
             let category = format!("{:?}", event.category);
             let msg_width = usize::from(layout[1].width.saturating_sub(50).max(10));
@@ -175,7 +175,7 @@ impl Component for EventsScreen {
             lines.push(Line::from(vec![
                 Span::styled(
                     format!("  {time_str:<18}"),
-                    Style::default().fg(theme::ELECTRIC_YELLOW),
+                    Style::default().fg(theme::warning()),
                 ),
                 Span::styled(
                     format!("{:<16}", &event.event_type),
@@ -183,7 +183,7 @@ impl Component for EventsScreen {
                 ),
                 Span::styled(
                     format!("{category:<11}"),
-                    Style::default().fg(theme::DIM_WHITE),
+                    Style::default().fg(theme::text_secondary()),
                 ),
                 Span::styled(msg, Style::default().fg(severity_color)),
             ]));
@@ -192,7 +192,7 @@ impl Component for EventsScreen {
         if self.events.is_empty() {
             lines.push(Line::from(Span::styled(
                 "  Waiting for events...",
-                Style::default().fg(theme::BORDER_GRAY),
+                Style::default().fg(theme::border_unfocused()),
             )));
         }
 
@@ -200,7 +200,7 @@ impl Component for EventsScreen {
         if !self.paused && !self.events.is_empty() {
             lines.push(Line::from(Span::styled(
                 "  ↓ auto-scrolling",
-                Style::default().fg(theme::BORDER_GRAY),
+                Style::default().fg(theme::border_unfocused()),
             )));
         }
 

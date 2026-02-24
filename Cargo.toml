@@ -56,6 +56,11 @@ dialoguer = "0.11"
 indicatif = "0.17"
 rpassword = "7"
 
+# ── Theme engine ──
+opaline = { path = "../opaline", features = [
+    "ratatui", "gradients", "global-state", "builtin-themes", "discovery"
+] }
+
 # ── TUI framework ──
 ratatui = { version = "0.30", features = ["crossterm", "serde"] }
 ratatui-macros = "0.7"

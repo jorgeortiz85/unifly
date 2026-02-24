@@ -17,19 +17,19 @@ use crate::theme;
 #[allow(dead_code)]
 pub fn signal_span(dbm: Option<i32>) -> Span<'static> {
     let Some(dbm) = dbm else {
-        return Span::styled("····", Style::default().fg(theme::BORDER_GRAY));
+        return Span::styled("····", Style::default().fg(theme::border_unfocused()));
     };
 
     let (bars, color) = if dbm >= -50 {
-        ("▂▄▆█", theme::SUCCESS_GREEN)
+        ("▂▄▆█", theme::success())
     } else if dbm >= -60 {
-        ("▂▄▆ ", theme::NEON_CYAN)
+        ("▂▄▆ ", theme::accent_secondary())
     } else if dbm >= -70 {
-        ("▂▄  ", theme::ELECTRIC_YELLOW)
+        ("▂▄  ", theme::warning())
     } else if dbm >= -80 {
-        ("▂   ", theme::CORAL)
+        ("▂   ", theme::accent_tertiary())
     } else {
-        ("·   ", theme::ERROR_RED)
+        ("·   ", theme::error())
     };
 
     Span::styled(bars.to_string(), Style::default().fg(color))
@@ -38,5 +38,5 @@ pub fn signal_span(dbm: Option<i32>) -> Span<'static> {
 /// Returns a styled `Span` for wired clients (no signal data).
 #[allow(dead_code)]
 pub fn wired_span() -> Span<'static> {
-    Span::styled("····", Style::default().fg(theme::BORDER_GRAY))
+    Span::styled("····", Style::default().fg(theme::border_unfocused()))
 }

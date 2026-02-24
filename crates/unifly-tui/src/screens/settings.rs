@@ -368,7 +368,7 @@ impl SettingsScreen {
         let panel = Rect::new(area.x + x, area.y + y, panel_w, panel_h);
 
         frame.render_widget(
-            Block::default().style(Style::default().bg(theme::BG_DARK)),
+            Block::default().style(Style::default().bg(theme::bg_base())),
             panel,
         );
 
@@ -378,7 +378,7 @@ impl SettingsScreen {
                 Span::styled(
                     "Settings",
                     Style::default()
-                        .fg(theme::NEON_CYAN)
+                        .fg(theme::accent_secondary())
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(" "),
@@ -386,7 +386,7 @@ impl SettingsScreen {
             .title_alignment(Alignment::Center)
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
-            .border_style(Style::default().fg(theme::ELECTRIC_PURPLE));
+            .border_style(Style::default().fg(theme::accent_primary()));
 
         let inner = block.inner(panel);
         frame.render_widget(block, panel);
@@ -409,9 +409,9 @@ impl SettingsScreen {
 
         let label_area = Rect::new(area.x, area.y, area.width, 1);
         let label_style = if active {
-            Style::default().fg(theme::NEON_CYAN)
+            Style::default().fg(theme::accent_secondary())
         } else {
-            Style::default().fg(theme::DIM_WHITE)
+            Style::default().fg(theme::text_secondary())
         };
         frame.render_widget(Paragraph::new(Span::styled(label, label_style)), label_area);
 
@@ -422,9 +422,9 @@ impl SettingsScreen {
         };
 
         let border_color = if active {
-            theme::ELECTRIC_PURPLE
+            theme::accent_primary()
         } else {
-            theme::BORDER_GRAY
+            theme::border_unfocused()
         };
 
         let block = Block::default()
@@ -442,7 +442,10 @@ impl SettingsScreen {
             display
         };
         frame.render_widget(
-            Paragraph::new(Span::styled(text, Style::default().fg(theme::NEON_CYAN))),
+            Paragraph::new(Span::styled(
+                text,
+                Style::default().fg(theme::accent_secondary()),
+            )),
             inner,
         );
     }
@@ -454,9 +457,9 @@ impl SettingsScreen {
 
         let active = self.active_field == SettingsField::AuthMode;
         let label_style = if active {
-            Style::default().fg(theme::NEON_CYAN)
+            Style::default().fg(theme::accent_secondary())
         } else {
-            Style::default().fg(theme::DIM_WHITE)
+            Style::default().fg(theme::text_secondary())
         };
         frame.render_widget(
             Paragraph::new(Span::styled("  Auth Mode", label_style)),
@@ -464,9 +467,9 @@ impl SettingsScreen {
         );
 
         let border_color = if active {
-            theme::ELECTRIC_PURPLE
+            theme::accent_primary()
         } else {
-            theme::BORDER_GRAY
+            theme::border_unfocused()
         };
 
         let block = Block::default()
@@ -480,16 +483,16 @@ impl SettingsScreen {
 
         // Inline selector: ◂ label ▸
         let arrow_style = if active {
-            Style::default().fg(theme::ELECTRIC_PURPLE)
+            Style::default().fg(theme::accent_primary())
         } else {
-            Style::default().fg(theme::BORDER_GRAY)
+            Style::default().fg(theme::border_unfocused())
         };
         let value_style = if active {
             Style::default()
-                .fg(theme::NEON_CYAN)
+                .fg(theme::accent_secondary())
                 .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(theme::DIM_WHITE)
+            Style::default().fg(theme::text_secondary())
         };
         let label = self.auth_mode.label();
         frame.render_widget(
@@ -509,16 +512,16 @@ impl SettingsScreen {
         }
         let marker = if value { "[\u{2713}]" } else { "[ ]" };
         let marker_style = if active {
-            Style::default().fg(theme::ELECTRIC_PURPLE)
+            Style::default().fg(theme::accent_primary())
         } else if value {
-            Style::default().fg(theme::SUCCESS_GREEN)
+            Style::default().fg(theme::success())
         } else {
-            Style::default().fg(theme::BORDER_GRAY)
+            Style::default().fg(theme::border_unfocused())
         };
         let label_style = if active {
-            Style::default().fg(theme::NEON_CYAN)
+            Style::default().fg(theme::accent_secondary())
         } else {
-            Style::default().fg(theme::DIM_WHITE)
+            Style::default().fg(theme::text_secondary())
         };
 
         frame.render_widget(
@@ -644,15 +647,15 @@ impl SettingsScreen {
 
         let throbber = throbber_widgets_tui::Throbber::default()
             .label("  Testing connection...")
-            .style(Style::default().fg(theme::NEON_CYAN))
-            .throbber_style(Style::default().fg(theme::ELECTRIC_PURPLE));
+            .style(Style::default().fg(theme::accent_secondary()))
+            .throbber_style(Style::default().fg(theme::accent_primary()));
 
         frame.render_stateful_widget(throbber, layout[1], &mut self.throbber_state.clone());
 
         frame.render_widget(
             Paragraph::new(Span::styled(
                 format!("  Connecting to {}", self.url_input.trim()),
-                Style::default().fg(theme::BORDER_GRAY),
+                Style::default().fg(theme::border_unfocused()),
             )),
             layout[2],
         );
@@ -895,7 +898,7 @@ impl Component for SettingsScreen {
 
         // Full-screen dark background
         frame.render_widget(
-            Block::default().style(Style::default().bg(theme::BG_DARK)),
+            Block::default().style(Style::default().bg(theme::bg_base())),
             area,
         );
 
@@ -912,7 +915,7 @@ impl Component for SettingsScreen {
         // Error line
         if let Some(ref err) = self.test_error {
             frame.render_widget(
-                Paragraph::new(Span::styled(err, Style::default().fg(theme::ERROR_RED)))
+                Paragraph::new(Span::styled(err, Style::default().fg(theme::error())))
                     .alignment(Alignment::Center),
                 layout[2],
             );
