@@ -58,7 +58,7 @@ rpassword = "7"
 
 # ── Theme engine ──
 opaline = { path = "../opaline", features = [
-    "ratatui", "gradients", "global-state", "builtin-themes", "discovery"
+    "ratatui", "gradients", "global-state", "builtin-themes", "discovery", "widgets"
 ] }
 
 # ── TUI framework ──

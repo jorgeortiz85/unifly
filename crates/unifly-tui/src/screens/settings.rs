@@ -4,13 +4,16 @@
 //! On successful connection test, saves config and emits `SettingsApply`
 //! so the app can reconnect with the new configuration.
 
+use std::cell::RefCell;
+
 use color_eyre::eyre::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use opaline::ThemeSelectorAction;
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, BorderType, Borders, Paragraph};
+use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::action::Action;
@@ -70,12 +73,13 @@ enum SettingsField {
     Password,
     Site,
     Insecure,
+    Theme,
 }
 
 impl SettingsField {
     /// All fields in tab order. Credential fields are skipped dynamically
     /// based on current auth mode.
-    const ALL: [SettingsField; 7] = [
+    const ALL: [SettingsField; 8] = [
         Self::Url,
         Self::AuthMode,
         Self::ApiKey,
@@ -83,12 +87,13 @@ impl SettingsField {
         Self::Password,
         Self::Site,
         Self::Insecure,
+        Self::Theme,
     ];
 
     /// Whether this field is visible for the given auth mode.
     fn visible_for(self, mode: AuthMode) -> bool {
         match self {
-            Self::Url | Self::AuthMode | Self::Site | Self::Insecure => true,
+            Self::Url | Self::AuthMode | Self::Site | Self::Insecure | Self::Theme => true,
             Self::ApiKey => matches!(mode, AuthMode::ApiKey | AuthMode::Hybrid),
             Self::Username | Self::Password => matches!(mode, AuthMode::Legacy | AuthMode::Hybrid),
         }
@@ -119,6 +124,8 @@ pub struct SettingsScreen {
     throbber_state: throbber_widgets_tui::ThrobberState,
     // Last full-screen area, for mouse hit-testing
     last_area: std::cell::Cell<Rect>,
+    // Theme selector overlay (RefCell for interior mutability in render)
+    theme_selector: RefCell<Option<opaline::ThemeSelectorState>>,
 }
 
 impl SettingsScreen {
@@ -142,6 +149,7 @@ impl SettingsScreen {
             test_error: None,
             throbber_state: throbber_widgets_tui::ThrobberState::default(),
             last_area: std::cell::Cell::new(Rect::default()),
+            theme_selector: RefCell::new(None),
         };
         screen.load_from_config();
         screen
@@ -225,7 +233,16 @@ impl SettingsScreen {
             SettingsField::Username => Some(&mut self.username_input),
             SettingsField::Password => Some(&mut self.password_input),
             SettingsField::Site => Some(&mut self.site_input),
-            SettingsField::AuthMode | SettingsField::Insecure => None,
+            SettingsField::AuthMode | SettingsField::Insecure | SettingsField::Theme => None,
+        }
+    }
+
+    // ── Theme persistence ────────────────────────────────────────────
+
+    fn save_theme_preference(theme_id: &str) {
+        if let Ok(mut cfg) = unifly_config::load_config() {
+            cfg.defaults.theme = Some(theme_id.to_string());
+            let _ = unifly_config::save_config(&cfg);
         }
     }
 
@@ -533,6 +550,39 @@ impl SettingsScreen {
         );
     }
 
+    fn render_theme_field(&self, frame: &mut Frame, area: Rect) {
+        if area.height < 1 {
+            return;
+        }
+
+        let active = self.active_field == SettingsField::Theme;
+        let label_style = if active {
+            Style::default().fg(theme::accent_secondary())
+        } else {
+            Style::default().fg(theme::text_secondary())
+        };
+
+        let theme_name = opaline::current().meta.name.clone();
+        let value_style = if active {
+            Style::default()
+                .fg(theme::accent_primary())
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(theme::text_primary())
+        };
+
+        let hint = if active { "  (Enter to change)" } else { "" };
+
+        frame.render_widget(
+            Paragraph::new(Line::from(vec![
+                Span::styled("  Theme: ", label_style),
+                Span::styled(theme_name, value_style),
+                Span::styled(hint, Style::default().fg(theme::border_unfocused())),
+            ])),
+            area,
+        );
+    }
+
     fn render_editing(&self, frame: &mut Frame, area: Rect) {
         // Dynamic layout based on visible fields
         let has_api_key = SettingsField::ApiKey.visible_for(self.auth_mode);
@@ -552,6 +602,7 @@ impl SettingsScreen {
         }
         constraints.push(Constraint::Length(4)); // Site
         constraints.push(Constraint::Length(1)); // Insecure toggle
+        constraints.push(Constraint::Length(2)); // Theme field (spacer + row)
         constraints.push(Constraint::Min(0)); // Spacer
 
         let fields_area = Rect::new(
@@ -634,6 +685,10 @@ impl SettingsScreen {
             self.insecure,
             self.active_field == SettingsField::Insecure,
         );
+        i += 1;
+
+        // Theme field
+        self.render_theme_field(frame, chunks[i]);
     }
 
     fn render_testing(&self, frame: &mut Frame, area: Rect) {
@@ -670,6 +725,8 @@ impl SettingsScreen {
                     "Space toggle  Tab next  Enter test & save  Esc cancel"
                 } else if self.active_field == SettingsField::Password {
                     "Ctrl+U reveal  Tab next  Enter test & save  Esc cancel"
+                } else if self.active_field == SettingsField::Theme {
+                    "Enter choose theme  Tab next  Esc cancel"
                 } else {
                     "Tab next  Shift+Tab prev  Enter test & save  Esc cancel"
                 }
@@ -692,7 +749,27 @@ impl Component for SettingsScreen {
         Ok(())
     }
 
+    #[allow(clippy::too_many_lines)]
     fn handle_key_event(&mut self, key: KeyEvent) -> Result<Option<Action>> {
+        // ── Theme selector intercept ─────────────────────────────────
+        {
+            let mut selector = self.theme_selector.borrow_mut();
+            if let Some(ref mut sel) = *selector {
+                return match sel.handle_key(key) {
+                    ThemeSelectorAction::Select(id) => {
+                        SettingsScreen::save_theme_preference(&id);
+                        *selector = None;
+                        Ok(None)
+                    }
+                    ThemeSelectorAction::Cancel => {
+                        *selector = None;
+                        Ok(None)
+                    }
+                    _ => Ok(None),
+                };
+            }
+        }
+
         match self.state {
             SettingsState::Testing => {
                 if key.code == KeyCode::Esc {
@@ -753,6 +830,18 @@ impl Component for SettingsScreen {
                 KeyCode::Esc => return Ok(Some(Action::CloseSettings)),
                 _ => {}
             },
+            SettingsField::Theme => match key.code {
+                KeyCode::Enter => {
+                    *self.theme_selector.borrow_mut() = Some(
+                        opaline::ThemeSelectorState::with_current_selected()
+                            .with_derive(crate::theme::derive_tokens),
+                    );
+                }
+                KeyCode::Tab => self.focus_next(),
+                KeyCode::BackTab => self.focus_prev(),
+                KeyCode::Esc => return Ok(Some(Action::CloseSettings)),
+                _ => {}
+            },
             // Text input fields
             _ => match key.code {
                 KeyCode::Tab => self.focus_next(),
@@ -786,6 +875,11 @@ impl Component for SettingsScreen {
 
     fn handle_mouse_event(&mut self, mouse: MouseEvent) -> Result<Option<Action>> {
         if self.state != SettingsState::Editing {
+            return Ok(None);
+        }
+
+        // Ignore mouse when theme selector is open
+        if self.theme_selector.borrow().is_some() {
             return Ok(None);
         }
 
@@ -824,6 +918,7 @@ impl Component for SettingsScreen {
                 }
                 v.push((SettingsField::Site, 4));
                 v.push((SettingsField::Insecure, 1));
+                v.push((SettingsField::Theme, 2));
                 v
             };
 
@@ -835,6 +930,14 @@ impl Component for SettingsScreen {
                     // Special: clicking insecure toggles it
                     if *field == SettingsField::Insecure {
                         self.insecure = !self.insecure;
+                    }
+
+                    // Special: clicking theme opens the selector
+                    if *field == SettingsField::Theme {
+                        *self.theme_selector.borrow_mut() = Some(
+                            opaline::ThemeSelectorState::with_current_selected()
+                                .with_derive(crate::theme::derive_tokens),
+                        );
                     }
 
                     // Special: clicking auth mode cycles it
@@ -927,6 +1030,14 @@ impl Component for SettingsScreen {
             SettingsState::Editing => self.render_editing(frame, layout[1]),
             SettingsState::Testing => self.render_testing(frame, layout[1]),
         }
+
+        // ── Theme selector overlay (rendered on top) ─────────────────
+        let mut selector = self.theme_selector.borrow_mut();
+        if let Some(ref mut sel) = *selector {
+            let overlay = centered_rect(area, 80, 28);
+            frame.render_widget(Clear, overlay);
+            frame.render_stateful_widget(opaline::ThemeSelector::new(), overlay, sel);
+        }
     }
 
     fn set_focused(&mut self, focused: bool) {
@@ -940,4 +1051,15 @@ impl Component for SettingsScreen {
     fn id(&self) -> &'static str {
         "settings"
     }
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────
+
+/// Compute a centered rectangle of (cols x rows) within `area`.
+fn centered_rect(area: Rect, cols: u16, rows: u16) -> Rect {
+    let w = cols.min(area.width.saturating_sub(2));
+    let h = rows.min(area.height.saturating_sub(2));
+    let x = area.x + (area.width.saturating_sub(w)) / 2;
+    let y = area.y + (area.height.saturating_sub(h)) / 2;
+    Rect::new(x, y, w, h)
 }

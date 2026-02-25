@@ -2183,8 +2183,10 @@ checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 name = "opaline"
 version = "0.1.0"
 dependencies = [
+ "crossterm 0.29.0",
  "dirs",
  "parking_lot",
+ "ratatui 0.30.0",
  "ratatui-core",
  "serde",
  "thiserror 2.0.18",
