@@ -57,7 +57,7 @@ indicatif = "0.17"
 rpassword = "7"
 
 # ── Theme engine ──
-opaline = { path = "../opaline", features = [
+opaline = { version = "0.2.0", features = [
     "ratatui", "gradients", "global-state", "builtin-themes", "discovery", "widgets"
 ] }
 
