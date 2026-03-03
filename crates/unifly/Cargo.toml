@@ -9,7 +9,7 @@ repository.workspace = true
 authors.workspace = true
 keywords = ["unifi", "ubiquiti", "networking", "cli", "tui"]
 categories = ["command-line-utilities", "network-programming"]
-readme = "README.md"
+readme = "../../README.md"
 
 [lints]
 workspace = true
