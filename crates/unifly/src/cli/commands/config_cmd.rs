@@ -282,7 +282,7 @@ pub fn handle(args: ConfigArgs, global: &GlobalOpts) -> Result<(), CliError> {
 
             eprintln!("\n✓ Configuration written to {}", config_path.display());
             eprintln!("  Active profile: {profile_name}");
-            eprintln!("\n  Test it: unifi system info --insecure");
+            eprintln!("\n  Test it: unifly system info --insecure");
 
             Ok(())
         }
@@ -367,7 +367,7 @@ pub fn handle(args: ConfigArgs, global: &GlobalOpts) -> Result<(), CliError> {
             let cfg = crate::config::load_config_or_default();
             let default = cfg.default_profile.as_deref().unwrap_or("default");
             if cfg.profiles.is_empty() {
-                eprintln!("No profiles configured. Run: unifi config init");
+                eprintln!("No profiles configured. Run: unifly config init");
             } else {
                 for name in cfg.profiles.keys() {
                     let marker = if name == default { " *" } else { "" };

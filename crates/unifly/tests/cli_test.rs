@@ -135,6 +135,15 @@ fn test_config_show_no_config() {
 }
 
 #[test]
+fn test_config_profiles_no_config_mentions_unifly() {
+    unifly_cmd()
+        .args(["config", "profiles"])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("unifly config init"));
+}
+
+#[test]
 fn test_invalid_output_format() {
     let output = unifly_cmd()
         .args(["--output", "invalid", "devices", "list"])

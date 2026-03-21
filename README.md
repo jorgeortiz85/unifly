@@ -107,7 +107,7 @@ Once configured:
 unifly devices list          # All adopted devices
 unifly clients list          # Connected clients
 unifly networks list         # VLANs and subnets
-unifly events stream         # Live event feed
+unifly events watch          # Live event feed
 ```
 
 ```
@@ -186,7 +186,7 @@ Best of both worlds — API key for Integration API CRUD, username/password for 
 | `wans` | | View WAN interfaces |
 | `wifi` | `w` | Manage WiFi broadcasts (SSIDs) |
 
-Most commands support `list`, `get`, `create`, `update`, and `delete` subcommands. Run `unifly <command> --help` for details.
+Most resource groups support `list` and `get`; some also expose `create`, `update`, `delete`, `patch`, or specialized actions. Run `unifly <command> --help` for details.
 
 ### Global Flags
 

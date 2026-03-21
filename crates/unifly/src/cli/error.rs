@@ -33,7 +33,7 @@ pub enum CliError {
         help(
             "Check that the controller is running and accessible.\n\
              URL: {url}\n\
-             Try: unifi system info --insecure"
+             Try: unifly system info --insecure"
         )
     )]
     ConnectionFailed {
@@ -59,7 +59,7 @@ pub enum CliError {
         help(
             "Verify your API key or credentials.\n\
              For Integration API: Check Settings > Integrations on your controller.\n\
-             Run: unifi config set-password --profile {profile}"
+             Run: unifly config set-password --profile {profile}"
         )
     )]
     AuthFailed { profile: String, message: String },
@@ -68,7 +68,7 @@ pub enum CliError {
     #[diagnostic(
         code(unifi::no_credentials),
         help(
-            "Configure credentials with: unifi config init\n\
+            "Configure credentials with: unifly config init\n\
              Or set UNIFI_API_KEY environment variable."
         )
     )]
@@ -78,7 +78,7 @@ pub enum CliError {
     #[error("{resource_type} '{identifier}' not found")]
     #[diagnostic(
         code(unifi::not_found),
-        help("Run: unifi {list_command} to see available {resource_type}s")
+        help("Run: unifly {list_command} to see available {resource_type}s")
     )]
     NotFound {
         resource_type: String,
@@ -108,7 +108,7 @@ pub enum CliError {
         code(unifi::unsupported),
         help(
             "This command requires {required}.\n\
-             Configure the appropriate credentials with: unifi config init"
+             Configure the appropriate credentials with: unifly config init"
         )
     )]
     Unsupported { operation: String, required: String },
@@ -131,7 +131,7 @@ pub enum CliError {
         code(unifi::profile_not_found),
         help(
             "Available profiles: {available}\n\
-             Create one with: unifi config init"
+             Create one with: unifly config init"
         )
     )]
     ProfileNotFound { name: String, available: String },
@@ -140,7 +140,7 @@ pub enum CliError {
     #[diagnostic(
         code(unifi::no_config),
         help(
-            "Create one with: unifi config init\n\
+            "Create one with: unifly config init\n\
              Expected at: {path}"
         )
     )]

@@ -27,7 +27,7 @@
 | `config` | | Manage CLI configuration |
 | `completions` | | Generate shell completions |
 
-Most commands support `list`, `get`, `create`, `update`, and `delete` subcommands. Run `unifly <command> --help` for details.
+Most resource groups support `list` and `get`; some also expose `create`, `update`, `delete`, `patch`, or specialized actions. Run `unifly <command> --help` for details.
 
 ## Devices
 
@@ -47,7 +47,7 @@ unifly clients list                   # Connected clients
 unifly clients get <MAC>              # Client details
 unifly clients block <MAC>            # Block a client
 unifly clients unblock <MAC>          # Unblock a client
-unifly clients reconnect <MAC>        # Force reconnection
+unifly clients kick <MAC>             # Force reconnection
 ```
 
 ## Networks
@@ -55,8 +55,8 @@ unifly clients reconnect <MAC>        # Force reconnection
 ```bash
 unifly networks list                  # All networks/VLANs
 unifly networks get <ID>              # Network details
-unifly networks create --name "IoT" --vlan 20 --subnet "10.0.20.0/24"
-unifly networks update <ID> --dhcp-enabled true
+unifly networks create --name "IoT" --management gateway --vlan 20 --ipv4-host "10.0.20.1/24"
+unifly networks update <ID> --enabled false
 unifly networks delete <ID>
 ```
 
@@ -65,7 +65,7 @@ unifly networks delete <ID>
 ```bash
 unifly wifi list                      # All SSIDs
 unifly wifi get <ID>                  # SSID details
-unifly wifi create --name "Guest" --password "..."
+unifly wifi create --name "Guest" --network native --security wpa2-personal --passphrase "..."
 unifly wifi update <ID> --enabled false
 unifly wifi delete <ID>
 ```
@@ -73,8 +73,8 @@ unifly wifi delete <ID>
 ## Firewall
 
 ```bash
-unifly firewall policies              # List firewall policies
-unifly firewall zones                 # List firewall zones
+unifly firewall policies list         # List firewall policies
+unifly firewall zones list            # List firewall zones
 unifly firewall policies get <ID>     # Policy details
 ```
 
@@ -82,22 +82,22 @@ unifly firewall policies get <ID>     # Policy details
 
 ```bash
 unifly events list                    # Recent events
-unifly events stream                  # Live event feed
-unifly events stream --severity warn  # Filter by severity
+unifly events watch                   # Live event feed
+unifly events watch --types EVT_SW_*  # Filter by event type
 ```
 
 ## Statistics
 
 ```bash
 unifly stats gateway                  # Gateway bandwidth stats
-unifly stats clients                  # Client count over time
+unifly stats client                   # Client statistics
 unifly stats site                     # Site-level statistics
 ```
 
-Time windows: `1h`, `6h`, `12h`, `24h`, `7d`, `30d`
+Intervals: `5m`, `hourly`, `daily`, `monthly`
 
 ```bash
-unifly stats gateway --window 24h
+unifly stats gateway --interval hourly
 ```
 
 ## Configuration
