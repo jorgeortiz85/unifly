@@ -107,6 +107,41 @@ pub async fn handle(
             Ok(())
         }
 
+        ClientsCommand::Find { query } => {
+            let q = query.to_lowercase();
+            let all = controller.clients_snapshot();
+            let matches: Vec<_> = all
+                .iter()
+                .filter(|c| {
+                    let fields = [
+                        c.ip.map(|ip| ip.to_string()),
+                        c.name.clone(),
+                        c.hostname.clone(),
+                        Some(c.mac.to_string()),
+                    ];
+                    fields
+                        .iter()
+                        .any(|f| f.as_ref().is_some_and(|v| v.to_lowercase().contains(&q)))
+                })
+                .cloned()
+                .collect();
+            if matches.is_empty() {
+                return Err(CliError::NotFound {
+                    resource_type: "client".into(),
+                    identifier: query,
+                    list_command: "clients list".into(),
+                });
+            }
+            let out = output::render_list(
+                &global.output,
+                &matches,
+                |c| ClientRow::from(c),
+                |c| c.id.to_string(),
+            );
+            output::print_output(&out, global.quiet);
+            Ok(())
+        }
+
         ClientsCommand::Get { client } => {
             let snap = controller.clients_snapshot();
             let found = snap

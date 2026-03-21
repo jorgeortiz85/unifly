@@ -323,6 +323,13 @@ pub enum ClientsCommand {
     #[command(alias = "ls")]
     List(ListArgs),
 
+    /// Find clients by IP, name, hostname, or MAC (case-insensitive substring match)
+    #[command(alias = "search")]
+    Find {
+        /// Search query (matches against IP, name, hostname, MAC)
+        query: String,
+    },
+
     /// Get connected client details
     Get {
         /// Client ID (UUID) or MAC address
