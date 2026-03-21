@@ -387,23 +387,19 @@ impl App {
             Action::Render => {}
 
             Action::Tick => {
+                for screen in self.screens.values_mut() {
+                    if let Some(follow_up) = screen.update(action)? {
+                        self.action_tx.send(follow_up)?;
+                    }
+                }
+
                 // Auto-dismiss notifications after 3 seconds
                 if let Some((_, created)) = &self.notification {
                     if created.elapsed() > Duration::from_secs(3) {
                         self.notification = None;
                     }
                 }
-                // Forward ticks to setup/settings screens for throbber animation
-                if self.active_screen == ScreenId::Setup {
-                    if let Some(screen) = self.screens.get_mut(&ScreenId::Setup) {
-                        let _ = screen.update(action);
-                    }
-                }
-                if self.active_screen == ScreenId::Settings {
-                    if let Some(screen) = self.screens.get_mut(&ScreenId::Settings) {
-                        let _ = screen.update(action);
-                    }
-                }
+
                 // Auto-refresh stats every 60s while Stats screen is active
                 if self.active_screen == ScreenId::Stats {
                     if let Some(last) = self.last_stats_fetch {
@@ -785,6 +781,8 @@ impl App {
         };
         let tx = self.action_tx.clone();
         let interval = period.api_interval();
+        #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
+        let bucket_duration_secs = period.bucket_duration_secs() as f64;
 
         // Bump generation — any in-flight task with an older generation will be dropped.
         let generation = self.stats_generation.fetch_add(1, Ordering::Relaxed) + 1;
@@ -832,14 +830,16 @@ impl App {
                         .or_else(|| entry.get("tx_bytes"))
                         .and_then(serde_json::Value::as_f64)
                     {
-                        data.bandwidth_tx.push((ts, tx_bytes));
+                        data.bandwidth_tx
+                            .push((ts, tx_bytes / bucket_duration_secs));
                     }
                     if let Some(rx_bytes) = entry
                         .get("wan-rx_bytes")
                         .or_else(|| entry.get("rx_bytes"))
                         .and_then(serde_json::Value::as_f64)
                     {
-                        data.bandwidth_rx.push((ts, rx_bytes));
+                        data.bandwidth_rx
+                            .push((ts, rx_bytes / bucket_duration_secs));
                     }
                 }
             }

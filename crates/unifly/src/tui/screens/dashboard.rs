@@ -13,7 +13,7 @@
 
 use std::net::IpAddr;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use color_eyre::eyre::Result;
 use crossterm::event::KeyEvent;
@@ -31,7 +31,7 @@ use unifly_api::{Client, Device, DeviceType, Event, HealthSummary, Network};
 use crate::tui::action::Action;
 use crate::tui::component::Component;
 use crate::tui::theme;
-use crate::tui::widgets::bytes_fmt;
+use crate::tui::widgets::{bytes_fmt, chart};
 
 fn parse_ipv6_from_text(value: &str) -> Option<String> {
     let trimmed = value.trim();
@@ -126,6 +126,19 @@ fn fmt_rate_compact(bytes_per_sec: u64) -> String {
     }
 }
 
+const LIVE_CHART_SAMPLE_INTERVAL: Duration = Duration::from_secs(1);
+const LIVE_CHART_WINDOW_SAMPLES: usize = 180;
+const BANDWIDTH_TICK_COUNT: usize = 4;
+const BANDWIDTH_LABEL_WIDTH: usize = 6;
+const MIN_BANDWIDTH_SCALE: f64 = 10_000.0;
+
+#[derive(Clone, Copy)]
+struct BandwidthSample {
+    tx_bps: u64,
+    rx_bps: u64,
+    captured_at: Instant,
+}
+
 /// Dashboard screen state.
 pub struct DashboardScreen {
     focused: bool,
@@ -140,8 +153,12 @@ pub struct DashboardScreen {
     /// Track peak rates for chart title.
     peak_tx: u64,
     peak_rx: u64,
+    device_bandwidth: Option<BandwidthSample>,
+    health_bandwidth: Option<BandwidthSample>,
     /// Monotonic sample counter — x-axis value.
     sample_counter: f64,
+    chart_y_max: f64,
+    last_chart_sample_at: Option<Instant>,
     /// Tracks when we last received a data update (for refresh indicator).
     last_data_update: Option<Instant>,
 }
@@ -165,7 +182,11 @@ impl DashboardScreen {
             bandwidth_rx: Vec::new(),
             peak_tx: 0,
             peak_rx: 0,
+            device_bandwidth: None,
+            health_bandwidth: None,
             sample_counter: 0.0,
+            chart_y_max: 0.0,
+            last_chart_sample_at: None,
             last_data_update: None,
         }
     }
@@ -195,50 +216,67 @@ impl DashboardScreen {
         self.bandwidth_rx.push((self.sample_counter, rx_bps as f64));
         self.peak_tx = self.peak_tx.max(tx_bps);
         self.peak_rx = self.peak_rx.max(rx_bps);
-        // Keep last 60 samples (~30 min at 30s refresh)
-        if self.bandwidth_tx.len() > 60 {
+
+        if self.bandwidth_tx.len() > LIVE_CHART_WINDOW_SAMPLES {
             self.bandwidth_tx.remove(0);
             self.bandwidth_rx.remove(0);
         }
+
+        let visible_max = self
+            .bandwidth_tx
+            .iter()
+            .chain(self.bandwidth_rx.iter())
+            .map(|&(_, value)| value)
+            .fold(0.0_f64, f64::max);
+        self.chart_y_max = chart::stable_upper_bound(
+            self.chart_y_max,
+            visible_max,
+            BANDWIDTH_TICK_COUNT,
+            MIN_BANDWIDTH_SCALE,
+        );
     }
 
-    /// Linearly interpolate data points to create dense fill data for area charts.
-    /// `target_density` is the approximate number of output points to generate.
-    fn interpolate_fill(data: &[(f64, f64)], target_density: usize) -> Vec<(f64, f64)> {
-        if data.len() < 2 {
-            return data.to_vec();
-        }
-        let x_min = data.first().map_or(0.0, |&(x, _)| x);
-        let x_max = data.last().map_or(1.0, |&(x, _)| x);
-        let x_range = (x_max - x_min).max(1.0);
-        #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
-        let step = x_range / (target_density as f64);
-
-        let mut result = Vec::with_capacity(target_density + 1);
-        let mut data_idx = 0;
-
-        let mut x = x_min;
-        while x <= x_max + step * 0.5 {
-            // Advance data_idx to bracket x
-            while data_idx + 1 < data.len() && data[data_idx + 1].0 < x {
-                data_idx += 1;
-            }
-            let y = if data_idx + 1 < data.len() {
-                let (x0, y0) = data[data_idx];
-                let (x1, y1) = data[data_idx + 1];
-                let dx = x1 - x0;
-                if dx.abs() < f64::EPSILON {
-                    y0
+    fn current_bandwidth(&self) -> Option<(u64, u64)> {
+        match (self.device_bandwidth, self.health_bandwidth) {
+            (Some(device), Some(health)) => {
+                if health.captured_at >= device.captured_at {
+                    Some((health.tx_bps, health.rx_bps))
                 } else {
-                    y0 + (y1 - y0) * ((x - x0) / dx)
+                    Some((device.tx_bps, device.rx_bps))
                 }
-            } else {
-                data[data.len() - 1].1
-            };
-            result.push((x, y));
-            x += step;
+            }
+            (Some(device), None) => Some((device.tx_bps, device.rx_bps)),
+            (None, Some(health)) => Some((health.tx_bps, health.rx_bps)),
+            (None, None) => None,
         }
-        result
+    }
+
+    fn seed_bandwidth_chart(&mut self, now: Instant) {
+        if self.bandwidth_tx.is_empty() {
+            if let Some((tx_bps, rx_bps)) = self.current_bandwidth() {
+                self.push_bandwidth_sample(tx_bps, rx_bps);
+                self.last_chart_sample_at = Some(now);
+            }
+        }
+    }
+
+    fn sample_bandwidth_if_due(&mut self, now: Instant) {
+        let Some((tx_bps, rx_bps)) = self.current_bandwidth() else {
+            return;
+        };
+
+        if self.bandwidth_tx.is_empty() {
+            self.push_bandwidth_sample(tx_bps, rx_bps);
+            self.last_chart_sample_at = Some(now);
+            return;
+        }
+
+        let mut last_sample_at = self.last_chart_sample_at.unwrap_or(now);
+        while now.duration_since(last_sample_at) >= LIVE_CHART_SAMPLE_INTERVAL {
+            last_sample_at += LIVE_CHART_SAMPLE_INTERVAL;
+            self.push_bandwidth_sample(tx_bps, rx_bps);
+        }
+        self.last_chart_sample_at = Some(last_sample_at);
     }
 
     // ── Render Methods ──────────────────────────────────────────────────
@@ -250,8 +288,15 @@ impl DashboardScreen {
         clippy::as_conversions
     )]
     fn render_traffic_chart(&self, frame: &mut Frame, area: Rect) {
-        let current_tx = self.bandwidth_tx.last().map_or(0, |&(_, v)| v as u64);
-        let current_rx = self.bandwidth_rx.last().map_or(0, |&(_, v)| v as u64);
+        let (current_tx, current_rx) = self
+            .current_bandwidth()
+            .or_else(|| {
+                Some((
+                    self.bandwidth_tx.last().map(|&(_, value)| value as u64)?,
+                    self.bandwidth_rx.last().map(|&(_, value)| value as u64)?,
+                ))
+            })
+            .unwrap_or((0, 0));
 
         let title = Line::from(vec![
             Span::styled(" WAN Traffic ", theme::title_style()),
@@ -292,29 +337,19 @@ impl DashboardScreen {
         }
 
         // Compute axis bounds
-        let x_min = self.bandwidth_tx.first().map_or(0.0, |&(x, _)| x);
-        let x_max = self.sample_counter;
-
-        // Scale Y to the max of ALL visible data so nothing clips.
-        let y_max_raw = self
-            .bandwidth_tx
-            .iter()
-            .chain(self.bandwidth_rx.iter())
-            .map(|&(_, v)| v)
-            .fold(0.0_f64, f64::max);
-        let y_max = if y_max_raw < 1000.0 {
-            10_000.0
-        } else {
-            y_max_raw * 1.2
-        };
+        #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
+        let window_span = LIVE_CHART_WINDOW_SAMPLES.saturating_sub(1) as f64;
+        let x_max = self.sample_counter.max(0.0);
+        let x_min = x_max - window_span;
+        let y_max = self.chart_y_max.max(MIN_BANDWIDTH_SCALE);
 
         // ── Area fills (HalfBlock bars — rendered first, behind lines) ──
         // Two separate fills: RX (rose) first, then TX (teal) on top.
         // Where RX > TX the rose peeks above the teal; where TX > RX it's all teal.
         // 3× chart width eliminates float→pixel rounding gaps between bars.
         let fill_density = (usize::from(area.width.saturating_sub(8)) * 3).max(120);
-        let rx_fill_data = Self::interpolate_fill(&self.bandwidth_rx, fill_density);
-        let tx_fill_data = Self::interpolate_fill(&self.bandwidth_tx, fill_density);
+        let rx_fill_data = chart::interpolate_fill(&self.bandwidth_rx, fill_density);
+        let tx_fill_data = chart::interpolate_fill(&self.bandwidth_tx, fill_density);
 
         let rx_fill = Dataset::default()
             .marker(Marker::HalfBlock)
@@ -344,31 +379,23 @@ impl DashboardScreen {
             .style(Style::default().fg(theme::accent_tertiary()))
             .data(&self.bandwidth_rx);
 
-        let y_labels = vec![
-            Span::styled("0", Style::default().fg(theme::border_unfocused())),
-            Span::styled(
-                bytes_fmt::fmt_rate_axis(y_max / 2.0),
-                Style::default().fg(theme::border_unfocused()),
-            ),
-            Span::styled(
-                bytes_fmt::fmt_rate_axis(y_max),
-                Style::default().fg(theme::border_unfocused()),
-            ),
-        ];
+        let axis_style = Style::default().fg(theme::border_unfocused());
+        let y_labels = chart::rate_axis_labels(
+            y_max,
+            BANDWIDTH_TICK_COUNT,
+            BANDWIDTH_LABEL_WIDTH,
+            axis_style,
+        );
 
         // RX fill → TX fill → TX line → RX line (later datasets render on top)
         let chart = Chart::new(vec![rx_fill, tx_fill, tx_line, rx_line])
             .block(block)
-            .x_axis(
-                Axis::default()
-                    .bounds([x_min, x_max])
-                    .style(Style::default().fg(theme::border_unfocused())),
-            )
+            .x_axis(Axis::default().bounds([x_min, x_max]).style(axis_style))
             .y_axis(
                 Axis::default()
                     .bounds([0.0, y_max])
                     .labels(y_labels)
-                    .style(Style::default().fg(theme::border_unfocused())),
+                    .style(axis_style),
             );
 
         frame.render_widget(chart, area);
@@ -1300,19 +1327,28 @@ impl Component for DashboardScreen {
 
     fn update(&mut self, action: &Action) -> Result<Option<Action>> {
         match action {
+            Action::Tick => {
+                self.sample_bandwidth_if_due(Instant::now());
+            }
             Action::DevicesUpdated(devices) => {
                 self.devices = Arc::clone(devices);
-                self.last_data_update = Some(Instant::now());
-                // Extract bandwidth from gateway stats
-                if let Some(gw) = self
+                let now = Instant::now();
+                self.last_data_update = Some(now);
+                self.device_bandwidth = self
                     .devices
                     .iter()
                     .find(|d| d.device_type == DeviceType::Gateway)
-                {
-                    if let Some(ref bw) = gw.stats.uplink_bandwidth {
-                        self.push_bandwidth_sample(bw.tx_bytes_per_sec, bw.rx_bytes_per_sec);
-                    }
-                }
+                    .and_then(|gw| {
+                        gw.stats
+                            .uplink_bandwidth
+                            .as_ref()
+                            .map(|bw| BandwidthSample {
+                                tx_bps: bw.tx_bytes_per_sec,
+                                rx_bps: bw.rx_bytes_per_sec,
+                                captured_at: now,
+                            })
+                    });
+                self.seed_bandwidth_chart(now);
             }
             Action::ClientsUpdated(clients) => {
                 self.clients = Arc::clone(clients);
@@ -1328,15 +1364,18 @@ impl Component for DashboardScreen {
             }
             Action::HealthUpdated(health) => {
                 self.health = Arc::clone(health);
-                self.last_data_update = Some(Instant::now());
-                // Use WAN health bandwidth when device stats lack it
-                if let Some(wan) = self.health.iter().find(|h| h.subsystem == "wan") {
-                    let tx = wan.tx_bytes_r.unwrap_or(0);
-                    let rx = wan.rx_bytes_r.unwrap_or(0);
-                    if tx > 0 || rx > 0 {
-                        self.push_bandwidth_sample(tx, rx);
-                    }
-                }
+                let now = Instant::now();
+                self.last_data_update = Some(now);
+                self.health_bandwidth = self
+                    .health
+                    .iter()
+                    .find(|health| health.subsystem == "wan")
+                    .map(|wan| BandwidthSample {
+                        tx_bps: wan.tx_bytes_r.unwrap_or(0),
+                        rx_bps: wan.rx_bytes_r.unwrap_or(0),
+                        captured_at: now,
+                    });
+                self.seed_bandwidth_chart(now);
             }
             _ => {}
         }

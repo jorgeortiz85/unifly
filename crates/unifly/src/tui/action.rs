@@ -75,6 +75,15 @@ impl StatsPeriod {
             Self::ThirtyDays => 30 * 86_400,
         }
     }
+
+    /// Duration of each report bucket in seconds.
+    pub fn bucket_duration_secs(self) -> i64 {
+        match self {
+            Self::OneHour | Self::TwentyFourHours => 5 * 60,
+            Self::SevenDays => 60 * 60,
+            Self::ThirtyDays => 24 * 60 * 60,
+        }
+    }
 }
 
 /// Historical stats data fetched from the controller.

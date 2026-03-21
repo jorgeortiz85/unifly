@@ -21,7 +21,7 @@
 use crate::tui::action::{Action, StatsPeriod};
 use crate::tui::component::Component;
 use crate::tui::theme;
-use crate::tui::widgets::{bytes_fmt, sub_tabs};
+use crate::tui::widgets::{bytes_fmt, chart, sub_tabs};
 use color_eyre::eyre::Result;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
@@ -37,52 +37,21 @@ pub struct StatsScreen {
     /// Bandwidth history: Vec<(timestamp_f64, value)>
     bandwidth_tx: Vec<(f64, f64)>,
     bandwidth_rx: Vec<(f64, f64)>,
+    bandwidth_y_max: f64,
     /// Client count history
     client_counts: Vec<(f64, f64)>,
+    client_y_max: f64,
     /// DPI top apps: (name, total_bytes)
     dpi_apps: Vec<(String, u64)>,
     /// DPI top categories: (name, total_bytes)
     dpi_categories: Vec<(String, u64)>,
 }
 
-/// Linearly interpolate data points to create dense fill data for area charts.
-/// `target_density` is the approximate number of output points to generate.
-#[allow(clippy::cast_precision_loss, clippy::as_conversions)]
-fn interpolate_fill(data: &[(f64, f64)], target_density: usize) -> Vec<(f64, f64)> {
-    if data.len() < 2 {
-        return data.to_vec();
-    }
-    let x_min = data.first().map_or(0.0, |&(x, _)| x);
-    let x_max = data.last().map_or(1.0, |&(x, _)| x);
-    let x_range = (x_max - x_min).max(1.0);
-    let step = x_range / target_density as f64;
-
-    let mut result = Vec::with_capacity(target_density + 1);
-    let mut data_idx = 0;
-
-    let mut x = x_min;
-    while x <= x_max + step * 0.5 {
-        // Advance data_idx to bracket x
-        while data_idx + 1 < data.len() && data[data_idx + 1].0 < x {
-            data_idx += 1;
-        }
-        let y = if data_idx + 1 < data.len() {
-            let (x0, y0) = data[data_idx];
-            let (x1, y1) = data[data_idx + 1];
-            let dx = x1 - x0;
-            if dx.abs() < f64::EPSILON {
-                y0
-            } else {
-                y0 + (y1 - y0) * ((x - x0) / dx)
-            }
-        } else {
-            data[data.len() - 1].1
-        };
-        result.push((x, y));
-        x += step;
-    }
-    result
-}
+const BANDWIDTH_TICK_COUNT: usize = 4;
+const BANDWIDTH_LABEL_WIDTH: usize = 6;
+const MIN_BANDWIDTH_SCALE: f64 = 10_000.0;
+const CLIENT_TICK_COUNT: usize = 4;
+const CLIENT_LABEL_WIDTH: usize = 5;
 
 impl Default for StatsScreen {
     fn default() -> Self {
@@ -97,7 +66,9 @@ impl StatsScreen {
             period: StatsPeriod::default(),
             bandwidth_tx: Vec::new(),
             bandwidth_rx: Vec::new(),
+            bandwidth_y_max: 0.0,
             client_counts: Vec::new(),
+            client_y_max: 0.0,
             dpi_apps: Vec::new(),
             dpi_categories: Vec::new(),
         }
@@ -149,23 +120,17 @@ impl StatsScreen {
             .last()
             .map_or(0.0, |&(x, _)| x)
             .max(self.bandwidth_rx.last().map_or(0.0, |&(x, _)| x));
-
-        let y_max_raw = self
-            .bandwidth_tx
-            .iter()
-            .chain(self.bandwidth_rx.iter())
-            .map(|&(_, v)| v)
-            .fold(0.0_f64, f64::max);
-        let y_max = if y_max_raw < 1000.0 {
-            10_000.0
+        let (x_min, x_max) = if (x_max - x_min).abs() < f64::EPSILON {
+            (x_min - 0.5, x_max + 0.5)
         } else {
-            y_max_raw * 1.2
+            (x_min, x_max)
         };
+        let y_max = self.bandwidth_y_max.max(MIN_BANDWIDTH_SCALE);
 
         // ── Area fills (HalfBlock bars — rendered first, behind lines) ──
         let fill_density = (usize::from(area.width.saturating_sub(8)) * 3).max(120);
-        let rx_fill_data = interpolate_fill(&self.bandwidth_rx, fill_density);
-        let tx_fill_data = interpolate_fill(&self.bandwidth_tx, fill_density);
+        let rx_fill_data = chart::interpolate_fill(&self.bandwidth_rx, fill_density);
+        let tx_fill_data = chart::interpolate_fill(&self.bandwidth_tx, fill_density);
 
         let rx_fill = Dataset::default()
             .marker(Marker::HalfBlock)
@@ -194,31 +159,23 @@ impl StatsScreen {
             .style(Style::default().fg(theme::accent_tertiary()))
             .data(&self.bandwidth_rx);
 
-        let y_labels = vec![
-            Span::styled("0", Style::default().fg(theme::border_unfocused())),
-            Span::styled(
-                bytes_fmt::fmt_rate_axis(y_max / 2.0),
-                Style::default().fg(theme::border_unfocused()),
-            ),
-            Span::styled(
-                bytes_fmt::fmt_rate_axis(y_max),
-                Style::default().fg(theme::border_unfocused()),
-            ),
-        ];
+        let axis_style = Style::default().fg(theme::border_unfocused());
+        let y_labels = chart::rate_axis_labels(
+            y_max,
+            BANDWIDTH_TICK_COUNT,
+            BANDWIDTH_LABEL_WIDTH,
+            axis_style,
+        );
 
         // RX fill → TX fill → TX line → RX line (later datasets render on top)
         let chart = Chart::new(vec![rx_fill, tx_fill, tx_line, rx_line])
             .block(block)
-            .x_axis(
-                Axis::default()
-                    .bounds([x_min, x_max])
-                    .style(Style::default().fg(theme::border_unfocused())),
-            )
+            .x_axis(Axis::default().bounds([x_min, x_max]).style(axis_style))
             .y_axis(
                 Axis::default()
                     .bounds([0.0, y_max])
                     .labels(y_labels)
-                    .style(Style::default().fg(theme::border_unfocused())),
+                    .style(axis_style),
             );
 
         frame.render_widget(chart, area);
@@ -246,12 +203,12 @@ impl StatsScreen {
 
         let x_min = self.client_counts.first().map_or(0.0, |(x, _)| *x);
         let x_max = self.client_counts.last().map_or(1.0, |(x, _)| *x);
-        let y_max = self
-            .client_counts
-            .iter()
-            .map(|(_, y)| *y)
-            .fold(0.0f64, f64::max)
-            * 1.1;
+        let (x_min, x_max) = if (x_max - x_min).abs() < f64::EPSILON {
+            (x_min - 0.5, x_max + 0.5)
+        } else {
+            (x_min, x_max)
+        };
+        let y_max = self.client_y_max.max(1.0);
 
         let dataset = Dataset::default()
             .name("Clients")
@@ -260,17 +217,17 @@ impl StatsScreen {
             .style(Style::default().fg(theme::accent_primary()))
             .data(&self.client_counts);
 
+        let axis_style = Style::default().fg(theme::border_unfocused());
+        let y_labels =
+            chart::count_axis_labels(y_max, CLIENT_TICK_COUNT, CLIENT_LABEL_WIDTH, axis_style);
         let chart = Chart::new(vec![dataset])
             .block(block)
-            .x_axis(
-                Axis::default()
-                    .style(Style::default().fg(theme::border_unfocused()))
-                    .bounds([x_min, x_max]),
-            )
+            .x_axis(Axis::default().style(axis_style).bounds([x_min, x_max]))
             .y_axis(
                 Axis::default()
-                    .style(Style::default().fg(theme::border_unfocused()))
-                    .bounds([0.0, y_max.max(1.0)]),
+                    .style(axis_style)
+                    .bounds([0.0, y_max])
+                    .labels(y_labels),
             );
 
         frame.render_widget(chart, area);
@@ -425,6 +382,8 @@ impl Component for StatsScreen {
         match action {
             Action::SetStatsPeriod(period) => {
                 self.period = *period;
+                self.bandwidth_y_max = 0.0;
+                self.client_y_max = 0.0;
             }
             Action::StatsUpdated(data) => {
                 self.bandwidth_tx.clone_from(&data.bandwidth_tx);
@@ -432,6 +391,30 @@ impl Component for StatsScreen {
                 self.client_counts.clone_from(&data.client_counts);
                 self.dpi_apps.clone_from(&data.dpi_apps);
                 self.dpi_categories.clone_from(&data.dpi_categories);
+                let bandwidth_max = self
+                    .bandwidth_tx
+                    .iter()
+                    .chain(self.bandwidth_rx.iter())
+                    .map(|&(_, value)| value)
+                    .fold(0.0_f64, f64::max);
+                self.bandwidth_y_max = chart::stable_upper_bound(
+                    self.bandwidth_y_max,
+                    bandwidth_max,
+                    BANDWIDTH_TICK_COUNT,
+                    MIN_BANDWIDTH_SCALE,
+                );
+
+                let client_max = self
+                    .client_counts
+                    .iter()
+                    .map(|&(_, value)| value)
+                    .fold(0.0_f64, f64::max);
+                self.client_y_max = chart::stable_upper_bound(
+                    self.client_y_max,
+                    client_max,
+                    CLIENT_TICK_COUNT,
+                    1.0,
+                );
             }
             _ => {}
         }
