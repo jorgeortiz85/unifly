@@ -58,6 +58,7 @@ fn detail(t: &Arc<TrafficMatchingList>) -> String {
 
 // ── Handler ─────────────────────────────────────────────────────────
 
+#[allow(clippy::too_many_lines)]
 pub async fn handle(
     controller: &Controller,
     args: TrafficListsArgs,
@@ -134,6 +135,12 @@ pub async fn handle(
         }
 
         TrafficListsCommand::Update { id, from_file } => {
+            if from_file.is_none() {
+                return Err(CliError::Validation {
+                    field: "update".into(),
+                    reason: "traffic list updates currently require --from-file".into(),
+                });
+            }
             let update = if let Some(ref path) = from_file {
                 serde_json::from_value(util::read_json_file(path)?)?
             } else {

@@ -71,6 +71,7 @@ fn detail(d: &Arc<DnsPolicy>) -> String {
 
 // ── Handler ─────────────────────────────────────────────────────────
 
+#[allow(clippy::too_many_lines)]
 pub async fn handle(
     controller: &Controller,
     args: DnsArgs,
@@ -149,6 +150,12 @@ pub async fn handle(
         }
 
         DnsCommand::Update { id, from_file } => {
+            if from_file.is_none() {
+                return Err(CliError::Validation {
+                    field: "update".into(),
+                    reason: "DNS updates currently require --from-file".into(),
+                });
+            }
             let update = if let Some(ref path) = from_file {
                 serde_json::from_value(util::read_json_file(path)?)?
             } else {

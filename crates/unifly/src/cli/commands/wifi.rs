@@ -184,6 +184,12 @@ pub async fn handle(
             passphrase,
             enabled,
         } => {
+            if from_file.is_none() && name.is_none() && passphrase.is_none() && enabled.is_none() {
+                return Err(CliError::Validation {
+                    field: "update".into(),
+                    reason: "at least one update flag or --from-file is required".into(),
+                });
+            }
             let update = if let Some(ref path) = from_file {
                 serde_json::from_value(util::read_json_file(path)?)?
             } else {

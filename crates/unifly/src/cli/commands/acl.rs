@@ -146,6 +146,12 @@ pub async fn handle(
         }
 
         AclCommand::Update { id, from_file } => {
+            if from_file.is_none() {
+                return Err(CliError::Validation {
+                    field: "update".into(),
+                    reason: "ACL updates currently require --from-file".into(),
+                });
+            }
             let update = if let Some(ref path) = from_file {
                 serde_json::from_value(util::read_json_file(path)?)?
             } else {

@@ -262,6 +262,21 @@ async fn handle_policies(
             states,
             ip_version,
         } => {
+            if from_file.is_none()
+                && src_network.is_none()
+                && src_ip.is_none()
+                && src_port.is_none()
+                && dst_network.is_none()
+                && dst_ip.is_none()
+                && dst_port.is_none()
+                && states.is_none()
+                && ip_version.is_none()
+            {
+                return Err(CliError::Validation {
+                    field: "update".into(),
+                    reason: "at least one update flag or --from-file is required".into(),
+                });
+            }
             let update = if let Some(ref path) = from_file {
                 serde_json::from_value(util::read_json_file(path)?)?
             } else {
@@ -458,6 +473,12 @@ async fn handle_zones(
         }
 
         FirewallZonesCommand::Update { id, name, networks } => {
+            if name.is_none() && networks.is_none() {
+                return Err(CliError::Validation {
+                    field: "update".into(),
+                    reason: "at least one of --name or --networks is required".into(),
+                });
+            }
             let eid = EntityId::from(id);
             let update = UpdateFirewallZoneRequest {
                 name,
