@@ -22,7 +22,8 @@ use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::symbols::Marker;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Axis, Block, BorderType, Borders, Chart, Dataset, GraphType, Paragraph};
+use ratatui::widgets::canvas::{Canvas, Line as CanvasLine};
+use ratatui::widgets::{Block, BorderType, Borders, Paragraph};
 use tokio::sync::mpsc::UnboundedSender;
 
 use unifly_api::model::{EventSeverity, Ipv6Mode};
@@ -126,11 +127,15 @@ fn fmt_rate_compact(bytes_per_sec: u64) -> String {
     }
 }
 
-const LIVE_CHART_SAMPLE_INTERVAL: Duration = Duration::from_secs(1);
-const LIVE_CHART_WINDOW_SAMPLES: usize = 180;
+const LIVE_CHART_SAMPLE_INTERVAL: Duration = Duration::from_millis(250);
+const LIVE_CHART_WINDOW_SAMPLES: usize = 120;
 const BANDWIDTH_TICK_COUNT: usize = 4;
 const BANDWIDTH_LABEL_WIDTH: usize = 6;
+const BANDWIDTH_GUTTER_WIDTH: u16 = 7;
 const MIN_BANDWIDTH_SCALE: f64 = 10_000.0;
+const BANDWIDTH_SMOOTHING_ALPHA: f64 = 0.35;
+const BANDWIDTH_SCALE_WINDOW_SAMPLES: usize = 48;
+const BANDWIDTH_SCALE_PERCENTILE: usize = 85;
 
 #[derive(Clone, Copy)]
 struct BandwidthSample {
@@ -155,6 +160,8 @@ pub struct DashboardScreen {
     peak_rx: u64,
     device_bandwidth: Option<BandwidthSample>,
     health_bandwidth: Option<BandwidthSample>,
+    display_tx_bps: Option<f64>,
+    display_rx_bps: Option<f64>,
     /// Monotonic sample counter — x-axis value.
     sample_counter: f64,
     chart_y_max: f64,
@@ -184,6 +191,8 @@ impl DashboardScreen {
             peak_rx: 0,
             device_bandwidth: None,
             health_bandwidth: None,
+            display_tx_bps: None,
+            display_rx_bps: None,
             sample_counter: 0.0,
             chart_y_max: 0.0,
             last_chart_sample_at: None,
@@ -222,18 +231,46 @@ impl DashboardScreen {
             self.bandwidth_rx.remove(0);
         }
 
-        let visible_max = self
-            .bandwidth_tx
-            .iter()
-            .chain(self.bandwidth_rx.iter())
-            .map(|&(_, value)| value)
-            .fold(0.0_f64, f64::max);
+        let visible_max = self.bandwidth_scale_reference();
         self.chart_y_max = chart::stable_upper_bound(
             self.chart_y_max,
             visible_max,
             BANDWIDTH_TICK_COUNT,
             MIN_BANDWIDTH_SCALE,
         );
+    }
+
+    fn bandwidth_scale_reference(&self) -> f64 {
+        let mut values: Vec<f64> = self
+            .bandwidth_tx
+            .iter()
+            .rev()
+            .take(BANDWIDTH_SCALE_WINDOW_SAMPLES)
+            .chain(
+                self.bandwidth_rx
+                    .iter()
+                    .rev()
+                    .take(BANDWIDTH_SCALE_WINDOW_SAMPLES),
+            )
+            .map(|&(_, value)| value)
+            .filter(|value| *value > 0.0)
+            .collect();
+
+        if values.is_empty() {
+            return 0.0;
+        }
+
+        values.sort_by(f64::total_cmp);
+        let percentile_index =
+            ((values.len().saturating_sub(1)) * BANDWIDTH_SCALE_PERCENTILE) / 100;
+        let percentile_value = values[percentile_index];
+        let current_value = self
+            .bandwidth_tx
+            .last()
+            .map_or(0.0, |&(_, value)| value)
+            .max(self.bandwidth_rx.last().map_or(0.0, |&(_, value)| value));
+
+        percentile_value.max(current_value)
     }
 
     fn current_bandwidth(&self) -> Option<(u64, u64)> {
@@ -251,32 +288,58 @@ impl DashboardScreen {
         }
     }
 
-    fn seed_bandwidth_chart(&mut self, now: Instant) {
-        if self.bandwidth_tx.is_empty() {
-            if let Some((tx_bps, rx_bps)) = self.current_bandwidth() {
-                self.push_bandwidth_sample(tx_bps, rx_bps);
-                self.last_chart_sample_at = Some(now);
-            }
-        }
-    }
-
+    #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
     fn sample_bandwidth_if_due(&mut self, now: Instant) {
+        if self.last_chart_sample_at.is_some_and(|last_sample_at| {
+            now.duration_since(last_sample_at) < LIVE_CHART_SAMPLE_INTERVAL
+        }) {
+            return;
+        }
+
         let Some((tx_bps, rx_bps)) = self.current_bandwidth() else {
             return;
         };
 
-        if self.bandwidth_tx.is_empty() {
-            self.push_bandwidth_sample(tx_bps, rx_bps);
-            self.last_chart_sample_at = Some(now);
-            return;
-        }
+        let target_upload_bps = tx_bps as f64;
+        let target_download_bps = rx_bps as f64;
 
-        let mut last_sample_at = self.last_chart_sample_at.unwrap_or(now);
-        while now.duration_since(last_sample_at) >= LIVE_CHART_SAMPLE_INTERVAL {
-            last_sample_at += LIVE_CHART_SAMPLE_INTERVAL;
-            self.push_bandwidth_sample(tx_bps, rx_bps);
+        let next_upload_bps = self
+            .display_tx_bps
+            .map_or(target_upload_bps, |current_tx_bps| {
+                let smoothed = current_tx_bps
+                    + (target_upload_bps - current_tx_bps) * BANDWIDTH_SMOOTHING_ALPHA;
+                if (target_upload_bps - smoothed).abs() < 1.0 {
+                    target_upload_bps
+                } else {
+                    smoothed
+                }
+            });
+        let next_download_bps = self
+            .display_rx_bps
+            .map_or(target_download_bps, |current_rx_bps| {
+                let smoothed = current_rx_bps
+                    + (target_download_bps - current_rx_bps) * BANDWIDTH_SMOOTHING_ALPHA;
+                if (target_download_bps - smoothed).abs() < 1.0 {
+                    target_download_bps
+                } else {
+                    smoothed
+                }
+            });
+
+        self.display_tx_bps = Some(next_upload_bps);
+        self.display_rx_bps = Some(next_download_bps);
+        #[allow(
+            clippy::cast_sign_loss,
+            clippy::cast_possible_truncation,
+            clippy::as_conversions
+        )]
+        {
+            self.push_bandwidth_sample(
+                next_upload_bps.round() as u64,
+                next_download_bps.round() as u64,
+            );
         }
-        self.last_chart_sample_at = Some(last_sample_at);
+        self.last_chart_sample_at = Some(now);
     }
 
     // ── Render Methods ──────────────────────────────────────────────────
@@ -285,7 +348,8 @@ impl DashboardScreen {
     #[allow(
         clippy::cast_possible_truncation,
         clippy::cast_sign_loss,
-        clippy::as_conversions
+        clippy::as_conversions,
+        clippy::too_many_lines
     )]
     fn render_traffic_chart(&self, frame: &mut Frame, area: Rect) {
         let (current_tx, current_rx) = self
@@ -325,9 +389,10 @@ impl DashboardScreen {
             .border_type(BorderType::Rounded)
             .border_style(theme::border_default());
 
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
+
         if self.bandwidth_tx.is_empty() {
-            let inner = block.inner(area);
-            frame.render_widget(block, area);
             frame.render_widget(
                 Paragraph::new("  Waiting for data…")
                     .style(Style::default().fg(theme::border_unfocused())),
@@ -342,63 +407,105 @@ impl DashboardScreen {
         let x_max = self.sample_counter.max(0.0);
         let x_min = x_max - window_span;
         let y_max = self.chart_y_max.max(MIN_BANDWIDTH_SCALE);
-
-        // ── Area fills (HalfBlock bars — rendered first, behind lines) ──
-        // Two separate fills: RX (rose) first, then TX (teal) on top.
-        // Where RX > TX the rose peeks above the teal; where TX > RX it's all teal.
-        // 3× chart width eliminates float→pixel rounding gaps between bars.
-        let fill_density = (usize::from(area.width.saturating_sub(8)) * 3).max(120);
-        let rx_fill_data = chart::interpolate_fill(&self.bandwidth_rx, fill_density);
-        let tx_fill_data = chart::interpolate_fill(&self.bandwidth_tx, fill_density);
-
-        let rx_fill = Dataset::default()
-            .marker(Marker::HalfBlock)
-            .graph_type(GraphType::Bar)
-            .style(Style::default().fg(theme::rx_fill()))
-            .data(&rx_fill_data);
-
-        let tx_fill = Dataset::default()
-            .marker(Marker::HalfBlock)
-            .graph_type(GraphType::Bar)
-            .style(Style::default().fg(theme::tx_fill()))
-            .data(&tx_fill_data);
-
-        // ── Line edge datasets (Braille — rendered on top for crisp edges) ──
-
-        let tx_line = Dataset::default()
-            .name("TX")
-            .marker(Marker::Braille)
-            .graph_type(GraphType::Line)
-            .style(Style::default().fg(theme::accent_secondary()))
-            .data(&self.bandwidth_tx);
-
-        let rx_line = Dataset::default()
-            .name("RX")
-            .marker(Marker::Braille)
-            .graph_type(GraphType::Line)
-            .style(Style::default().fg(theme::accent_tertiary()))
-            .data(&self.bandwidth_rx);
-
         let axis_style = Style::default().fg(theme::border_unfocused());
+        let chart_layout = Layout::horizontal([
+            Constraint::Length(BANDWIDTH_GUTTER_WIDTH),
+            Constraint::Min(1),
+        ])
+        .split(inner);
+        let gutter_area = chart_layout[0];
+        let plot_area = chart_layout[1];
+
         let y_labels = chart::rate_axis_labels(
             y_max,
             BANDWIDTH_TICK_COUNT,
             BANDWIDTH_LABEL_WIDTH,
             axis_style,
         );
+        let label_steps = BANDWIDTH_TICK_COUNT.saturating_sub(1).max(1);
+        for (idx, label) in y_labels.iter().rev().enumerate() {
+            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+            let y_offset = if label_steps == 0 {
+                0
+            } else {
+                let rows = plot_area.height.saturating_sub(1);
+                (u32::from(rows) * idx as u32 / label_steps as u32) as u16
+            };
+            let label_area = Rect {
+                x: gutter_area.x,
+                y: plot_area.y + y_offset,
+                width: gutter_area.width,
+                height: 1,
+            };
+            frame.render_widget(Paragraph::new(Line::from(label.clone())), label_area);
+        }
 
-        // RX fill → TX fill → TX line → RX line (later datasets render on top)
-        let chart = Chart::new(vec![rx_fill, tx_fill, tx_line, rx_line])
-            .block(block)
-            .x_axis(Axis::default().bounds([x_min, x_max]).style(axis_style))
-            .y_axis(
-                Axis::default()
-                    .bounds([0.0, y_max])
-                    .labels(y_labels)
-                    .style(axis_style),
-            );
+        let plot_density = (usize::from(plot_area.width.max(1)) * 4).max(160);
+        let rx_path = chart::interpolate_fill(&self.bandwidth_rx, plot_density);
+        let tx_path = chart::interpolate_fill(&self.bandwidth_tx, plot_density);
 
-        frame.render_widget(chart, area);
+        let canvas = Canvas::default()
+            .background_color(theme::bg_base())
+            .marker(Marker::Octant)
+            .x_bounds([x_min, x_max])
+            .y_bounds([0.0, y_max])
+            .paint(|ctx| {
+                ctx.draw(&CanvasLine {
+                    x1: x_min,
+                    y1: 0.0,
+                    x2: x_max,
+                    y2: 0.0,
+                    color: theme::border_unfocused(),
+                });
+
+                for &(x, y) in &rx_path {
+                    ctx.draw(&CanvasLine {
+                        x1: x,
+                        y1: 0.0,
+                        x2: x,
+                        y2: y,
+                        color: theme::rx_fill(),
+                    });
+                }
+                for &(x, y) in &tx_path {
+                    ctx.draw(&CanvasLine {
+                        x1: x,
+                        y1: 0.0,
+                        x2: x,
+                        y2: y,
+                        color: theme::tx_fill(),
+                    });
+                }
+
+                ctx.layer();
+
+                for pair in rx_path.windows(2) {
+                    let [(x1, y1), (x2, y2)] = pair else {
+                        continue;
+                    };
+                    ctx.draw(&CanvasLine {
+                        x1: *x1,
+                        y1: *y1,
+                        x2: *x2,
+                        y2: *y2,
+                        color: theme::accent_tertiary(),
+                    });
+                }
+                for pair in tx_path.windows(2) {
+                    let [(x1, y1), (x2, y2)] = pair else {
+                        continue;
+                    };
+                    ctx.draw(&CanvasLine {
+                        x1: *x1,
+                        y1: *y1,
+                        x2: *x2,
+                        y2: *y2,
+                        color: theme::accent_secondary(),
+                    });
+                }
+            });
+
+        frame.render_widget(canvas, plot_area);
     }
 
     /// Gateway panel — WAN connection details with IPv6.
@@ -1348,7 +1455,10 @@ impl Component for DashboardScreen {
                                 captured_at: now,
                             })
                     });
-                self.seed_bandwidth_chart(now);
+                if let Some((tx_bps, rx_bps)) = self.current_bandwidth() {
+                    self.peak_tx = self.peak_tx.max(tx_bps);
+                    self.peak_rx = self.peak_rx.max(rx_bps);
+                }
             }
             Action::ClientsUpdated(clients) => {
                 self.clients = Arc::clone(clients);
@@ -1375,7 +1485,10 @@ impl Component for DashboardScreen {
                         rx_bps: wan.rx_bytes_r.unwrap_or(0),
                         captured_at: now,
                     });
-                self.seed_bandwidth_chart(now);
+                if let Some((tx_bps, rx_bps)) = self.current_bandwidth() {
+                    self.peak_tx = self.peak_tx.max(tx_bps);
+                    self.peak_rx = self.peak_rx.max(rx_bps);
+                }
             }
             _ => {}
         }
