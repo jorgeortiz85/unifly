@@ -15,7 +15,7 @@ use crate::model::{
 pub use requests::{
     CreateAclRuleRequest, CreateDnsPolicyRequest, CreateFirewallPolicyRequest,
     CreateFirewallZoneRequest, CreateNetworkRequest, CreateTrafficMatchingListRequest,
-    CreateVouchersRequest, CreateWifiBroadcastRequest, UpdateAclRuleRequest,
+    CreateVouchersRequest, CreateWifiBroadcastRequest, TrafficFilterSpec, UpdateAclRuleRequest,
     UpdateDnsPolicyRequest, UpdateFirewallPolicyRequest, UpdateFirewallZoneRequest,
     UpdateNetworkRequest, UpdateTrafficMatchingListRequest, UpdateWifiBroadcastRequest,
 };

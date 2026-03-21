@@ -113,13 +113,13 @@ pub struct CreateFirewallPolicyRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub protocol: Option<String>,
+    pub ip_version: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub source_address: Option<String>,
+    pub connection_states: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub destination_address: Option<String>,
+    pub source_filter: Option<TrafficFilterSpec>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub destination_port: Option<String>,
+    pub destination_filter: Option<TrafficFilterSpec>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -133,15 +133,39 @@ pub struct UpdateFirewallPolicyRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub protocol: Option<String>,
+    pub ip_version: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub source_address: Option<String>,
+    pub connection_states: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub destination_address: Option<String>,
+    pub source_filter: Option<TrafficFilterSpec>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub destination_port: Option<String>,
+    pub destination_filter: Option<TrafficFilterSpec>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub logging_enabled: Option<bool>,
+}
+
+/// Specification for building a traffic filter (used in create/update commands).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum TrafficFilterSpec {
+    /// Filter by network IDs.
+    Network {
+        network_ids: Vec<String>,
+        #[serde(default)]
+        match_opposite: bool,
+    },
+    /// Filter by IP addresses (supports IPs, CIDRs, and ranges).
+    IpAddress {
+        addresses: Vec<String>,
+        #[serde(default)]
+        match_opposite: bool,
+    },
+    /// Filter by ports (supports single ports and ranges like "8000-9000").
+    Port {
+        ports: Vec<String>,
+        #[serde(default)]
+        match_opposite: bool,
+    },
 }
 
 // ── Firewall Zone ──────────────────────────────────────────────────

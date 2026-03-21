@@ -6,7 +6,7 @@ use tabled::Tabled;
 use unifly_api::model::{FirewallAction as ModelFirewallAction, FirewallPolicy, FirewallZone};
 use unifly_api::{
     Command as CoreCommand, Controller, CreateFirewallPolicyRequest, CreateFirewallZoneRequest,
-    EntityId, UpdateFirewallPolicyRequest, UpdateFirewallZoneRequest,
+    EntityId, TrafficFilterSpec, UpdateFirewallPolicyRequest, UpdateFirewallZoneRequest,
 };
 
 use crate::cli::args::{
@@ -210,6 +210,14 @@ async fn handle_policies(
             enabled,
             description,
             logging,
+            src_network,
+            src_ip,
+            src_port,
+            dst_network,
+            dst_ip,
+            dst_port,
+            states,
+            ip_version,
         } => {
             let req = if let Some(ref path) = from_file {
                 serde_json::from_value(util::read_json_file(path)?)?
@@ -224,10 +232,10 @@ async fn handle_policies(
                     enabled,
                     logging_enabled: logging,
                     description,
-                    protocol: None,
-                    source_address: None,
-                    destination_address: None,
-                    destination_port: None,
+                    ip_version,
+                    connection_states: states,
+                    source_filter: build_filter_spec(src_network, src_ip, src_port),
+                    destination_filter: build_filter_spec(dst_network, dst_ip, dst_port),
                 }
             };
 
@@ -240,11 +248,28 @@ async fn handle_policies(
             Ok(())
         }
 
-        FirewallPoliciesCommand::Update { id, from_file } => {
+        FirewallPoliciesCommand::Update {
+            id,
+            from_file,
+            src_network,
+            src_ip,
+            src_port,
+            dst_network,
+            dst_ip,
+            dst_port,
+            states,
+            ip_version,
+        } => {
             let update = if let Some(ref path) = from_file {
                 serde_json::from_value(util::read_json_file(path)?)?
             } else {
-                UpdateFirewallPolicyRequest::default()
+                UpdateFirewallPolicyRequest {
+                    source_filter: build_filter_spec(src_network, src_ip, src_port),
+                    destination_filter: build_filter_spec(dst_network, dst_ip, dst_port),
+                    connection_states: states,
+                    ip_version,
+                    ..UpdateFirewallPolicyRequest::default()
+                }
             };
             let eid = EntityId::from(id);
             controller
@@ -459,5 +484,30 @@ async fn handle_zones(
             }
             Ok(())
         }
+    }
+}
+
+/// Build a `TrafficFilterSpec` from the CLI filter flags.
+/// Priority: network > ip > port (first one specified wins).
+fn build_filter_spec(
+    networks: Option<Vec<String>>,
+    ips: Option<Vec<String>>,
+    ports: Option<Vec<String>>,
+) -> Option<TrafficFilterSpec> {
+    if let Some(nets) = networks {
+        Some(TrafficFilterSpec::Network {
+            network_ids: nets,
+            match_opposite: false,
+        })
+    } else if let Some(addrs) = ips {
+        Some(TrafficFilterSpec::IpAddress {
+            addresses: addrs,
+            match_opposite: false,
+        })
+    } else {
+        ports.map(|p| TrafficFilterSpec::Port {
+            ports: p,
+            match_opposite: false,
+        })
     }
 }

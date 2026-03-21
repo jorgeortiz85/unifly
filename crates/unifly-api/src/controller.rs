@@ -2198,18 +2198,27 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
                 FirewallAction::Block => "DROP",
                 FirewallAction::Reject => "REJECT",
             };
+            let source = build_endpoint_json(
+                &req.source_zone_id.to_string(),
+                req.source_filter.as_ref(),
+            );
+            let destination = build_endpoint_json(
+                &req.destination_zone_id.to_string(),
+                req.destination_filter.as_ref(),
+            );
+            let ip_version = req.ip_version.as_deref().unwrap_or("IPV4_AND_IPV6");
             let body = crate::integration_types::FirewallPolicyCreateUpdate {
                 name: req.name,
                 description: req.description,
                 enabled: req.enabled,
                 action: serde_json::json!({ "type": action_str }),
-                source: serde_json::json!({ "zoneId": req.source_zone_id.to_string() }),
-                destination: serde_json::json!({ "zoneId": req.destination_zone_id.to_string() }),
-                ip_protocol_scope: serde_json::json!("ALL"),
+                source,
+                destination,
+                ip_protocol_scope: serde_json::json!({ "ipVersion": ip_version }),
                 logging_enabled: req.logging_enabled,
                 ipsec_filter: None,
                 schedule: None,
-                connection_state_filter: None,
+                connection_state_filter: req.connection_states,
             };
             ic.create_firewall_policy(&sid, &body).await?;
             Ok(CommandResult::Ok)
@@ -2221,32 +2230,31 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
             let uuid = require_uuid(&id)?;
             let existing = ic.get_firewall_policy(&sid, &uuid).await?;
 
-            let mut source = existing
-                .extra
-                .get("source")
-                .cloned()
-                .unwrap_or_else(|| serde_json::json!({}));
-            if let Some(addr) = update.source_address.clone() {
-                if let Some(obj) = source.as_object_mut() {
-                    obj.insert("address".into(), serde_json::Value::String(addr));
-                }
-            }
+            // Source: use new filter spec if provided, otherwise keep existing
+            let source = if let Some(ref spec) = update.source_filter {
+                let zone_id = existing
+                    .source
+                    .as_ref()
+                    .and_then(|s| s.zone_id)
+                    .map(|u| u.to_string())
+                    .unwrap_or_default();
+                build_endpoint_json(&zone_id, Some(spec))
+            } else {
+                serde_json::to_value(&existing.source).unwrap_or_default()
+            };
 
-            let mut destination = existing
-                .extra
-                .get("destination")
-                .cloned()
-                .unwrap_or_else(|| serde_json::json!({}));
-            if let Some(addr) = update.destination_address.clone() {
-                if let Some(obj) = destination.as_object_mut() {
-                    obj.insert("address".into(), serde_json::Value::String(addr));
-                }
-            }
-            if let Some(port) = update.destination_port.clone() {
-                if let Some(obj) = destination.as_object_mut() {
-                    obj.insert("port".into(), serde_json::Value::String(port));
-                }
-            }
+            // Destination: use new filter spec if provided, otherwise keep existing
+            let destination = if let Some(ref spec) = update.destination_filter {
+                let zone_id = existing
+                    .destination
+                    .as_ref()
+                    .and_then(|d| d.zone_id)
+                    .map(|u| u.to_string())
+                    .unwrap_or_default();
+                build_endpoint_json(&zone_id, Some(spec))
+            } else {
+                serde_json::to_value(&existing.destination).unwrap_or_default()
+            };
 
             let action = if let Some(action) = update.action {
                 let action_type = match action {
@@ -2259,23 +2267,25 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
                 existing.action
             };
 
-            let ip_protocol_scope = if let Some(protocol) = update.protocol.clone() {
-                serde_json::json!({ "protocol": protocol })
+            let ip_protocol_scope = if let Some(ref version) = update.ip_version {
+                serde_json::json!({ "ipVersion": version })
             } else {
                 existing
                     .ip_protocol_scope
-                    .unwrap_or_else(|| serde_json::json!("ALL"))
+                    .unwrap_or_else(|| serde_json::json!({ "ipVersion": "IPV4_AND_IPV6" }))
             };
 
-            let connection_state_filter = existing
-                .extra
-                .get("connectionStateFilter")
-                .and_then(serde_json::Value::as_array)
-                .map(|arr| {
-                    arr.iter()
-                        .filter_map(|v| v.as_str().map(ToOwned::to_owned))
-                        .collect::<Vec<_>>()
-                });
+            let connection_state_filter = update.connection_states.or_else(|| {
+                existing
+                    .extra
+                    .get("connectionStateFilter")
+                    .and_then(serde_json::Value::as_array)
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(ToOwned::to_owned))
+                            .collect::<Vec<_>>()
+                    })
+            });
 
             let payload = crate::integration_types::FirewallPolicyCreateUpdate {
                 name: update.name.unwrap_or(existing.name),
@@ -2285,7 +2295,7 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
                 source,
                 destination,
                 ip_protocol_scope,
-                logging_enabled: existing.logging_enabled,
+                logging_enabled: update.logging_enabled.unwrap_or(existing.logging_enabled),
                 ipsec_filter: existing
                     .extra
                     .get("ipsecFilter")
@@ -2948,6 +2958,89 @@ fn client_mac(store: &DataStore, id: &EntityId) -> Result<MacAddress, CoreError>
         .ok_or_else(|| CoreError::ClientNotFound {
             identifier: id.to_string(),
         })
+}
+
+/// Build a firewall policy source/destination JSON object from a zone ID
+/// and an optional traffic filter spec.
+fn build_endpoint_json(
+    zone_id: &str,
+    filter: Option<&crate::command::requests::TrafficFilterSpec>,
+) -> serde_json::Value {
+    use crate::command::requests::TrafficFilterSpec;
+
+    let mut obj = serde_json::json!({ "zoneId": zone_id });
+
+    if let Some(spec) = filter {
+        let traffic_filter = match spec {
+            TrafficFilterSpec::Network {
+                network_ids,
+                match_opposite,
+            } => {
+                serde_json::json!({
+                    "type": "NETWORK",
+                    "networkFilter": {
+                        "networkIds": network_ids,
+                        "matchOpposite": match_opposite,
+                    }
+                })
+            }
+            TrafficFilterSpec::IpAddress {
+                addresses,
+                match_opposite,
+            } => {
+                let items: Vec<serde_json::Value> = addresses
+                    .iter()
+                    .map(|addr| {
+                        if addr.contains('/') {
+                            serde_json::json!({ "type": "SUBNET", "value": addr })
+                        } else if addr.contains('-') {
+                            let parts: Vec<&str> = addr.splitn(2, '-').collect();
+                            serde_json::json!({ "type": "RANGE", "start": parts[0], "stop": parts.get(1).unwrap_or(&"") })
+                        } else {
+                            serde_json::json!({ "type": "IP_ADDRESS", "value": addr })
+                        }
+                    })
+                    .collect();
+                serde_json::json!({
+                    "type": "IP_ADDRESSES",
+                    "ipAddressFilter": {
+                        "type": "IP_ADDRESSES",
+                        "items": items,
+                        "matchOpposite": match_opposite,
+                    }
+                })
+            }
+            TrafficFilterSpec::Port {
+                ports,
+                match_opposite,
+            } => {
+                let items: Vec<serde_json::Value> = ports
+                    .iter()
+                    .map(|p| {
+                        if p.contains('-') {
+                            let parts: Vec<&str> = p.splitn(2, '-').collect();
+                            serde_json::json!({ "type": "PORT_RANGE", "startPort": parts[0], "endPort": parts.get(1).unwrap_or(&"") })
+                        } else {
+                            serde_json::json!({ "type": "PORT_NUMBER", "value": p })
+                        }
+                    })
+                    .collect();
+                serde_json::json!({
+                    "type": "PORT",
+                    "portFilter": {
+                        "type": "PORTS",
+                        "items": items,
+                        "matchOpposite": match_opposite,
+                    }
+                })
+            }
+        };
+        obj.as_object_mut()
+            .expect("json! produces object")
+            .insert("trafficFilter".into(), traffic_filter);
+    }
+
+    obj
 }
 
 #[cfg(test)]

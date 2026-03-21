@@ -658,6 +658,7 @@ pub struct FirewallArgs {
 }
 
 #[derive(Debug, Subcommand)]
+#[allow(clippy::large_enum_variant)]
 pub enum FirewallCommand {
     /// Manage firewall policies
     Policies(FirewallPoliciesArgs),
@@ -716,6 +717,38 @@ pub enum FirewallPoliciesCommand {
         #[arg(long)]
         logging: bool,
 
+        /// Source network IDs or names (comma-separated)
+        #[arg(long, value_delimiter = ',')]
+        src_network: Option<Vec<String>>,
+
+        /// Source IP addresses (IPs, CIDRs, or ranges like "10.0.0.1-10.0.0.100")
+        #[arg(long, value_delimiter = ',')]
+        src_ip: Option<Vec<String>>,
+
+        /// Source ports (single ports or ranges like "8000-9000")
+        #[arg(long, value_delimiter = ',')]
+        src_port: Option<Vec<String>>,
+
+        /// Destination network IDs or names (comma-separated)
+        #[arg(long, value_delimiter = ',')]
+        dst_network: Option<Vec<String>>,
+
+        /// Destination IP addresses (IPs, CIDRs, or ranges)
+        #[arg(long, value_delimiter = ',')]
+        dst_ip: Option<Vec<String>>,
+
+        /// Destination ports (single ports or ranges)
+        #[arg(long, value_delimiter = ',')]
+        dst_port: Option<Vec<String>>,
+
+        /// Connection states to match (comma-separated: NEW, ESTABLISHED, RELATED, INVALID)
+        #[arg(long, value_delimiter = ',')]
+        states: Option<Vec<String>>,
+
+        /// IP version: IPV4_ONLY, IPV6_ONLY, IPV4_AND_IPV6
+        #[arg(long)]
+        ip_version: Option<String>,
+
         /// Create from JSON file (complex policies)
         #[arg(long, short = 'F', conflicts_with_all = &["name", "action", "source_zone", "dest_zone"])]
         from_file: Option<PathBuf>,
@@ -725,6 +758,38 @@ pub enum FirewallPoliciesCommand {
     Update {
         /// Firewall policy ID (UUID)
         id: String,
+
+        /// Source network IDs or names (comma-separated)
+        #[arg(long, value_delimiter = ',')]
+        src_network: Option<Vec<String>>,
+
+        /// Source IP addresses (IPs, CIDRs, or ranges)
+        #[arg(long, value_delimiter = ',')]
+        src_ip: Option<Vec<String>>,
+
+        /// Source ports
+        #[arg(long, value_delimiter = ',')]
+        src_port: Option<Vec<String>>,
+
+        /// Destination network IDs or names (comma-separated)
+        #[arg(long, value_delimiter = ',')]
+        dst_network: Option<Vec<String>>,
+
+        /// Destination IP addresses (IPs, CIDRs, or ranges)
+        #[arg(long, value_delimiter = ',')]
+        dst_ip: Option<Vec<String>>,
+
+        /// Destination ports
+        #[arg(long, value_delimiter = ',')]
+        dst_port: Option<Vec<String>>,
+
+        /// Connection states to match
+        #[arg(long, value_delimiter = ',')]
+        states: Option<Vec<String>>,
+
+        /// IP version: IPV4_ONLY, IPV6_ONLY, IPV4_AND_IPV6
+        #[arg(long)]
+        ip_version: Option<String>,
 
         /// Load full payload from JSON file
         #[arg(long, short = 'F')]
