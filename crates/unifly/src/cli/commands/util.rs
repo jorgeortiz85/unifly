@@ -119,14 +119,12 @@ struct FilterExpr {
 /// Parse and evaluate a tiny local filter grammar:
 /// `field.eq('value')`, `field.contains('value')`, or `field.in('a','b')`.
 pub fn matches_json_filter<T: serde::Serialize>(item: &T, filter: &str) -> bool {
-    let expr = match parse_filter_expr(filter) {
-        Some(expr) => expr,
-        None => return false,
+    let Some(expr) = parse_filter_expr(filter) else {
+        return false;
     };
 
-    let value = match serde_json::to_value(item) {
-        Ok(value) => value,
-        Err(_) => return false,
+    let Ok(value) = serde_json::to_value(item) else {
+        return false;
     };
 
     let mut matches = Vec::new();
@@ -200,7 +198,7 @@ fn parse_quoted_values(input: &str) -> Option<Vec<String>> {
         let mut value = String::new();
         let mut escaped = false;
         let mut closed = false;
-        while let Some(ch) = chars.next() {
+        for ch in chars.by_ref() {
             if escaped {
                 let decoded = match ch {
                     'n' => '\n',

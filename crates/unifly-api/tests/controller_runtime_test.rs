@@ -323,16 +323,15 @@ struct HttpRequest {
     headers: HashMap<String, String>,
 }
 
+#[allow(clippy::too_many_lines)]
 async fn handle_connection(
     mut stream: TcpStream,
     probe: Arc<Notify>,
     handshake_path: Arc<Mutex<Option<String>>>,
     cookie_header: Arc<Mutex<Option<String>>>,
 ) -> std::io::Result<()> {
-    let request = match read_request(&mut stream).await {
-        Ok(Some(request)) => request,
-        Ok(None) => return Ok(()),
-        Err(_) => return Ok(()),
+    let Ok(Some(request)) = read_request(&mut stream).await else {
+        return Ok(());
     };
 
     if request.method == "GET" && request.path == "/api/auth/login" {
@@ -432,7 +431,7 @@ async fn handle_connection(
             loop {
                 match stream.read(&mut scratch).await {
                     Ok(0) | Err(_) => break,
-                    Ok(_) => continue,
+                    Ok(_) => {}
                 }
             }
             return Ok(());
@@ -449,7 +448,6 @@ async fn write_http_response(
     body: &[u8],
 ) -> std::io::Result<()> {
     let reason = match status {
-        200 => "OK",
         404 => "Not Found",
         101 => "Switching Protocols",
         _ => "OK",
