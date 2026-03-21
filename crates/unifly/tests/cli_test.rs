@@ -218,6 +218,20 @@ fn test_devices_pending_list_flags_parse() {
 }
 
 #[test]
+fn test_devices_list_supports_expression_filter_syntax() {
+    unifly_cmd()
+        .args(["devices", "list", "--filter", "name.eq('beta')"])
+        .assert()
+        .failure()
+        .stderr(
+            predicate::str::contains("config")
+                .or(predicate::str::contains("Configuration"))
+                .or(predicate::str::contains("controller"))
+                .or(predicate::str::contains("profile")),
+        );
+}
+
+#[test]
 fn test_devices_tags_all_flag_parse() {
     unifly_cmd()
         .args(["devices", "tags", "--all"])
