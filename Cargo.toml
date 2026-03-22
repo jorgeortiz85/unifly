@@ -52,8 +52,8 @@ indicatif = "0.17"
 rpassword = "7"
 
 # ── Theme engine ──
-opaline = { version = "0.2.0", features = [
-    "ratatui", "gradients", "global-state", "builtin-themes", "discovery", "widgets"
+opaline = { path = "../opaline", features = [
+    "ratatui", "gradients", "global-state", "builtin-themes", "discovery", "widgets", "owo-colors"
 ] }
 
 # ── TUI framework ──
@@ -61,7 +61,7 @@ ratatui = { version = "0.30", features = ["crossterm", "serde"] }
 ratatui-macros = "0.7"
 crossterm = { version = "0.29", features = ["event-stream"] }
 tachyonfx = "0.23"
-tui-input = "0.11"
+tui-input = "0.15"
 tui-scrollview = "0.6"
 tui-widget-list = "0.15"
 tui-tree-widget = "0.24"

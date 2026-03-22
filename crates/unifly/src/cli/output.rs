@@ -2,23 +2,35 @@
 //!
 //! Renders data in the format selected by `--output`. Table uses `tabled`,
 //! structured formats use serde, plain emits one identifier per line.
+//! Color output uses opaline's SilkCircuit theme via owo-colors.
 
 use std::io::{self, IsTerminal, Write};
 
+use opaline::adapters::owo_colors::OwoThemeExt;
+use owo_colors::OwoColorize;
 use tabled::{Table, Tabled, settings::Style};
 
 use crate::cli::args::{ColorMode, OutputFormat};
 
-// ── Color helpers (SilkCircuit palette) ──────────────────────────────
+// ── Color helpers (SilkCircuit palette via opaline) ──────────────────
 
 /// Determine whether color output should be enabled.
-#[allow(dead_code)]
 pub fn should_color(mode: &ColorMode) -> bool {
     match mode {
         ColorMode::Always => true,
         ColorMode::Never => false,
         ColorMode::Auto => io::stdout().is_terminal() && std::env::var("NO_COLOR").is_err(),
     }
+}
+
+/// Load the SilkCircuit Neon theme for CLI output.
+pub fn load_theme() -> opaline::Theme {
+    opaline::load_by_name("silkcircuit-neon").expect("builtin theme must exist")
+}
+
+/// Apply theme coloring to a value based on its semantic role.
+pub fn themed(theme: &opaline::Theme, text: &str, token: &str) -> String {
+    format!("{}", text.style(theme.owo_fg(token)))
 }
 
 // ── Render dispatchers ───────────────────────────────────────────────

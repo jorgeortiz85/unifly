@@ -16,37 +16,44 @@ use super::util;
 
 #[derive(Tabled)]
 struct ClientRow {
-    #[tabled(rename = "ID")]
-    id: String,
     #[tabled(rename = "Name")]
     name: String,
     #[tabled(rename = "IP")]
     ip: String,
-    #[tabled(rename = "MAC")]
-    mac: String,
     #[tabled(rename = "Type")]
     ctype: String,
     #[tabled(rename = "Uplink")]
     uplink: String,
 }
 
-impl From<&Arc<Client>> for ClientRow {
-    fn from(c: &Arc<Client>) -> Self {
-        Self {
-            id: c.id.to_string(),
-            name: c
-                .name
-                .clone()
-                .or_else(|| c.hostname.clone())
-                .unwrap_or_default(),
-            ip: c.ip.map(|ip| ip.to_string()).unwrap_or_default(),
-            mac: c.mac.to_string(),
-            ctype: format!("{:?}", c.client_type),
-            uplink: c
-                .uplink_device_mac
-                .as_ref()
-                .map(ToString::to_string)
-                .unwrap_or_default(),
+fn client_row(c: &Arc<Client>, color: bool) -> ClientRow {
+    let name = c
+        .name
+        .clone()
+        .or_else(|| c.hostname.clone())
+        .unwrap_or_default();
+    let ip = c.ip.map(|ip| ip.to_string()).unwrap_or_default();
+    let ctype = format!("{:?}", c.client_type);
+    let uplink = c
+        .uplink_device_mac
+        .as_ref()
+        .map(ToString::to_string)
+        .unwrap_or_default();
+
+    if color {
+        let theme = output::load_theme();
+        ClientRow {
+            name: output::themed(&theme, &name, "accent.secondary"),
+            ip: output::themed(&theme, &ip, "code.number"),
+            ctype: output::themed(&theme, &ctype, "text.muted"),
+            uplink: output::themed(&theme, &uplink, "text.dim"),
+        }
+    } else {
+        ClientRow {
+            name,
+            ip,
+            ctype,
+            uplink,
         }
     }
 }
@@ -91,6 +98,9 @@ pub async fn handle(
     args: ClientsArgs,
     global: &GlobalOpts,
 ) -> Result<(), CliError> {
+    let use_color =
+        output::should_color(&global.color) && matches!(global.output, crate::cli::args::OutputFormat::Table);
+
     match args.command {
         ClientsCommand::List(list) => {
             let all = controller.clients_snapshot();
@@ -100,7 +110,7 @@ pub async fn handle(
             let out = output::render_list(
                 &global.output,
                 &snap,
-                |c| ClientRow::from(c),
+                |c| client_row(c, use_color),
                 |c| c.id.to_string(),
             );
             output::print_output(&out, global.quiet);
@@ -135,7 +145,7 @@ pub async fn handle(
             let out = output::render_list(
                 &global.output,
                 &matches,
-                |c| ClientRow::from(c),
+                |c| client_row(c, use_color),
                 |c| c.id.to_string(),
             );
             output::print_output(&out, global.quiet);
