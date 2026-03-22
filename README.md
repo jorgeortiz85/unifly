@@ -16,6 +16,9 @@
   <img src="https://img.shields.io/badge/opaline-Theme-e135ff?style=for-the-badge&logo=rust&logoColor=white" alt="opaline">
   <img src="https://img.shields.io/badge/tokio-Async-f1fa8c?style=for-the-badge&logo=rust&logoColor=0a0a0f" alt="tokio">
   <img src="https://img.shields.io/badge/License-Apache--2.0-50fa7b?style=for-the-badge&logo=apache&logoColor=0a0a0f" alt="License">
+  <a href="https://github.com/sponsors/hyperb1iss">
+    <img src="https://img.shields.io/badge/Sponsor-ff6ac1?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="Sponsor">
+  </a>
 </p>
 
 <p align="center">
@@ -560,7 +563,7 @@ Apache-2.0. See [LICENSE](LICENSE)
 
 <p align="center">
   <a href="https://github.com/sponsors/hyperb1iss">
-    <img src="https://img.shields.io/badge/%E2%9D%A4%EF%B8%8F_Sponsor-hyperb1iss-e135ff?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="Sponsor on GitHub">
+    <img src="https://img.shields.io/badge/Sponsor-hyperb1iss-e135ff?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="Sponsor on GitHub">
   </a>
   &nbsp;
   <a href="https://github.com/hyperb1iss/unifly">
@@ -569,11 +572,9 @@ Apache-2.0. See [LICENSE](LICENSE)
 </p>
 
 <p align="center">
-  <iframe src="https://github.com/sponsors/hyperb1iss/card" title="Sponsor hyperb1iss" height="225" width="600" style="border: 0;"></iframe>
-</p>
-
-<p align="center">
   <sub>
+    If unifly keeps your network running smooth, <a href="https://github.com/sponsors/hyperb1iss"><strong>sponsor the project</strong></a> or give it a ⭐
+    <br><br>
     ✦ Built with obsession by <a href="https://hyperbliss.tech"><strong>Hyperbliss Technologies</strong></a> ✦
   </sub>
 </p>
