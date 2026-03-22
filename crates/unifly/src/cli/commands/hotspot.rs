@@ -28,18 +28,17 @@ struct VoucherRow {
     expired: String,
 }
 
-impl From<&Arc<Voucher>> for VoucherRow {
-    fn from(v: &Arc<Voucher>) -> Self {
-        Self {
-            id: v.id.to_string(),
-            code: v.code.clone(),
-            name: v.name.clone().unwrap_or_default(),
-            minutes: v
-                .time_limit_minutes
+fn voucher_row(v: &Arc<Voucher>, p: &output::Painter) -> VoucherRow {
+    VoucherRow {
+        id: p.id(&v.id.to_string()),
+        code: p.name(&v.code),
+        name: p.name(&v.name.clone().unwrap_or_default()),
+        minutes: p.number(
+            &v.time_limit_minutes
                 .map(|m| m.to_string())
                 .unwrap_or_default(),
-            expired: if v.expired { "yes" } else { "no" }.into(),
-        }
+        ),
+        expired: p.enabled(!v.expired),
     }
 }
 
@@ -78,6 +77,8 @@ pub async fn handle(
 ) -> Result<(), CliError> {
     util::ensure_integration_access(controller, "hotspot").await?;
 
+    let p = output::Painter::new(global);
+
     match args.command {
         HotspotCommand::List { limit, offset } => {
             let all = controller.vouchers_snapshot();
@@ -87,7 +88,7 @@ pub async fn handle(
             let out = output::render_list(
                 &global.output,
                 &snap,
-                |v| VoucherRow::from(v),
+                |v| voucher_row(v, &p),
                 |v| v.id.to_string(),
             );
             output::print_output(&out, global.quiet);

@@ -26,35 +26,22 @@ struct ClientRow {
     uplink: String,
 }
 
-fn client_row(c: &Arc<Client>, color: bool) -> ClientRow {
+fn client_row(c: &Arc<Client>, p: &output::Painter) -> ClientRow {
     let name = c
         .name
         .clone()
         .or_else(|| c.hostname.clone())
         .unwrap_or_default();
-    let ip = c.ip.map(|ip| ip.to_string()).unwrap_or_default();
-    let ctype = format!("{:?}", c.client_type);
-    let uplink = c
-        .uplink_device_mac
-        .as_ref()
-        .map(ToString::to_string)
-        .unwrap_or_default();
-
-    if color {
-        let theme = output::load_theme();
-        ClientRow {
-            name: output::themed(&theme, &name, "accent.secondary"),
-            ip: output::themed(&theme, &ip, "code.number"),
-            ctype: output::themed(&theme, &ctype, "text.muted"),
-            uplink: output::themed(&theme, &uplink, "text.dim"),
-        }
-    } else {
-        ClientRow {
-            name,
-            ip,
-            ctype,
-            uplink,
-        }
+    ClientRow {
+        name: p.name(&name),
+        ip: p.ip(&c.ip.map(|ip| ip.to_string()).unwrap_or_default()),
+        ctype: p.muted(&format!("{:?}", c.client_type)),
+        uplink: p.mac(
+            &c.uplink_device_mac
+                .as_ref()
+                .map(ToString::to_string)
+                .unwrap_or_default(),
+        ),
     }
 }
 
@@ -98,8 +85,7 @@ pub async fn handle(
     args: ClientsArgs,
     global: &GlobalOpts,
 ) -> Result<(), CliError> {
-    let use_color =
-        output::should_color(&global.color) && matches!(global.output, crate::cli::args::OutputFormat::Table);
+    let p = output::Painter::new(global);
 
     match args.command {
         ClientsCommand::List(list) => {
@@ -110,7 +96,7 @@ pub async fn handle(
             let out = output::render_list(
                 &global.output,
                 &snap,
-                |c| client_row(c, use_color),
+                |c| client_row(c, &p),
                 |c| c.id.to_string(),
             );
             output::print_output(&out, global.quiet);
@@ -145,7 +131,7 @@ pub async fn handle(
             let out = output::render_list(
                 &global.output,
                 &matches,
-                |c| client_row(c, use_color),
+                |c| client_row(c, &p),
                 |c| c.id.to_string(),
             );
             output::print_output(&out, global.quiet);

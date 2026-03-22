@@ -19,12 +19,10 @@ struct RadiusProfileRow {
     name: String,
 }
 
-impl From<&RadiusProfile> for RadiusProfileRow {
-    fn from(r: &RadiusProfile) -> Self {
-        Self {
-            id: r.id.to_string(),
-            name: r.name.clone(),
-        }
+fn radius_profile_row(r: &RadiusProfile, p: &output::Painter) -> RadiusProfileRow {
+    RadiusProfileRow {
+        id: p.id(&r.id.to_string()),
+        name: p.name(&r.name),
     }
 }
 
@@ -35,6 +33,8 @@ pub async fn handle(
     args: RadiusArgs,
     global: &GlobalOpts,
 ) -> Result<(), CliError> {
+    let p = output::Painter::new(global);
+
     match args.command {
         RadiusCommand::Profiles(list) => {
             let profiles = util::apply_list_args(
@@ -45,7 +45,7 @@ pub async fn handle(
             let out = output::render_list(
                 &global.output,
                 &profiles,
-                |r| RadiusProfileRow::from(r),
+                |r| radius_profile_row(r, &p),
                 |r| r.id.to_string(),
             );
             output::print_output(&out, global.quiet);

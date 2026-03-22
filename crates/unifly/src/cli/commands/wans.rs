@@ -23,14 +23,12 @@ struct WanRow {
     gateway: String,
 }
 
-impl From<&WanInterface> for WanRow {
-    fn from(w: &WanInterface) -> Self {
-        Self {
-            id: w.id.to_string(),
-            name: w.name.clone().unwrap_or_default(),
-            ip: w.ip.map(|ip| ip.to_string()).unwrap_or_default(),
-            gateway: w.gateway.map(|gw| gw.to_string()).unwrap_or_default(),
-        }
+fn wan_row(w: &WanInterface, p: &output::Painter) -> WanRow {
+    WanRow {
+        id: p.id(&w.id.to_string()),
+        name: p.name(&w.name.clone().unwrap_or_default()),
+        ip: p.ip(&w.ip.map(|ip| ip.to_string()).unwrap_or_default()),
+        gateway: p.ip(&w.gateway.map(|gw| gw.to_string()).unwrap_or_default()),
     }
 }
 
@@ -41,6 +39,8 @@ pub async fn handle(
     args: WansArgs,
     global: &GlobalOpts,
 ) -> Result<(), CliError> {
+    let p = output::Painter::new(global);
+
     match args.command {
         WansCommand::List(list) => {
             let wans = util::apply_list_args(
@@ -51,7 +51,7 @@ pub async fn handle(
             let out = output::render_list(
                 &global.output,
                 &wans,
-                |w| WanRow::from(w),
+                |w| wan_row(w, &p),
                 |w| w.id.to_string(),
             );
             output::print_output(&out, global.quiet);

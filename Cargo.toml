@@ -81,7 +81,7 @@ keyring = { version = "3", features = ["apple-native", "windows-native", "sync-s
 directories = "6"
 
 # ── Output formatting (CLI) ──
-tabled = { version = "0.17", features = ["derive"] }
+tabled = { version = "0.17", features = ["derive", "ansi"] }
 owo-colors = "4"
 
 # ── Logging / tracing ──

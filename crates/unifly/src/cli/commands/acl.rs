@@ -28,15 +28,13 @@ struct AclRow {
     enabled: String,
 }
 
-impl From<&Arc<AclRule>> for AclRow {
-    fn from(r: &Arc<AclRule>) -> Self {
-        Self {
-            id: r.id.to_string(),
-            name: r.name.clone(),
-            rule_type: format!("{:?}", r.rule_type),
-            action: format!("{:?}", r.action),
-            enabled: if r.enabled { "yes" } else { "no" }.into(),
-        }
+fn acl_row(r: &Arc<AclRule>, p: &output::Painter) -> AclRow {
+    AclRow {
+        id: p.id(&r.id.to_string()),
+        name: p.name(&r.name),
+        rule_type: p.muted(&format!("{:?}", r.rule_type)),
+        action: p.action(&format!("{:?}", r.action)),
+        enabled: p.enabled(r.enabled),
     }
 }
 
@@ -66,6 +64,8 @@ pub async fn handle(
 ) -> Result<(), CliError> {
     util::ensure_integration_access(controller, "acl").await?;
 
+    let p = output::Painter::new(global);
+
     match args.command {
         AclCommand::List(list) => {
             let all = controller.acl_rules_snapshot();
@@ -75,7 +75,7 @@ pub async fn handle(
             let out = output::render_list(
                 &global.output,
                 &snap,
-                |r| AclRow::from(r),
+                |r| acl_row(r, &p),
                 |r| r.id.to_string(),
             );
             output::print_output(&out, global.quiet);

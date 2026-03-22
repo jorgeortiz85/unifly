@@ -14,52 +14,48 @@ use super::util;
 #[derive(Tabled)]
 struct DpiAppRow {
     #[tabled(rename = "ID")]
-    id: u32,
+    id: String,
     #[tabled(rename = "Name")]
     name: String,
     #[tabled(rename = "Category")]
-    category_id: u32,
+    category_id: String,
     #[tabled(rename = "TX Bytes")]
-    tx_bytes: u64,
+    tx_bytes: String,
     #[tabled(rename = "RX Bytes")]
-    rx_bytes: u64,
+    rx_bytes: String,
 }
 
-impl From<&DpiApplication> for DpiAppRow {
-    fn from(a: &DpiApplication) -> Self {
-        Self {
-            id: a.id,
-            name: a.name.clone(),
-            category_id: a.category_id,
-            tx_bytes: a.tx_bytes,
-            rx_bytes: a.rx_bytes,
-        }
+fn dpi_app_row(a: &DpiApplication, p: &output::Painter) -> DpiAppRow {
+    DpiAppRow {
+        id: p.id(&a.id.to_string()),
+        name: p.name(&a.name),
+        category_id: p.muted(&a.category_id.to_string()),
+        tx_bytes: p.number(&a.tx_bytes.to_string()),
+        rx_bytes: p.number(&a.rx_bytes.to_string()),
     }
 }
 
 #[derive(Tabled)]
 struct DpiCategoryRow {
     #[tabled(rename = "ID")]
-    id: u32,
+    id: String,
     #[tabled(rename = "Name")]
     name: String,
     #[tabled(rename = "Apps")]
-    app_count: usize,
+    app_count: String,
     #[tabled(rename = "TX Bytes")]
-    tx_bytes: u64,
+    tx_bytes: String,
     #[tabled(rename = "RX Bytes")]
-    rx_bytes: u64,
+    rx_bytes: String,
 }
 
-impl From<&DpiCategory> for DpiCategoryRow {
-    fn from(c: &DpiCategory) -> Self {
-        Self {
-            id: c.id,
-            name: c.name.clone(),
-            app_count: c.apps.len(),
-            tx_bytes: c.tx_bytes,
-            rx_bytes: c.rx_bytes,
-        }
+fn dpi_category_row(c: &DpiCategory, p: &output::Painter) -> DpiCategoryRow {
+    DpiCategoryRow {
+        id: p.id(&c.id.to_string()),
+        name: p.name(&c.name),
+        app_count: p.number(&c.apps.len().to_string()),
+        tx_bytes: p.number(&c.tx_bytes.to_string()),
+        rx_bytes: p.number(&c.rx_bytes.to_string()),
     }
 }
 
@@ -70,6 +66,8 @@ pub async fn handle(
     args: DpiArgs,
     global: &GlobalOpts,
 ) -> Result<(), CliError> {
+    let p = output::Painter::new(global);
+
     match args.command {
         DpiCommand::Apps(list) => {
             let apps = util::apply_list_args(
@@ -80,7 +78,7 @@ pub async fn handle(
             let out = output::render_list(
                 &global.output,
                 &apps,
-                |a| DpiAppRow::from(a),
+                |a| dpi_app_row(a, &p),
                 |a| a.id.to_string(),
             );
             output::print_output(&out, global.quiet);
@@ -96,7 +94,7 @@ pub async fn handle(
             let out = output::render_list(
                 &global.output,
                 &cats,
-                |c| DpiCategoryRow::from(c),
+                |c| dpi_category_row(c, &p),
                 |c| c.id.to_string(),
             );
             output::print_output(&out, global.quiet);

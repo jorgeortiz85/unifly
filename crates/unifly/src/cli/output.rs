@@ -33,6 +33,142 @@ pub fn themed(theme: &opaline::Theme, text: &str, token: &str) -> String {
     format!("{}", text.style(theme.owo_fg(token)))
 }
 
+// ── Semantic color helpers ───────────────────────────────────────────
+//
+// Consistent color vocabulary across all CLI commands. Each helper
+// returns the input unchanged if color is disabled.
+
+/// Colorizer that holds theme + color state to avoid reloading per field.
+pub struct Painter {
+    theme: opaline::Theme,
+    enabled: bool,
+}
+
+impl Painter {
+    /// Create a painter from global options.
+    pub fn new(global: &super::args::GlobalOpts) -> Self {
+        let enabled = should_color(&global.color)
+            && matches!(global.output, super::args::OutputFormat::Table);
+        Self {
+            theme: load_theme(),
+            enabled,
+        }
+    }
+
+    /// Create a disabled (no-color) painter.
+    pub fn plain() -> Self {
+        Self {
+            theme: load_theme(),
+            enabled: false,
+        }
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+
+    fn paint(&self, text: &str, token: &str) -> String {
+        if self.enabled {
+            themed(&self.theme, text, token)
+        } else {
+            text.to_string()
+        }
+    }
+
+    // ── Semantic methods ────────────────────────────────────
+
+    /// Names, labels, identifiers (neon cyan)
+    pub fn name(&self, text: &str) -> String {
+        self.paint(text, "accent.secondary")
+    }
+
+    /// IP addresses, subnets (coral)
+    pub fn ip(&self, text: &str) -> String {
+        self.paint(text, "code.number")
+    }
+
+    /// MAC addresses, hardware identifiers (dim)
+    pub fn mac(&self, text: &str) -> String {
+        self.paint(text, "text.dim")
+    }
+
+    /// Types, categories, models (muted)
+    pub fn muted(&self, text: &str) -> String {
+        self.paint(text, "text.muted")
+    }
+
+    /// UUIDs, IDs (dim)
+    pub fn id(&self, text: &str) -> String {
+        self.paint(text, "text.dim")
+    }
+
+    /// Numeric values, counts, ports (coral)
+    pub fn number(&self, text: &str) -> String {
+        self.paint(text, "code.number")
+    }
+
+    /// Success states, "yes", "enabled", "online" (green)
+    pub fn success(&self, text: &str) -> String {
+        self.paint(text, "success")
+    }
+
+    /// Error states, "no", "blocked", "offline" (red)
+    pub fn error(&self, text: &str) -> String {
+        self.paint(text, "error")
+    }
+
+    /// Warning states (yellow)
+    pub fn warning(&self, text: &str) -> String {
+        self.paint(text, "warning")
+    }
+
+    /// Boolean field: green for true, red for false
+    pub fn enabled(&self, val: bool) -> String {
+        if val {
+            self.success("yes")
+        } else {
+            self.error("no")
+        }
+    }
+
+    /// Action: allow=green, block=red, reject=yellow
+    pub fn action(&self, text: &str) -> String {
+        match text.to_lowercase().as_str() {
+            "allow" => self.success(text),
+            "block" | "drop" => self.error(text),
+            "reject" => self.warning(text),
+            _ => self.muted(text),
+        }
+    }
+
+    /// Device state: online=green, offline=red, other=yellow
+    pub fn state(&self, text: &str) -> String {
+        match text.to_lowercase().as_str() {
+            "online" | "connected" => self.success(text),
+            "offline" | "disconnected" => self.error(text),
+            _ => self.warning(text),
+        }
+    }
+
+    /// Health status: ok=green, warning=yellow, error=red
+    pub fn health(&self, text: &str) -> String {
+        match text.to_lowercase().as_str() {
+            "ok" | "healthy" => self.success(text),
+            "warning" => self.warning(text),
+            _ => self.error(text),
+        }
+    }
+
+    /// Keyword emphasis (electric purple, bold)
+    pub fn keyword(&self, text: &str) -> String {
+        if self.enabled {
+            format!("{}", text.style(self.theme.owo_style("keyword")))
+        } else {
+            text.to_string()
+        }
+    }
+}
+
 // ── Render dispatchers ───────────────────────────────────────────────
 
 /// Render a list of serde-serializable + tabled items in the chosen format.

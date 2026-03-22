@@ -27,16 +27,14 @@ struct AlarmRow {
     archived: String,
 }
 
-impl From<&Alarm> for AlarmRow {
-    fn from(a: &Alarm) -> Self {
-        Self {
-            id: a.id.to_string(),
-            time: a.timestamp.format("%Y-%m-%d %H:%M:%S").to_string(),
-            severity: format!("{:?}", a.severity),
-            category: format!("{:?}", a.category),
-            message: a.message.clone(),
-            archived: if a.archived { "yes" } else { "no" }.into(),
-        }
+fn alarm_row(a: &Alarm, p: &output::Painter) -> AlarmRow {
+    AlarmRow {
+        id: p.id(&a.id.to_string()),
+        time: p.muted(&a.timestamp.format("%Y-%m-%d %H:%M:%S").to_string()),
+        severity: p.health(&format!("{:?}", a.severity)),
+        category: p.muted(&format!("{:?}", a.category)),
+        message: a.message.clone(),
+        archived: p.enabled(a.archived),
     }
 }
 
@@ -47,6 +45,8 @@ pub async fn handle(
     args: AlarmsArgs,
     global: &GlobalOpts,
 ) -> Result<(), CliError> {
+    let p = output::Painter::new(global);
+
     match args.command {
         AlarmsCommand::List { unarchived, limit } => {
             let mut alarms = controller.list_alarms().await?;
@@ -57,7 +57,7 @@ pub async fn handle(
             let out = output::render_list(
                 &global.output,
                 &alarms,
-                |a| AlarmRow::from(a),
+                |a| alarm_row(a, &p),
                 |a| a.id.to_string(),
             );
             output::print_output(&out, global.quiet);

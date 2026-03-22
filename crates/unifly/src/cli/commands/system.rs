@@ -35,14 +35,12 @@ struct BackupRow {
     size: String,
 }
 
-impl From<&HealthSummary> for HealthRow {
-    fn from(h: &HealthSummary) -> Self {
-        Self {
-            subsystem: h.subsystem.clone(),
-            status: h.status.clone(),
-            devices: h.num_adopted.map(|n| n.to_string()).unwrap_or_default(),
-            clients: h.num_sta.map(|n| n.to_string()).unwrap_or_default(),
-        }
+fn health_row(h: &HealthSummary, p: &output::Painter) -> HealthRow {
+    HealthRow {
+        subsystem: p.name(&h.subsystem),
+        status: p.health(&h.status),
+        devices: p.number(&h.num_adopted.map(|n| n.to_string()).unwrap_or_default()),
+        clients: p.number(&h.num_sta.map(|n| n.to_string()).unwrap_or_default()),
     }
 }
 
@@ -107,6 +105,8 @@ pub async fn handle(
     args: SystemArgs,
     global: &GlobalOpts,
 ) -> Result<(), CliError> {
+    let p = output::Painter::new(global);
+
     match args.command {
         SystemCommand::Info => {
             let info = controller.get_system_info().await?;
@@ -122,7 +122,7 @@ pub async fn handle(
             let out = output::render_list(
                 &global.output,
                 &health,
-                |h| HealthRow::from(h),
+                |h| health_row(h, &p),
                 |h| h.subsystem.clone(),
             );
             output::print_output(&out, global.quiet);
@@ -138,7 +138,7 @@ pub async fn handle(
         }
 
         SystemCommand::Backup(backup_args) => {
-            handle_backup(controller, backup_args.command, global).await
+            handle_backup(controller, backup_args.command, global, &p).await
         }
 
         SystemCommand::Reboot => {
@@ -172,6 +172,7 @@ async fn handle_backup(
     controller: &Controller,
     cmd: BackupCommand,
     global: &GlobalOpts,
+    p: &output::Painter,
 ) -> Result<(), CliError> {
     match cmd {
         BackupCommand::Create => {
@@ -188,22 +189,24 @@ async fn handle_backup(
                 &global.output,
                 &backups,
                 |v| BackupRow {
-                    filename: v
-                        .get("filename")
-                        .or_else(|| v.get("name"))
-                        .and_then(serde_json::Value::as_str)
-                        .unwrap_or("")
-                        .to_owned(),
-                    created: v
-                        .get("create_time")
-                        .or_else(|| v.get("createdAt"))
-                        .map(|t| t.as_str().map_or_else(|| t.to_string(), ToOwned::to_owned))
-                        .unwrap_or_default(),
-                    size: v
-                        .get("size")
-                        .or_else(|| v.get("file_size"))
-                        .map(|s| s.as_str().map_or_else(|| s.to_string(), ToOwned::to_owned))
-                        .unwrap_or_default(),
+                    filename: p.name(
+                        v.get("filename")
+                            .or_else(|| v.get("name"))
+                            .and_then(serde_json::Value::as_str)
+                            .unwrap_or(""),
+                    ),
+                    created: p.muted(
+                        &v.get("create_time")
+                            .or_else(|| v.get("createdAt"))
+                            .map(|t| t.as_str().map_or_else(|| t.to_string(), ToOwned::to_owned))
+                            .unwrap_or_default(),
+                    ),
+                    size: p.number(
+                        &v.get("size")
+                            .or_else(|| v.get("file_size"))
+                            .map(|s| s.as_str().map_or_else(|| s.to_string(), ToOwned::to_owned))
+                            .unwrap_or_default(),
+                    ),
                 },
                 |v| {
                     v.get("filename")

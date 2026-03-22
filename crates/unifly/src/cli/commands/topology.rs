@@ -13,10 +13,11 @@ use crate::cli::args::GlobalOpts;
 use crate::cli::error::CliError;
 
 #[allow(clippy::too_many_lines, clippy::unused_async)]
-pub async fn handle(controller: &Controller, _global: &GlobalOpts) -> Result<(), CliError> {
+pub async fn handle(controller: &Controller, global: &GlobalOpts) -> Result<(), CliError> {
     let devices = controller.devices_snapshot();
     let clients = controller.clients_snapshot();
     let networks = controller.networks_snapshot();
+    let p = crate::cli::output::Painter::new(global);
 
     // Build MAC → device lookup
     let _device_by_mac: HashMap<&str, &Arc<Device>> = devices
@@ -54,10 +55,10 @@ pub async fn handle(controller: &Controller, _global: &GlobalOpts) -> Result<(),
         let client_count = gw.client_count.unwrap_or(0);
         println!(
             "\u{256d} {} ({}) \u{00b7} {} \u{00b7} {} clients",
-            gw.name.as_deref().unwrap_or("gateway"),
-            gw.model.as_deref().unwrap_or("?"),
-            gw.ip.map_or("-".into(), |ip| ip.to_string()),
-            client_count,
+            p.keyword(gw.name.as_deref().unwrap_or("gateway")),
+            p.muted(gw.model.as_deref().unwrap_or("?")),
+            p.ip(&gw.ip.map_or("-".into(), |ip| ip.to_string())),
+            p.number(&client_count.to_string()),
         );
     }
 
@@ -72,23 +73,24 @@ pub async fn handle(controller: &Controller, _global: &GlobalOpts) -> Result<(),
             unifly_api::DeviceType::Switch => "SW",
             _ => "??",
         };
-        let state = match device.state {
-            unifly_api::DeviceState::Online => "",
-            unifly_api::DeviceState::Offline => " [OFFLINE]",
-            _ => " [?]",
-        };
-
         let dev_clients = clients_by_uplink
             .get(device.mac.as_str())
             .map_or(&[][..], Vec::as_slice);
 
+        let state_str = match device.state {
+            unifly_api::DeviceState::Offline => p.error(" [OFFLINE]"),
+            unifly_api::DeviceState::Online => String::new(),
+            _ => p.warning(" [?]"),
+        };
+
         println!(
-            "{branch}\u{2500}\u{2500} {dev_type} {} ({}) \u{00b7} {}{} \u{00b7} {} clients",
-            device.name.as_deref().unwrap_or("?"),
-            device.model.as_deref().unwrap_or("?"),
-            device.ip.map_or("-".into(), |ip| ip.to_string()),
-            state,
-            dev_clients.len(),
+            "{branch}\u{2500}\u{2500} {} {} ({}) \u{00b7} {}{} \u{00b7} {} clients",
+            p.muted(dev_type),
+            p.name(device.name.as_deref().unwrap_or("?")),
+            p.muted(device.model.as_deref().unwrap_or("?")),
+            p.ip(&device.ip.map_or("-".into(), |ip| ip.to_string())),
+            state_str,
+            p.number(&dev_clients.len().to_string()),
         );
 
         // Print clients under this device
@@ -110,10 +112,15 @@ pub async fn handle(controller: &Controller, _global: &GlobalOpts) -> Result<(),
                 _ => "?",
             };
 
+            let client_name = client.name.as_deref().or(client.hostname.as_deref()).unwrap_or("?");
+            let client_ip = client.ip.map_or("-".into(), |ip| ip.to_string());
             println!(
-                "{cont}   {cbranch}\u{2500} [{vlan}] {} \u{00b7} {} \u{00b7} {ctype}{signal}",
-                client.name.as_deref().or(client.hostname.as_deref()).unwrap_or("?"),
-                client.ip.map_or("-".into(), |ip| ip.to_string()),
+                "{cont}   {cbranch}\u{2500} [{}] {} \u{00b7} {} \u{00b7} {}{}",
+                p.muted(&vlan),
+                p.name(client_name),
+                p.ip(&client_ip),
+                p.muted(ctype),
+                p.muted(&signal),
             );
         }
     }
@@ -126,10 +133,13 @@ pub async fn handle(controller: &Controller, _global: &GlobalOpts) -> Result<(),
             let is_last = j == count - 1;
             let cbranch = if is_last { "\u{2570}" } else { "\u{251c}" };
             let vlan = vlan_label(client.ip, &networks);
+            let client_name = client.name.as_deref().or(client.hostname.as_deref()).unwrap_or("?");
+            let client_ip = client.ip.map_or("-".into(), |ip| ip.to_string());
             println!(
-                "    {cbranch}\u{2500} [{vlan}] {} \u{00b7} {}",
-                client.name.as_deref().or(client.hostname.as_deref()).unwrap_or("?"),
-                client.ip.map_or("-".into(), |ip| ip.to_string()),
+                "    {cbranch}\u{2500} [{}] {} \u{00b7} {}",
+                p.muted(&vlan),
+                p.name(client_name),
+                p.ip(&client_ip),
             );
         }
     }

@@ -52,21 +52,20 @@ struct WifiRow {
     bands: String,
 }
 
-impl From<&Arc<WifiBroadcast>> for WifiRow {
-    fn from(w: &Arc<WifiBroadcast>) -> Self {
-        Self {
-            id: w.id.to_string(),
-            name: w.name.clone(),
-            btype: format!("{:?}", w.broadcast_type),
-            security: format!("{:?}", w.security),
-            enabled: if w.enabled { "yes" } else { "no" }.into(),
-            bands: w
-                .frequencies_ghz
+fn wifi_row(w: &Arc<WifiBroadcast>, p: &output::Painter) -> WifiRow {
+    WifiRow {
+        id: p.id(&w.id.to_string()),
+        name: p.name(&w.name),
+        btype: p.muted(&format!("{:?}", w.broadcast_type)),
+        security: p.muted(&format!("{:?}", w.security)),
+        enabled: p.enabled(w.enabled),
+        bands: p.number(
+            &w.frequencies_ghz
                 .iter()
                 .map(|f| format!("{f}GHz"))
                 .collect::<Vec<_>>()
                 .join(", "),
-        }
+        ),
     }
 }
 
@@ -102,6 +101,8 @@ pub async fn handle(
 ) -> Result<(), CliError> {
     util::ensure_integration_access(controller, "wifi").await?;
 
+    let p = output::Painter::new(global);
+
     match args.command {
         WifiCommand::List(list) => {
             let all = controller.wifi_broadcasts_snapshot();
@@ -111,7 +112,7 @@ pub async fn handle(
             let out = output::render_list(
                 &global.output,
                 &snap,
-                |w| WifiRow::from(w),
+                |w| wifi_row(w, &p),
                 |w| w.id.to_string(),
             );
             output::print_output(&out, global.quiet);

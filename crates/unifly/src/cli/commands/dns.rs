@@ -42,15 +42,13 @@ struct DnsRow {
     ttl: String,
 }
 
-impl From<&Arc<DnsPolicy>> for DnsRow {
-    fn from(d: &Arc<DnsPolicy>) -> Self {
-        Self {
-            id: d.id.to_string(),
-            record_type: format!("{:?}", d.policy_type),
-            domain: d.domain.clone(),
-            value: d.value.clone(),
-            ttl: d.ttl_seconds.map(|t| t.to_string()).unwrap_or_default(),
-        }
+fn dns_row(d: &Arc<DnsPolicy>, p: &output::Painter) -> DnsRow {
+    DnsRow {
+        id: p.id(&d.id.to_string()),
+        record_type: p.muted(&format!("{:?}", d.policy_type)),
+        domain: p.name(&d.domain),
+        value: p.ip(&d.value),
+        ttl: p.number(&d.ttl_seconds.map(|t| t.to_string()).unwrap_or_default()),
     }
 }
 
@@ -79,6 +77,8 @@ pub async fn handle(
 ) -> Result<(), CliError> {
     util::ensure_integration_access(controller, "dns").await?;
 
+    let p = output::Painter::new(global);
+
     match args.command {
         DnsCommand::List(list) => {
             let all = controller.dns_policies_snapshot();
@@ -88,7 +88,7 @@ pub async fn handle(
             let out = output::render_list(
                 &global.output,
                 &snap,
-                |d| DnsRow::from(d),
+                |d| dns_row(d, &p),
                 |d| d.id.to_string(),
             );
             output::print_output(&out, global.quiet);

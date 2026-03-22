@@ -25,14 +25,12 @@ struct SiteRow {
     clients: String,
 }
 
-impl From<&Arc<Site>> for SiteRow {
-    fn from(s: &Arc<Site>) -> Self {
-        Self {
-            id: s.id.to_string(),
-            name: s.name.clone(),
-            devices: s.device_count.map(|c| c.to_string()).unwrap_or_default(),
-            clients: s.client_count.map(|c| c.to_string()).unwrap_or_default(),
-        }
+fn site_row(s: &Arc<Site>, p: &output::Painter) -> SiteRow {
+    SiteRow {
+        id: p.id(&s.id.to_string()),
+        name: p.name(&s.name),
+        devices: p.number(&s.device_count.map(|c| c.to_string()).unwrap_or_default()),
+        clients: p.number(&s.client_count.map(|c| c.to_string()).unwrap_or_default()),
     }
 }
 
@@ -43,6 +41,8 @@ pub async fn handle(
     args: SitesArgs,
     global: &GlobalOpts,
 ) -> Result<(), CliError> {
+    let p = output::Painter::new(global);
+
     match args.command {
         SitesCommand::List(list) => {
             let all = controller.sites_snapshot();
@@ -52,7 +52,7 @@ pub async fn handle(
             let out = output::render_list(
                 &global.output,
                 &snap,
-                |s| SiteRow::from(s),
+                |s| site_row(s, &p),
                 |s| s.id.to_string(),
             );
             output::print_output(&out, global.quiet);

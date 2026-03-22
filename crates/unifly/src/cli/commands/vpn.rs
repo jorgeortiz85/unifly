@@ -23,17 +23,15 @@ struct VpnServerRow {
     enabled: String,
 }
 
-impl From<&VpnServer> for VpnServerRow {
-    fn from(s: &VpnServer) -> Self {
-        Self {
-            id: s.id.to_string(),
-            name: s.name.clone().unwrap_or_default(),
-            server_type: s.server_type.clone(),
-            enabled: s
-                .enabled
-                .map_or("-", |e| if e { "yes" } else { "no" })
-                .into(),
-        }
+fn vpn_server_row(s: &VpnServer, p: &output::Painter) -> VpnServerRow {
+    VpnServerRow {
+        id: p.id(&s.id.to_string()),
+        name: p.name(&s.name.clone().unwrap_or_default()),
+        server_type: p.muted(&s.server_type),
+        enabled: s.enabled.map_or_else(
+            || p.muted("-"),
+            |e| p.enabled(e),
+        ),
     }
 }
 
@@ -49,17 +47,15 @@ struct VpnTunnelRow {
     enabled: String,
 }
 
-impl From<&VpnTunnel> for VpnTunnelRow {
-    fn from(t: &VpnTunnel) -> Self {
-        Self {
-            id: t.id.to_string(),
-            name: t.name.clone().unwrap_or_default(),
-            tunnel_type: t.tunnel_type.clone(),
-            enabled: t
-                .enabled
-                .map_or("-", |e| if e { "yes" } else { "no" })
-                .into(),
-        }
+fn vpn_tunnel_row(t: &VpnTunnel, p: &output::Painter) -> VpnTunnelRow {
+    VpnTunnelRow {
+        id: p.id(&t.id.to_string()),
+        name: p.name(&t.name.clone().unwrap_or_default()),
+        tunnel_type: p.muted(&t.tunnel_type),
+        enabled: t.enabled.map_or_else(
+            || p.muted("-"),
+            |e| p.enabled(e),
+        ),
     }
 }
 
@@ -70,6 +66,8 @@ pub async fn handle(
     args: VpnArgs,
     global: &GlobalOpts,
 ) -> Result<(), CliError> {
+    let p = output::Painter::new(global);
+
     match args.command {
         VpnCommand::Servers(list) => {
             let servers = util::apply_list_args(
@@ -80,7 +78,7 @@ pub async fn handle(
             let out = output::render_list(
                 &global.output,
                 &servers,
-                |s| VpnServerRow::from(s),
+                |s| vpn_server_row(s, &p),
                 |s| s.id.to_string(),
             );
             output::print_output(&out, global.quiet);
@@ -96,7 +94,7 @@ pub async fn handle(
             let out = output::render_list(
                 &global.output,
                 &tunnels,
-                |t| VpnTunnelRow::from(t),
+                |t| vpn_tunnel_row(t, &p),
                 |t| t.id.to_string(),
             );
             output::print_output(&out, global.quiet);

@@ -44,26 +44,24 @@ struct PolicyRow {
     destination: String,
 }
 
-impl From<&Arc<FirewallPolicy>> for PolicyRow {
-    fn from(p: &Arc<FirewallPolicy>) -> Self {
-        let src = p
-            .source_summary
-            .as_deref()
-            .or_else(|| p.source.zone_id.as_ref().map(|_| "zone-only"))
-            .unwrap_or("-");
-        let dst = p
-            .destination_summary
-            .as_deref()
-            .or_else(|| p.destination.zone_id.as_ref().map(|_| "zone-only"))
-            .unwrap_or("-");
-        Self {
-            id: p.id.to_string(),
-            name: p.name.clone(),
-            action: format!("{:?}", p.action),
-            enabled: if p.enabled { "yes" } else { "no" }.into(),
-            source: src.into(),
-            destination: dst.into(),
-        }
+fn policy_row(pol: &Arc<FirewallPolicy>, p: &output::Painter) -> PolicyRow {
+    let src = pol
+        .source_summary
+        .as_deref()
+        .or_else(|| pol.source.zone_id.as_ref().map(|_| "zone-only"))
+        .unwrap_or("-");
+    let dst = pol
+        .destination_summary
+        .as_deref()
+        .or_else(|| pol.destination.zone_id.as_ref().map(|_| "zone-only"))
+        .unwrap_or("-");
+    PolicyRow {
+        id: p.id(&pol.id.to_string()),
+        name: p.name(&pol.name),
+        action: p.action(&format!("{:?}", pol.action)),
+        enabled: p.enabled(pol.enabled),
+        source: p.muted(src),
+        destination: p.muted(dst),
     }
 }
 
@@ -117,16 +115,14 @@ struct ZoneRow {
     #[tabled(rename = "Name")]
     name: String,
     #[tabled(rename = "Networks")]
-    network_count: usize,
+    network_count: String,
 }
 
-impl From<&Arc<FirewallZone>> for ZoneRow {
-    fn from(z: &Arc<FirewallZone>) -> Self {
-        Self {
-            id: z.id.to_string(),
-            name: z.name.clone(),
-            network_count: z.network_ids.len(),
-        }
+fn zone_row(z: &Arc<FirewallZone>, p: &output::Painter) -> ZoneRow {
+    ZoneRow {
+        id: p.id(&z.id.to_string()),
+        name: p.name(&z.name),
+        network_count: p.number(&z.network_ids.len().to_string()),
     }
 }
 
@@ -151,12 +147,13 @@ pub async fn handle(
     global: &GlobalOpts,
 ) -> Result<(), CliError> {
     util::ensure_integration_access(controller, "firewall").await?;
+    let p = output::Painter::new(global);
 
     match args.command {
         FirewallCommand::Policies(pargs) => {
-            handle_policies(controller, pargs.command, global).await
+            handle_policies(controller, pargs.command, global, &p).await
         }
-        FirewallCommand::Zones(zargs) => handle_zones(controller, zargs.command, global).await,
+        FirewallCommand::Zones(zargs) => handle_zones(controller, zargs.command, global, &p).await,
     }
 }
 
@@ -165,18 +162,19 @@ async fn handle_policies(
     controller: &Controller,
     cmd: FirewallPoliciesCommand,
     global: &GlobalOpts,
+    p: &output::Painter,
 ) -> Result<(), CliError> {
     match cmd {
         FirewallPoliciesCommand::List(list) => {
             let all = controller.firewall_policies_snapshot();
-            let snap = util::apply_list_args(all.iter().cloned(), &list, |p, filter| {
-                util::matches_json_filter(p, filter)
+            let snap = util::apply_list_args(all.iter().cloned(), &list, |pol, filter| {
+                util::matches_json_filter(pol, filter)
             });
             let out = output::render_list(
                 &global.output,
                 &snap,
-                |p| PolicyRow::from(p),
-                |p| p.id.to_string(),
+                |pol| policy_row(pol, p),
+                |pol| pol.id.to_string(),
             );
             output::print_output(&out, global.quiet);
             Ok(())
@@ -415,6 +413,7 @@ async fn handle_zones(
     controller: &Controller,
     cmd: FirewallZonesCommand,
     global: &GlobalOpts,
+    p: &output::Painter,
 ) -> Result<(), CliError> {
     match cmd {
         FirewallZonesCommand::List(list) => {
@@ -425,7 +424,7 @@ async fn handle_zones(
             let out = output::render_list(
                 &global.output,
                 &snap,
-                |z| ZoneRow::from(z),
+                |z| zone_row(z, p),
                 |z| z.id.to_string(),
             );
             output::print_output(&out, global.quiet);

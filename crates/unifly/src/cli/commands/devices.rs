@@ -53,17 +53,15 @@ struct DeviceTagRow {
     name: String,
 }
 
-impl From<&Arc<Device>> for DeviceRow {
-    fn from(d: &Arc<Device>) -> Self {
-        Self {
-            id: d.id.to_string(),
-            name: d.name.clone().unwrap_or_default(),
-            model: d.model.clone().unwrap_or_default(),
-            dtype: format!("{:?}", d.device_type),
-            state: format!("{:?}", d.state),
-            ip: d.ip.map(|ip| ip.to_string()).unwrap_or_default(),
-            mac: d.mac.to_string(),
-        }
+fn device_row(d: &Arc<Device>, p: &output::Painter) -> DeviceRow {
+    DeviceRow {
+        id: p.id(&d.id.to_string()),
+        name: p.name(&d.name.clone().unwrap_or_default()),
+        model: p.muted(&d.model.clone().unwrap_or_default()),
+        dtype: p.muted(&format!("{:?}", d.device_type)),
+        state: p.state(&format!("{:?}", d.state)),
+        ip: p.ip(&d.ip.map(|ip| ip.to_string()).unwrap_or_default()),
+        mac: p.mac(&d.mac.to_string()),
     }
 }
 
@@ -146,6 +144,8 @@ pub async fn handle(
     args: DevicesArgs,
     global: &GlobalOpts,
 ) -> Result<(), CliError> {
+    let p = output::Painter::new(global);
+
     match args.command {
         DevicesCommand::List(list) => {
             let all = controller.devices_snapshot();
@@ -155,7 +155,7 @@ pub async fn handle(
             let out = output::render_list(
                 &global.output,
                 &snap,
-                |d| DeviceRow::from(d),
+                |d| device_row(d, &p),
                 |d| d.id.to_string(),
             );
             output::print_output(&out, global.quiet);
@@ -280,32 +280,34 @@ pub async fn handle(
                 &global.output,
                 &pending,
                 |v| PendingDeviceRow {
-                    id: v
-                        .get("id")
-                        .and_then(serde_json::Value::as_str)
-                        .unwrap_or("")
-                        .to_owned(),
-                    name: v
-                        .get("name")
-                        .and_then(serde_json::Value::as_str)
-                        .unwrap_or("")
-                        .to_owned(),
-                    model: v
-                        .get("model")
-                        .and_then(serde_json::Value::as_str)
-                        .unwrap_or("")
-                        .to_owned(),
-                    mac: v
-                        .get("macAddress")
-                        .or_else(|| v.get("mac"))
-                        .and_then(serde_json::Value::as_str)
-                        .unwrap_or("")
-                        .to_owned(),
-                    state: v
-                        .get("state")
-                        .and_then(serde_json::Value::as_str)
-                        .unwrap_or("PENDING")
-                        .to_owned(),
+                    id: p.id(
+                        v.get("id")
+                            .and_then(serde_json::Value::as_str)
+                            .unwrap_or(""),
+                    ),
+                    name: p.name(
+                        v.get("name")
+                            .and_then(serde_json::Value::as_str)
+                            .unwrap_or(""),
+                    ),
+                    model: p.muted(
+                        v.get("model")
+                            .and_then(serde_json::Value::as_str)
+                            .unwrap_or(""),
+                    ),
+                    mac: p.mac(
+                        v.get("macAddress")
+                            .or_else(|| v.get("mac"))
+                            .and_then(serde_json::Value::as_str)
+                            .unwrap_or(""),
+                    ),
+                    state: {
+                        let s = v
+                            .get("state")
+                            .and_then(serde_json::Value::as_str)
+                            .unwrap_or("PENDING");
+                        p.state(s)
+                    },
                 },
                 |v| {
                     v.get("id")
@@ -362,17 +364,17 @@ pub async fn handle(
                 &global.output,
                 &tags,
                 |v| DeviceTagRow {
-                    id: v
-                        .get("id")
-                        .or_else(|| v.get("_id"))
-                        .and_then(serde_json::Value::as_str)
-                        .unwrap_or("")
-                        .to_owned(),
-                    name: v
-                        .get("name")
-                        .and_then(serde_json::Value::as_str)
-                        .unwrap_or("")
-                        .to_owned(),
+                    id: p.id(
+                        v.get("id")
+                            .or_else(|| v.get("_id"))
+                            .and_then(serde_json::Value::as_str)
+                            .unwrap_or(""),
+                    ),
+                    name: p.name(
+                        v.get("name")
+                            .and_then(serde_json::Value::as_str)
+                            .unwrap_or(""),
+                    ),
                 },
                 |v| {
                     v.get("id")

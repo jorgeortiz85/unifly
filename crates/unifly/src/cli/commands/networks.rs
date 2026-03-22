@@ -34,16 +34,14 @@ struct NetworkRow {
     subnet: String,
 }
 
-impl From<&Arc<Network>> for NetworkRow {
-    fn from(n: &Arc<Network>) -> Self {
-        Self {
-            id: n.id.to_string(),
-            name: n.name.clone(),
-            vlan: n.vlan_id.map(|v| v.to_string()).unwrap_or_default(),
-            management: n.management.map(|m| format!("{m:?}")).unwrap_or_default(),
-            enabled: if n.enabled { "yes" } else { "no" }.into(),
-            subnet: n.subnet.clone().unwrap_or_default(),
-        }
+fn network_row(n: &Arc<Network>, p: &output::Painter) -> NetworkRow {
+    NetworkRow {
+        id: p.id(&n.id.to_string()),
+        name: p.name(&n.name),
+        vlan: p.number(&n.vlan_id.map(|v| v.to_string()).unwrap_or_default()),
+        management: p.muted(&n.management.map(|m| format!("{m:?}")).unwrap_or_default()),
+        enabled: p.enabled(n.enabled),
+        subnet: p.ip(&n.subnet.clone().unwrap_or_default()),
     }
 }
 
@@ -102,6 +100,8 @@ pub async fn handle(
 ) -> Result<(), CliError> {
     util::ensure_integration_access(controller, "networks").await?;
 
+    let p = output::Painter::new(global);
+
     match args.command {
         NetworksCommand::List(list) => {
             let all = controller.networks_snapshot();
@@ -111,7 +111,7 @@ pub async fn handle(
             let out = output::render_list(
                 &global.output,
                 &snap,
-                |n| NetworkRow::from(n),
+                |n| network_row(n, &p),
                 |n| n.id.to_string(),
             );
             output::print_output(&out, global.quiet);

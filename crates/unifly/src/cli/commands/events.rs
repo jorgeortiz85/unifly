@@ -25,14 +25,12 @@ struct EventRow {
     message: String,
 }
 
-impl From<&Arc<Event>> for EventRow {
-    fn from(e: &Arc<Event>) -> Self {
-        Self {
-            id: e.id.as_ref().map(ToString::to_string).unwrap_or_default(),
-            time: e.timestamp.format("%Y-%m-%d %H:%M:%S").to_string(),
-            category: format!("{:?}", e.category),
-            message: e.message.clone(),
-        }
+fn event_row(e: &Arc<Event>, p: &output::Painter) -> EventRow {
+    EventRow {
+        id: p.id(&e.id.as_ref().map(ToString::to_string).unwrap_or_default()),
+        time: p.muted(&e.timestamp.format("%Y-%m-%d %H:%M:%S").to_string()),
+        category: p.muted(&format!("{:?}", e.category)),
+        message: e.message.clone(),
     }
 }
 
@@ -44,6 +42,8 @@ pub async fn handle(
     args: EventsArgs,
     global: &GlobalOpts,
 ) -> Result<(), CliError> {
+    let p = output::Painter::new(global);
+
     match args.command {
         EventsCommand::List { limit, within } => {
             ensure_legacy_access(controller, "events list").await?;
@@ -58,7 +58,7 @@ pub async fn handle(
             let out = output::render_list(
                 &global.output,
                 &filtered,
-                |e| EventRow::from(e),
+                |e| event_row(e, &p),
                 |e| e.id.as_ref().map(ToString::to_string).unwrap_or_default(),
             );
             output::print_output(&out, global.quiet);

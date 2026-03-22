@@ -25,15 +25,13 @@ struct AdminRow {
     is_super: String,
 }
 
-impl From<&Admin> for AdminRow {
-    fn from(a: &Admin) -> Self {
-        Self {
-            id: a.id.to_string(),
-            name: a.name.clone(),
-            email: a.email.clone().unwrap_or_default(),
-            role: a.role.clone(),
-            is_super: if a.is_super { "yes" } else { "no" }.into(),
-        }
+fn admin_row(a: &Admin, p: &output::Painter) -> AdminRow {
+    AdminRow {
+        id: p.id(&a.id.to_string()),
+        name: p.name(&a.name),
+        email: p.muted(&a.email.clone().unwrap_or_default()),
+        role: p.muted(&a.role),
+        is_super: p.enabled(a.is_super),
     }
 }
 
@@ -44,13 +42,15 @@ pub async fn handle(
     args: AdminArgs,
     global: &GlobalOpts,
 ) -> Result<(), CliError> {
+    let p = output::Painter::new(global);
+
     match args.command {
         AdminCommand::List => {
             let admins = controller.list_admins().await?;
             let out = output::render_list(
                 &global.output,
                 &admins,
-                |a| AdminRow::from(a),
+                |a| admin_row(a, &p),
                 |a| a.id.to_string(),
             );
             output::print_output(&out, global.quiet);

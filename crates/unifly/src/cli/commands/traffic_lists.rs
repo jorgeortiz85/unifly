@@ -22,17 +22,15 @@ struct TrafficListRow {
     #[tabled(rename = "Type")]
     list_type: String,
     #[tabled(rename = "Items")]
-    item_count: usize,
+    item_count: String,
 }
 
-impl From<&Arc<TrafficMatchingList>> for TrafficListRow {
-    fn from(t: &Arc<TrafficMatchingList>) -> Self {
-        Self {
-            id: t.id.to_string(),
-            name: t.name.clone(),
-            list_type: t.list_type.clone(),
-            item_count: t.items.len(),
-        }
+fn traffic_list_row(t: &Arc<TrafficMatchingList>, p: &output::Painter) -> TrafficListRow {
+    TrafficListRow {
+        id: p.id(&t.id.to_string()),
+        name: p.name(&t.name),
+        list_type: p.muted(&t.list_type),
+        item_count: p.number(&t.items.len().to_string()),
     }
 }
 
@@ -66,6 +64,8 @@ pub async fn handle(
 ) -> Result<(), CliError> {
     util::ensure_integration_access(controller, "traffic-lists").await?;
 
+    let p = output::Painter::new(global);
+
     match args.command {
         TrafficListsCommand::List(list) => {
             let all = controller.traffic_matching_lists_snapshot();
@@ -75,7 +75,7 @@ pub async fn handle(
             let out = output::render_list(
                 &global.output,
                 &snap,
-                |t| TrafficListRow::from(t),
+                |t| traffic_list_row(t, &p),
                 |t| t.id.to_string(),
             );
             output::print_output(&out, global.quiet);
