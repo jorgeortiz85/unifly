@@ -61,9 +61,7 @@ fn setup_tracing(verbosity: u8, log_file: &std::path::Path) -> WorkerGuard {
     let filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new(format!("unifly={log_level},unifly_api={log_level}")));
 
-    let log_dir = log_file
-        .parent()
-        .unwrap_or(std::path::Path::new("/tmp"));
+    let log_dir = log_file.parent().unwrap_or(std::path::Path::new("/tmp"));
     let log_filename = log_file
         .file_name()
         .unwrap_or(std::ffi::OsStr::new("unifly-tui.log"));
@@ -99,10 +97,7 @@ fn build_controller_direct(global: &GlobalOpts) -> Option<Controller> {
         TlsVerification::SystemDefaults
     };
 
-    let site = global
-        .site
-        .clone()
-        .unwrap_or_else(|| "default".into());
+    let site = global.site.clone().unwrap_or_else(|| "default".into());
 
     let controller_config = ControllerConfig {
         url,

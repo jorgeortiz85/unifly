@@ -1,5 +1,13 @@
 # Installation
 
+## Quick Install (Linux / macOS)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/hyperb1iss/unifly/main/install.sh | sh
+```
+
+Detects your platform, downloads the latest release binary, and installs to `/usr/local/bin` (or `~/.local/bin`).
+
 ## Homebrew (macOS / Linux)
 
 ```bash

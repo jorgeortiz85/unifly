@@ -64,27 +64,18 @@ UniFi controllers expose multiple APIs with different capabilities. unifly unifi
 
 ## ⚡ Install
 
-### Homebrew
-
 ```bash
-brew install hyperb1iss/tap/unifly
+curl -fsSL https://raw.githubusercontent.com/hyperb1iss/unifly/main/install.sh | sh
 ```
 
-### GitHub Releases
+### Other Methods
 
-Download the latest binary for your platform from [GitHub Releases](https://github.com/hyperb1iss/unifly/releases/latest).
-
-### AUR (Arch Linux)
-
-```bash
-yay -S unifly-bin
-```
-
-### From Source
-
-```bash
-cargo install --git https://github.com/hyperb1iss/unifly.git unifly
-```
+| Method | Command |
+| --- | --- |
+| **Homebrew** | `brew install hyperb1iss/tap/unifly` |
+| **AUR** | `yay -S unifly-bin` |
+| **Cargo** | `cargo install --git https://github.com/hyperb1iss/unifly.git unifly` |
+| **Binary** | Download from [GitHub Releases](https://github.com/hyperb1iss/unifly/releases/latest) |
 
 ---
 

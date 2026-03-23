@@ -31,6 +31,9 @@ command -v unifly >/dev/null 2>&1 && unifly --version || echo "unifly not instal
 **Installation:**
 
 ```bash
+# Quick install (Linux / macOS)
+curl -fsSL https://raw.githubusercontent.com/hyperb1iss/unifly/main/install.sh | sh
+
 # Homebrew
 brew install hyperb1iss/tap/unifly
 

@@ -52,13 +52,15 @@ async fn run(cli: Cli) -> Result<(), CliError> {
         }
 
         #[cfg(feature = "tui")]
-        Command::Tui(args) => unifly::tui::launch(&cli.global, args)
-            .await
-            .map_err(|e| CliError::ApiError {
-                code: "tui".into(),
-                message: e.to_string(),
-                request_id: None,
-            }),
+        Command::Tui(args) => {
+            unifly::tui::launch(&cli.global, args)
+                .await
+                .map_err(|e| CliError::ApiError {
+                    code: "tui".into(),
+                    message: e.to_string(),
+                    request_id: None,
+                })
+        }
 
         cmd => {
             init_tracing(cli.global.verbose);
