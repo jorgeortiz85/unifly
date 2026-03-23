@@ -34,9 +34,9 @@ Provides two connection modes:
 
 ## unifly
 
-**Role:** CLI + TUI binaries and configuration.
+**Role:** Single binary and configuration.
 
-Produces two binaries via feature flags (`cli` and `tui`):
+Produces one binary with feature-gated capabilities (`cli` and `tui` features):
 
 ### CLI (`unifly`)
 

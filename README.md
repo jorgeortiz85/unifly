@@ -37,7 +37,7 @@
 
 ## 💜 What is unifly?
 
-A complete command-line toolkit for managing Ubiquiti UniFi network controllers. Two binaries, one CLI for scripting and automation, one TUI for real-time monitoring, both powered by a shared async engine that speaks every UniFi API dialect.
+A complete command-line toolkit for managing Ubiquiti UniFi network controllers. One binary with 23 CLI commands for scripting and a built-in TUI dashboard for real-time monitoring, powered by a shared async engine that speaks every UniFi API dialect.
 
 > _Manage devices, monitor clients, inspect VLANs, stream events, and watch bandwidth charts, all without leaving your terminal._
 

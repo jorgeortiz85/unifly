@@ -34,8 +34,8 @@ command -v unifly >/dev/null 2>&1 && unifly --version || echo "unifly not instal
 # Homebrew
 brew install hyperb1iss/tap/unifly
 
-# Shell script
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/hyperb1iss/unifly/releases/latest/download/unifly-installer.sh | sh
+# AUR (Arch Linux)
+yay -S unifly-bin
 
 # From source
 cargo install --git https://github.com/hyperb1iss/unifly.git unifly

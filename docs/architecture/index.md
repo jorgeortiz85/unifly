@@ -6,7 +6,7 @@ Unifly is a two-crate Rust workspace with a clean dependency chain.
 
 ```mermaid
 graph TD
-    UNIFLY["unifly<br/><i>CLI + TUI binaries</i>"]
+    UNIFLY["unifly<br/><i>CLI + TUI (single binary)</i>"]
     API["unifly-api<br/><i>Library: transport, controller,<br/>data store, domain models</i>"]
 
     UNIFLY --> API
