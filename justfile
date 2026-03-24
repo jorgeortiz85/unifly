@@ -19,17 +19,13 @@ build-release:
 
 # ── Install ─────────────────────────────────────────────────────
 
-# Install both CLI and TUI binaries
+# Install unifly (CLI + TUI)
 install:
     cargo install --path crates/unifly
 
-# Install CLI only
+# Install CLI only (no TUI dependencies)
 install-cli:
     cargo install --path crates/unifly --no-default-features --features cli
-
-# Install TUI only
-install-tui:
-    cargo install --path crates/unifly --no-default-features --features tui
 
 # ── Quality ─────────────────────────────────────────────────────
 
@@ -78,9 +74,9 @@ snap-review:
 
 # Run the CLI with args
 cli *args:
-    cargo run -p unifly --bin unifly -- {{args}}
+    cargo run -p unifly -- {{args}}
 
-# Run the TUI with args
+# Run the TUI dashboard
 tui *args:
     cargo run -p unifly -- tui {{args}}
 
@@ -105,3 +101,7 @@ dist-plan:
 # Build distributable artifacts
 dist-build:
     cargo dist build
+
+# Update AUR package for a new release
+aur-update version:
+    cd aur && ./update-aur.sh {{version}}
