@@ -244,7 +244,12 @@ async fn connect_and_read(
         request = request.with_header("Cookie", cookie_val);
     }
 
-    let connector = build_tls_connector(tls_mode)?;
+    // Use plain connector for ws://, TLS connector for wss://
+    let connector = if url.scheme() == "wss" {
+        build_tls_connector(tls_mode)?
+    } else {
+        Some(Connector::Plain)
+    };
 
     let (ws_stream, _response) =
         tokio_tungstenite::connect_async_tls_with_config(request, None, false, connector)
@@ -378,6 +383,9 @@ fn event_from_raw(msg_type: &str, data: &serde_json::Value) -> UnifiEvent {
 /// - `CustomCa`: loads a PEM CA file into a custom root store.
 /// - `DangerAcceptInvalid`: disables all certificate verification.
 fn build_tls_connector(tls_mode: &TlsMode) -> Result<Option<Connector>, Error> {
+    // Ensure a rustls crypto provider is available (rustls 0.23+ requires this)
+    let _ = rustls::crypto::ring::default_provider().install_default();
+
     match tls_mode {
         TlsMode::System => Ok(None),
         TlsMode::CustomCa(path) => {

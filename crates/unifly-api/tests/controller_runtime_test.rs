@@ -249,7 +249,6 @@ async fn api_key_mode_does_not_assume_legacy_access() {
 }
 
 #[tokio::test]
-#[ignore = "fragile with tungstenite 0.29 hand-rolled HTTP server; needs test infra rework"]
 async fn websocket_enabled_for_events_watch_path() {
     let server = spawn_ws_probe_server().await;
     let controller = Controller::new(base_config(
