@@ -26,7 +26,7 @@ Download the latest binary for your platform from [GitHub Releases](https://gith
 
 ## Cargo (from source)
 
-Requires Rust 1.86+ (edition 2024):
+Requires Rust 1.94+ (edition 2024):
 
 ```bash
 cargo install --git https://github.com/hyperb1iss/unifly.git unifly

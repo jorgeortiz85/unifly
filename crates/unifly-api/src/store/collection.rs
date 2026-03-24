@@ -70,11 +70,10 @@ impl<T: Clone + Send + Sync + 'static> EntityCollection<T> {
     /// Insert or update an entity. Returns `true` if the key was new.
     pub(crate) fn upsert(&self, key: String, id: EntityId, entity: T) -> bool {
         // Clean up stale id mapping if the key already existed with a different id.
-        if let Some(old_id) = self.key_to_id.get(&key) {
-            if *old_id != id {
+        if let Some(old_id) = self.key_to_id.get(&key)
+            && *old_id != id {
                 self.id_to_key.remove(&*old_id);
             }
-        }
 
         let is_new = !self.by_key.contains_key(&key);
         self.by_key.insert(key.clone(), Arc::new(entity));

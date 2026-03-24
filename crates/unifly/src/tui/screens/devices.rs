@@ -716,11 +716,10 @@ impl Component for DevicesScreen {
         frame.render_widget(Paragraph::new(hints), header_layout[2]);
 
         // Render detail panel if open
-        if let Some(detail_area) = detail_area {
-            if let Some(device) = self.selected_device() {
+        if let Some(detail_area) = detail_area
+            && let Some(device) = self.selected_device() {
                 self.render_detail(frame, detail_area, device);
             }
-        }
     }
 
     fn focused(&self) -> bool {

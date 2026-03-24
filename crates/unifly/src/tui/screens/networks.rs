@@ -472,11 +472,11 @@ impl NetworksScreen {
 }
 
 fn format_lease_time(secs: u64) -> String {
-    if secs >= 86400 && secs % 86400 == 0 {
+    if secs >= 86400 && secs.is_multiple_of(86400) {
         format!("{}d", secs / 86400)
-    } else if secs >= 3600 && secs % 3600 == 0 {
+    } else if secs >= 3600 && secs.is_multiple_of(3600) {
         format!("{}h", secs / 3600)
-    } else if secs >= 60 && secs % 60 == 0 {
+    } else if secs >= 60 && secs.is_multiple_of(60) {
         format!("{}m", secs / 60)
     } else {
         format!("{secs}s")
@@ -728,11 +728,10 @@ impl Component for NetworksScreen {
         frame.render_widget(Paragraph::new(hints), layout[1]);
 
         // ── Detail panel ────────────────────────────────────────
-        if let Some(detail_area) = detail_area {
-            if let Some(network) = self.networks.get(selected_idx) {
+        if let Some(detail_area) = detail_area
+            && let Some(network) = self.networks.get(selected_idx) {
                 self.render_detail(frame, detail_area, network);
             }
-        }
 
         // ── Edit overlay (rendered on top) ──────────────────────
         if let Some(ref edit) = self.edit_state {

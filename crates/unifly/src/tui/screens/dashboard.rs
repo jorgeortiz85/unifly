@@ -36,22 +36,20 @@ use crate::tui::widgets::{bytes_fmt, chart};
 
 fn parse_ipv6_from_text(value: &str) -> Option<String> {
     let trimmed = value.trim();
-    if let Ok(ip) = trimmed.parse::<IpAddr>() {
-        if ip.is_ipv6() {
+    if let Ok(ip) = trimmed.parse::<IpAddr>()
+        && ip.is_ipv6() {
             return Some(ip.to_string());
         }
-    }
 
     for token in trimmed.split([',', ';', ' ', '\t', '\n']) {
         let cleaned = token.trim_matches(|c: char| matches!(c, '[' | ']' | '(' | ')' | '"' | '\''));
         if cleaned.is_empty() {
             continue;
         }
-        if let Ok(ip) = cleaned.parse::<IpAddr>() {
-            if ip.is_ipv6() {
+        if let Ok(ip) = cleaned.parse::<IpAddr>()
+            && ip.is_ipv6() {
                 return Some(ip.to_string());
             }
-        }
     }
 
     None
@@ -908,8 +906,8 @@ impl DashboardScreen {
         push_bar("MEM", gateway.and_then(|g| g.stats.memory_utilization_pct));
         lines.push(Line::from(" "));
 
-        if let Some(gw) = gateway {
-            if let (Some(l1), Some(l5), Some(l15)) = (
+        if let Some(gw) = gateway
+            && let (Some(l1), Some(l5), Some(l15)) = (
                 gw.stats.load_average_1m,
                 gw.stats.load_average_5m,
                 gw.stats.load_average_15m,
@@ -920,7 +918,6 @@ impl DashboardScreen {
                     Span::styled(load, Style::default().fg(theme::accent_secondary())),
                 ]));
             }
-        }
 
         let total_devices = self.devices.len();
         let online = self

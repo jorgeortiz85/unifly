@@ -404,13 +404,11 @@ impl Controller {
         if matches!(
             self.inner.config.auth,
             AuthCredentials::Credentials { .. } | AuthCredentials::Hybrid { .. }
-        ) {
-            if let Some(ref client) = *self.inner.legacy_client.lock().await {
-                if let Err(e) = client.logout().await {
+        )
+            && let Some(ref client) = *self.inner.legacy_client.lock().await
+                && let Err(e) = client.logout().await {
                     warn!(error = %e, "logout failed (non-fatal)");
                 }
-            }
-        }
 
         // Shut down WebSocket if active
         if let Some(handle) = self.inner.ws_handle.lock().await.take() {
@@ -1644,11 +1642,10 @@ fn apply_device_sync(store: &DataStore, data: &serde_json::Value) {
         }
     }
 
-    if let Some(obj) = data.as_object() {
-        if let Some(wan_ipv6) = parse_legacy_device_wan_ipv6(obj) {
+    if let Some(obj) = data.as_object()
+        && let Some(wan_ipv6) = parse_legacy_device_wan_ipv6(obj) {
             device.wan_ipv6 = Some(wan_ipv6);
         }
-    }
 
     let key = mac.as_str().to_owned();
     let id = device.id.clone();

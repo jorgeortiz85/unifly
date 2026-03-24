@@ -300,8 +300,8 @@ fn resolve_network(
     // Auto-detect: find the network whose subnet contains the IP
     let ip_u32 = u32::from(ip);
     for net in networks.iter() {
-        if let Some(ref subnet_str) = net.subnet {
-            if let Some((net_addr, prefix)) = parse_cidr(subnet_str) {
+        if let Some(ref subnet_str) = net.subnet
+            && let Some((net_addr, prefix)) = parse_cidr(subnet_str) {
                 let mask = if prefix == 0 {
                     0
                 } else {
@@ -311,7 +311,6 @@ fn resolve_network(
                     return Ok(net.id.clone());
                 }
             }
-        }
     }
 
     Err(CliError::Validation {

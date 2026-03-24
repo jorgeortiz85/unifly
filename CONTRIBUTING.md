@@ -26,7 +26,7 @@ Check the [ROADMAP.md](ROADMAP.md) first — it might already be planned.
 
 ### Prerequisites
 
-- **Rust 1.86+** (edition 2024) — install via [rustup](https://rustup.rs/)
+- **Rust 1.94+** (edition 2024) — install via [rustup](https://rustup.rs/)
 - **Nightly rustfmt** — `rustup component add rustfmt --toolchain nightly`
 - A UniFi Network controller for integration testing (Cloud Key, Dream Machine, or self-hosted)
 

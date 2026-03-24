@@ -636,11 +636,10 @@ impl Component for ClientsScreen {
         frame.render_widget(Paragraph::new(hints), layout[2]);
 
         // Render detail panel if open
-        if let Some(detail_area) = detail_area {
-            if let Some(client) = filtered.get(self.detail_client_idx) {
+        if let Some(detail_area) = detail_area
+            && let Some(client) = filtered.get(self.detail_client_idx) {
                 self.render_detail(frame, detail_area, client);
             }
-        }
     }
 
     fn focused(&self) -> bool {

@@ -273,8 +273,8 @@ impl LegacyClient {
         let body = resp.text().await.map_err(Error::Transport)?;
 
         // UniFi OS sometimes returns `{"error":{"code":N,"message":"..."}}` with HTTP 200.
-        if let Ok(wrapper) = serde_json::from_str::<UnifiOsError>(&body) {
-            if let Some(err) = wrapper.error {
+        if let Ok(wrapper) = serde_json::from_str::<UnifiOsError>(&body)
+            && let Some(err) = wrapper.error {
                 let msg = err.message.unwrap_or_default();
                 return Err(if err.code == 401 {
                     Error::Authentication { message: msg }
@@ -284,7 +284,6 @@ impl LegacyClient {
                     }
                 });
             }
-        }
 
         let envelope: LegacyResponse<T> = serde_json::from_str(&body).map_err(|e| {
             let preview = &body[..body.len().min(200)];

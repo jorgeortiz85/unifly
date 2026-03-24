@@ -394,20 +394,17 @@ impl App {
                 }
 
                 // Auto-dismiss notifications after 3 seconds
-                if let Some((_, created)) = &self.notification {
-                    if created.elapsed() > Duration::from_secs(3) {
+                if let Some((_, created)) = &self.notification
+                    && created.elapsed() > Duration::from_secs(3) {
                         self.notification = None;
                     }
-                }
 
                 // Auto-refresh stats every 60s while Stats screen is active
-                if self.active_screen == ScreenId::Stats {
-                    if let Some(last) = self.last_stats_fetch {
-                        if last.elapsed() > std::time::Duration::from_secs(60) {
+                if self.active_screen == ScreenId::Stats
+                    && let Some(last) = self.last_stats_fetch
+                        && last.elapsed() > std::time::Duration::from_secs(60) {
                             let _ = self.action_tx.send(Action::RequestStats(self.stats_period));
                         }
-                    }
-                }
             }
 
             // Data updates go to ALL screens so they stay in sync
@@ -561,11 +558,10 @@ impl App {
 
             Action::OnboardingTestResult(_) => {
                 // Forward to the setup screen
-                if let Some(screen) = self.screens.get_mut(&ScreenId::Setup) {
-                    if let Some(follow_up) = screen.update(action)? {
+                if let Some(screen) = self.screens.get_mut(&ScreenId::Setup)
+                    && let Some(follow_up) = screen.update(action)? {
                         self.action_tx.send(follow_up)?;
                     }
-                }
             }
 
             // ── Settings ─────────────────────────────────────────────
@@ -596,11 +592,10 @@ impl App {
             }
 
             Action::SettingsTestResult(_) => {
-                if let Some(screen) = self.screens.get_mut(&ScreenId::Settings) {
-                    if let Some(follow_up) = screen.update(action)? {
+                if let Some(screen) = self.screens.get_mut(&ScreenId::Settings)
+                    && let Some(follow_up) = screen.update(action)? {
                         self.action_tx.send(follow_up)?;
                     }
-                }
             }
 
             Action::SettingsApply { config, .. } => {
@@ -642,11 +637,10 @@ impl App {
 
             // Everything else goes to the active screen only
             other => {
-                if let Some(screen) = self.screens.get_mut(&self.active_screen) {
-                    if let Some(follow_up) = screen.update(other)? {
+                if let Some(screen) = self.screens.get_mut(&self.active_screen)
+                    && let Some(follow_up) = screen.update(other)? {
                         self.action_tx.send(follow_up)?;
                     }
-                }
             }
         }
 
@@ -862,8 +856,8 @@ impl App {
             }
 
             // DPI applications — prefer Integration API (has names), fall back to Legacy
-            if let Ok(apps) = dpi_apps_res {
-                if !apps.is_empty() {
+            if let Ok(apps) = dpi_apps_res
+                && !apps.is_empty() {
                     let mut app_list: Vec<(String, u64)> = apps
                         .into_iter()
                         .map(|a| (a.name, a.tx_bytes + a.rx_bytes))
@@ -873,17 +867,15 @@ impl App {
                     app_list.truncate(10);
                     data.dpi_apps = app_list;
                 }
-            }
             // Legacy fallback: only fire if Integration API yielded nothing
-            if data.dpi_apps.is_empty() {
-                if let Ok(raw) = controller.get_dpi_stats("by_app", None).await {
+            if data.dpi_apps.is_empty()
+                && let Ok(raw) = controller.get_dpi_stats("by_app", None).await {
                     data.dpi_apps = parse_legacy_dpi_apps(&raw);
                 }
-            }
 
             // DPI categories — prefer Integration API, fall back to Legacy
-            if let Ok(cats) = dpi_cats_res {
-                if !cats.is_empty() {
+            if let Ok(cats) = dpi_cats_res
+                && !cats.is_empty() {
                     let mut cat_list: Vec<(String, u64)> = cats
                         .into_iter()
                         .map(|c| (c.name, c.tx_bytes + c.rx_bytes))
@@ -892,13 +884,11 @@ impl App {
                     cat_list.sort_by(|a, b| b.1.cmp(&a.1));
                     data.dpi_categories = cat_list;
                 }
-            }
             // Legacy fallback: only fire if Integration API yielded nothing
-            if data.dpi_categories.is_empty() {
-                if let Ok(raw) = controller.get_dpi_stats("by_cat", None).await {
+            if data.dpi_categories.is_empty()
+                && let Ok(raw) = controller.get_dpi_stats("by_cat", None).await {
                     data.dpi_categories = parse_legacy_dpi_categories(&raw);
                 }
-            }
 
             let _ = tx.send(Action::StatsUpdated(data));
         });

@@ -225,18 +225,16 @@ pub fn save_config(cfg: &Config) -> Result<(), ConfigError> {
 /// Resolve an API key from the credential chain (no CLI flag step).
 pub fn resolve_api_key(profile: &Profile, profile_name: &str) -> Result<SecretString, ConfigError> {
     // 1. Profile's api_key_env → env var lookup
-    if let Some(ref env_name) = profile.api_key_env {
-        if let Ok(val) = std::env::var(env_name) {
+    if let Some(ref env_name) = profile.api_key_env
+        && let Ok(val) = std::env::var(env_name) {
             return Ok(SecretString::from(val));
         }
-    }
 
     // 2. System keyring
-    if let Ok(entry) = keyring::Entry::new("unifly", &format!("{profile_name}/api-key")) {
-        if let Ok(secret) = entry.get_password() {
+    if let Ok(entry) = keyring::Entry::new("unifly", &format!("{profile_name}/api-key"))
+        && let Ok(secret) = entry.get_password() {
             return Ok(SecretString::from(secret));
         }
-    }
 
     // 3. Plaintext in config
     if let Some(ref key) = profile.api_key {
@@ -267,11 +265,10 @@ pub fn resolve_legacy_credentials(
     }
 
     // 2. Keyring
-    if let Ok(entry) = keyring::Entry::new("unifly", &format!("{profile_name}/password")) {
-        if let Ok(pw) = entry.get_password() {
+    if let Ok(entry) = keyring::Entry::new("unifly", &format!("{profile_name}/password"))
+        && let Ok(pw) = entry.get_password() {
             return Ok((username, SecretString::from(pw)));
         }
-    }
 
     // 3. Plaintext in config
     if let Some(ref pw) = profile.password {

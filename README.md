@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Rust-1.86+-e135ff?style=for-the-badge&logo=rust&logoColor=white" alt="Rust">
+  <img src="https://img.shields.io/badge/Rust-1.94+-e135ff?style=for-the-badge&logo=rust&logoColor=white" alt="Rust">
   <img src="https://img.shields.io/badge/Edition-2024-80ffea?style=for-the-badge&logo=rust&logoColor=0a0a0f" alt="Edition 2024">
   <img src="https://img.shields.io/badge/ratatui-TUI-ff6ac1?style=for-the-badge&logo=gnometerminal&logoColor=white" alt="ratatui">
   <img src="https://img.shields.io/badge/opaline-Theme-e135ff?style=for-the-badge&logo=rust&logoColor=white" alt="opaline">
@@ -500,7 +500,7 @@ The skill enables agents to create VLANs, manage firewall policies, provision Wi
 
 ### Prerequisites
 
-- Rust 1.86+ (edition 2024)
+- Rust 1.94+ (edition 2024)
 - A UniFi Network controller (Cloud Key, Dream Machine, or self-hosted)
 
 ### Build

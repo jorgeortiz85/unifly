@@ -410,8 +410,7 @@ async fn handle_connection(
             .headers
             .get("upgrade")
             .is_some_and(|value| value.eq_ignore_ascii_case("websocket"))
-    {
-        if let Some(key) = request.headers.get("sec-websocket-key") {
+        && let Some(key) = request.headers.get("sec-websocket-key") {
             let accept =
                 tokio_tungstenite::tungstenite::handshake::derive_accept_key(key.as_bytes());
             let response = format!(
@@ -436,7 +435,6 @@ async fn handle_connection(
             }
             return Ok(());
         }
-    }
 
     write_http_response(&mut stream, 404, &[], b"not found").await
 }

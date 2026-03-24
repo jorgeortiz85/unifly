@@ -181,15 +181,14 @@ async fn ws_loop(
                     Err(e) => {
                         tracing::warn!(error = %e, attempt, "WebSocket error");
 
-                        if let Some(max) = reconnect.max_retries {
-                            if attempt >= max {
+                        if let Some(max) = reconnect.max_retries
+                            && attempt >= max {
                                 tracing::error!(
                                     max_retries = max,
                                     "WebSocket reconnection limit reached, giving up"
                                 );
                                 break;
                             }
-                        }
 
                         let delay = calculate_backoff(attempt, &reconnect);
                         let delay_ms = u64::try_from(delay.as_millis()).unwrap_or(u64::MAX);

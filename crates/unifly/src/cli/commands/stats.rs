@@ -47,14 +47,13 @@ fn parse_time_range(
 ) -> Result<(Option<i64>, Option<i64>), CliError> {
     let start_ts = start.map(|s| parse_time(s, "start")).transpose()?;
     let end_ts = end.map(|s| parse_time(s, "end")).transpose()?;
-    if let (Some(s), Some(e)) = (start_ts, end_ts) {
-        if s > e {
+    if let (Some(s), Some(e)) = (start_ts, end_ts)
+        && s > e {
             return Err(CliError::Validation {
                 field: "start".into(),
                 reason: "start must be <= end".into(),
             });
         }
-    }
     Ok((start_ts, end_ts))
 }
 
