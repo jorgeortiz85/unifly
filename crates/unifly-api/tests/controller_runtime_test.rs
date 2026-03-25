@@ -410,31 +410,31 @@ async fn handle_connection(
             .headers
             .get("upgrade")
             .is_some_and(|value| value.eq_ignore_ascii_case("websocket"))
-        && let Some(key) = request.headers.get("sec-websocket-key") {
-            let accept =
-                tokio_tungstenite::tungstenite::handshake::derive_accept_key(key.as_bytes());
-            let response = format!(
-                "HTTP/1.1 101 Switching Protocols\r\n\
+        && let Some(key) = request.headers.get("sec-websocket-key")
+    {
+        let accept = tokio_tungstenite::tungstenite::handshake::derive_accept_key(key.as_bytes());
+        let response = format!(
+            "HTTP/1.1 101 Switching Protocols\r\n\
                  Connection: Upgrade\r\n\
                  Upgrade: websocket\r\n\
                  Sec-WebSocket-Accept: {accept}\r\n\r\n"
-            );
-            stream.write_all(response.as_bytes()).await?;
-            stream.flush().await?;
+        );
+        stream.write_all(response.as_bytes()).await?;
+        stream.flush().await?;
 
-            *handshake_path.lock().await = Some(request.path.clone());
-            *cookie_header.lock().await = request.headers.get("cookie").cloned();
-            probe.notify_one();
+        *handshake_path.lock().await = Some(request.path.clone());
+        *cookie_header.lock().await = request.headers.get("cookie").cloned();
+        probe.notify_one();
 
-            let mut scratch = [0u8; 1024];
-            loop {
-                match stream.read(&mut scratch).await {
-                    Ok(0) | Err(_) => break,
-                    Ok(_) => {}
-                }
+        let mut scratch = [0u8; 1024];
+        loop {
+            match stream.read(&mut scratch).await {
+                Ok(0) | Err(_) => break,
+                Ok(_) => {}
             }
-            return Ok(());
         }
+        return Ok(());
+    }
 
     write_http_response(&mut stream, 404, &[], b"not found").await
 }

@@ -637,9 +637,10 @@ impl Component for ClientsScreen {
 
         // Render detail panel if open
         if let Some(detail_area) = detail_area
-            && let Some(client) = filtered.get(self.detail_client_idx) {
-                self.render_detail(frame, detail_area, client);
-            }
+            && let Some(client) = filtered.get(self.detail_client_idx)
+        {
+            self.render_detail(frame, detail_area, client);
+        }
     }
 
     fn focused(&self) -> bool {

@@ -172,16 +172,17 @@ fn vlan_label(ip: Option<std::net::IpAddr>, networks: &[Arc<Network>]) -> String
     let ip_u32 = u32::from(ip);
     for net in networks {
         if let Some(ref subnet_str) = net.subnet
-            && let Some((net_addr, prefix)) = parse_cidr(subnet_str) {
-                let mask = if prefix == 0 {
-                    0
-                } else {
-                    u32::MAX << (32 - prefix)
-                };
-                if (ip_u32 & mask) == (u32::from(net_addr) & mask) {
-                    return net.name.clone();
-                }
+            && let Some((net_addr, prefix)) = parse_cidr(subnet_str)
+        {
+            let mask = if prefix == 0 {
+                0
+            } else {
+                u32::MAX << (32 - prefix)
+            };
+            if (ip_u32 & mask) == (u32::from(net_addr) & mask) {
+                return net.name.clone();
             }
+        }
     }
     "?".into()
 }

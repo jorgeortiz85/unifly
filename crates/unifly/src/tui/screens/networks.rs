@@ -729,9 +729,10 @@ impl Component for NetworksScreen {
 
         // ── Detail panel ────────────────────────────────────────
         if let Some(detail_area) = detail_area
-            && let Some(network) = self.networks.get(selected_idx) {
-                self.render_detail(frame, detail_area, network);
-            }
+            && let Some(network) = self.networks.get(selected_idx)
+        {
+            self.render_detail(frame, detail_area, network);
+        }
 
         // ── Edit overlay (rendered on top) ──────────────────────
         if let Some(ref edit) = self.edit_state {

@@ -37,9 +37,10 @@ use crate::tui::widgets::{bytes_fmt, chart};
 fn parse_ipv6_from_text(value: &str) -> Option<String> {
     let trimmed = value.trim();
     if let Ok(ip) = trimmed.parse::<IpAddr>()
-        && ip.is_ipv6() {
-            return Some(ip.to_string());
-        }
+        && ip.is_ipv6()
+    {
+        return Some(ip.to_string());
+    }
 
     for token in trimmed.split([',', ';', ' ', '\t', '\n']) {
         let cleaned = token.trim_matches(|c: char| matches!(c, '[' | ']' | '(' | ')' | '"' | '\''));
@@ -47,9 +48,10 @@ fn parse_ipv6_from_text(value: &str) -> Option<String> {
             continue;
         }
         if let Ok(ip) = cleaned.parse::<IpAddr>()
-            && ip.is_ipv6() {
-                return Some(ip.to_string());
-            }
+            && ip.is_ipv6()
+        {
+            return Some(ip.to_string());
+        }
     }
 
     None
@@ -911,13 +913,14 @@ impl DashboardScreen {
                 gw.stats.load_average_1m,
                 gw.stats.load_average_5m,
                 gw.stats.load_average_15m,
-            ) {
-                let load = truncate_text(&format!("{l1:.2} / {l5:.2} / {l15:.2}"), content_w);
-                lines.push(Line::from(vec![
-                    Span::styled(" Load ", Style::default().fg(theme::text_secondary())),
-                    Span::styled(load, Style::default().fg(theme::accent_secondary())),
-                ]));
-            }
+            )
+        {
+            let load = truncate_text(&format!("{l1:.2} / {l5:.2} / {l15:.2}"), content_w);
+            lines.push(Line::from(vec![
+                Span::styled(" Load ", Style::default().fg(theme::text_secondary())),
+                Span::styled(load, Style::default().fg(theme::accent_secondary())),
+            ]));
+        }
 
         let total_devices = self.devices.len();
         let online = self
