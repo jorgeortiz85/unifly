@@ -78,7 +78,6 @@ humantime = "2"
 # ── Configuration ──
 figment = { version = "0.10", features = ["toml", "env"] }
 keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"] }
-directories = "6"
 
 # ── Output formatting (CLI) ──
 tabled = { version = "0.20", features = ["derive", "ansi"] }

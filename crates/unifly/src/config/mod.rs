@@ -10,7 +10,6 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use directories::ProjectDirs;
 use figment::{
     Figment,
     providers::{Env, Format, Serialized, Toml},
@@ -160,23 +159,15 @@ fn default_auth_mode() -> String {
 
 // ── Config file path ────────────────────────────────────────────────
 
-/// Resolve the config file path via XDG / platform conventions.
+/// Resolve the config file path via XDG conventions (consistent across platforms).
 pub fn config_path() -> PathBuf {
-    ProjectDirs::from("com", "unifly", "unifly").map_or_else(
-        || {
-            let mut p = dirs_fallback();
-            p.push("config.toml");
-            p
-        },
-        |dirs| dirs.config_dir().join("config.toml"),
-    )
-}
-
-fn dirs_fallback() -> PathBuf {
-    let mut p = PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| ".".into()));
-    p.push(".config");
-    p.push("unifly");
-    p
+    let base = std::env::var("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| {
+            PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| ".".into()))
+                .join(".config")
+        });
+    base.join("unifly").join("config.toml")
 }
 
 // ── Config loading ──────────────────────────────────────────────────
