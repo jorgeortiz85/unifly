@@ -67,7 +67,8 @@ pub struct UnifiEvent {
     pub site_id: String,
 
     /// Human-readable event message, if present.
-    #[serde(default)]
+    /// The controller sends `"msg"` in most payloads; `"message"` is a rarer variant.
+    #[serde(default, alias = "msg")]
     pub message: Option<String>,
 
     /// ISO-8601 timestamp from the controller.
@@ -586,6 +587,23 @@ mod tests {
         // Extra fields should be captured in `extra`
         assert_eq!(event.extra["sw"], "aa:bb:cc:dd:ee:ff");
         assert_eq!(event.extra["port"], 4);
+    }
+
+    #[test]
+    fn deserialize_unifi_event_msg_alias() {
+        let json = r#"{
+            "key": "EVT_WU_Connected",
+            "subsystem": "wlan",
+            "site_id": "abc123",
+            "msg": "User[aa:bb:cc:dd:ee:ff] connected",
+            "datetime": "2026-02-10T12:00:00Z"
+        }"#;
+
+        let event: UnifiEvent = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            event.message.as_deref(),
+            Some("User[aa:bb:cc:dd:ee:ff] connected")
+        );
     }
 
     #[test]

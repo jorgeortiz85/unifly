@@ -367,10 +367,14 @@ impl Controller {
                                     apply_device_sync(&store, &ws_event.extra);
                                 }
 
-                                let event = crate::model::event::Event::from(
-                                    (*ws_event).clone(),
-                                );
-                                let _ = event_tx.send(Arc::new(event));
+                                // Only broadcast actual events (key starts with EVT_),
+                                // not sync/state-dump messages.
+                                if ws_event.key.starts_with("EVT_") {
+                                    let event = crate::model::event::Event::from(
+                                        (*ws_event).clone(),
+                                    );
+                                    let _ = event_tx.send(Arc::new(event));
+                                }
                             }
                             Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
                                 warn!(skipped = n, "WS bridge: receiver lagged");

@@ -4,6 +4,8 @@
 //! state from the controller, forwarding every change as an [`Action`]
 //! through the TUI's action channel.
 
+use std::sync::Arc;
+
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, warn};
@@ -63,6 +65,12 @@ pub async fn spawn_data_bridge(
     let _ = action_tx.send(Action::FirewallZonesUpdated(fw_zones.current().clone()));
     let _ = action_tx.send(Action::AclRulesUpdated(acl_rules.current().clone()));
     let _ = action_tx.send(Action::WifiBroadcastsUpdated(wifi.current().clone()));
+
+    // Push initial events from the DataStore snapshot (the broadcast channel
+    // fires during connect(), before we subscribe, so those are lost).
+    for evt in controller.events_snapshot().iter() {
+        let _ = action_tx.send(Action::EventReceived(Arc::clone(evt)));
+    }
 
     // Push initial health snapshot
     let health_snap = site_health.borrow_and_update().clone();

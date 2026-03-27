@@ -1337,8 +1337,8 @@ impl DashboardScreen {
         frame.render_widget(Paragraph::new(lines), inner);
     }
 
-    /// Compact Recent Events — two-column when wide enough.
-    #[allow(clippy::cast_possible_truncation, clippy::too_many_lines)]
+    /// Compact Recent Events — single column, most recent first.
+    #[allow(clippy::cast_possible_truncation)]
     fn render_recent_events(&self, frame: &mut Frame, area: Rect) {
         let event_count = self.events.len();
         let title = Line::from(vec![Span::styled(" Recent Events ", theme::title_style())]);
@@ -1362,60 +1362,35 @@ impl DashboardScreen {
         frame.render_widget(block, area);
 
         let max_rows = usize::from(inner.height);
-        let recent: Vec<_> = self.events.iter().rev().take(max_rows * 2).collect();
-        let wide = inner.width > 80;
-
-        let format_event = |evt: &Event, max_msg_width: usize| -> Vec<Span<'static>> {
-            let time_str = evt.timestamp.format("%H:%M").to_string();
-            let severity_color = match evt.severity {
-                EventSeverity::Error | EventSeverity::Critical => theme::error(),
-                EventSeverity::Warning => theme::warning(),
-                EventSeverity::Info => theme::accent_secondary(),
-                _ => theme::text_secondary(),
-            };
-            let dot_color = match evt.severity {
-                EventSeverity::Error | EventSeverity::Critical => theme::error(),
-                EventSeverity::Warning => theme::warning(),
-                _ => theme::success(),
-            };
-            let msg: String = evt.message.chars().take(max_msg_width).collect();
-            vec![
-                Span::styled(time_str, Style::default().fg(theme::warning())),
-                Span::styled(" ● ", Style::default().fg(dot_color)),
-                Span::styled(msg, Style::default().fg(severity_color)),
-            ]
-        };
+        let msg_width = usize::from(inner.width.saturating_sub(10));
 
         let mut lines = Vec::new();
-        if recent.is_empty() {
+        if self.events.is_empty() {
             lines.push(Line::from(Span::styled(
                 " No events",
                 Style::default().fg(theme::border_unfocused()),
             )));
-        } else if wide {
-            // Two events per line
-            let col_width = usize::from((inner.width / 2).saturating_sub(10));
-            let mut iter = recent.iter();
-            for _ in 0..max_rows {
-                let Some(left) = iter.next() else { break };
-                let mut spans = vec![Span::raw(" ")];
-                spans.extend(format_event(left, col_width));
-                if let Some(right) = iter.next() {
-                    // Pad to align columns
-                    let left_msg_len = left.message.chars().take(col_width).count();
-                    let padding = col_width.saturating_sub(left_msg_len) + 3;
-                    spans.push(Span::raw(" ".repeat(padding)));
-                    spans.extend(format_event(right, col_width));
-                }
-                lines.push(Line::from(spans));
-            }
         } else {
-            // One event per line
-            let msg_width = usize::from(inner.width.saturating_sub(10));
-            for evt in recent.iter().take(max_rows) {
-                let mut spans = vec![Span::raw(" ")];
-                spans.extend(format_event(evt, msg_width));
-                lines.push(Line::from(spans));
+            for evt in self.events.iter().rev().take(max_rows) {
+                let time_str = evt.timestamp.format("%H:%M").to_string();
+                let severity_color = match evt.severity {
+                    EventSeverity::Error | EventSeverity::Critical => theme::error(),
+                    EventSeverity::Warning => theme::warning(),
+                    EventSeverity::Info => theme::accent_secondary(),
+                    _ => theme::text_secondary(),
+                };
+                let dot_color = match evt.severity {
+                    EventSeverity::Error | EventSeverity::Critical => theme::error(),
+                    EventSeverity::Warning => theme::warning(),
+                    _ => theme::success(),
+                };
+                let msg: String = evt.message.chars().take(msg_width).collect();
+                lines.push(Line::from(vec![
+                    Span::raw(" "),
+                    Span::styled(time_str, Style::default().fg(theme::warning())),
+                    Span::styled(" ● ", Style::default().fg(dot_color)),
+                    Span::styled(msg, Style::default().fg(severity_color)),
+                ]));
             }
         }
 
@@ -1528,12 +1503,13 @@ impl Component for DashboardScreen {
             return;
         }
 
-        // 4-row dense layout
+        // Proportional 4-row layout — all panels scale with terminal height.
+        // Ratios: chart ~28%, info panels ~32%, networks ~26%, events ~14%.
         let rows = Layout::vertical([
-            Constraint::Length(9),  // Row 1: WAN Traffic Chart
-            Constraint::Length(11), // Row 2: Gateway | Connectivity | Capacity
-            Constraint::Min(8),     // Row 3: Networks | Top Clients
-            Constraint::Length(4),  // Row 4: Recent Events
+            Constraint::Percentage(28), // Row 1: WAN Traffic Chart
+            Constraint::Percentage(32), // Row 2: Gateway | Connectivity | Capacity
+            Constraint::Percentage(26), // Row 3: Networks | WiFi / APs | Top Clients
+            Constraint::Percentage(14), // Row 4: Recent Events
         ])
         .split(inner);
 

@@ -160,14 +160,16 @@ impl Component for EventsScreen {
 
         // Table header
         lines.push(Line::from(vec![
-            Span::styled("  Timestamp       ", theme::table_header()),
-            Span::styled("Type            ", theme::table_header()),
+            Span::styled("  Time      ", theme::table_header()),
             Span::styled("Category   ", theme::table_header()),
             Span::styled("Message", theme::table_header()),
         ]));
 
+        let meta_cols: u16 = 2 + 12 + 11; // indent + time + category
+        let msg_width = usize::from(layout[1].width.saturating_sub(meta_cols).max(10));
+
         for event in self.events.get(start..end).unwrap_or_default() {
-            let time_str = event.timestamp.format("%H:%M:%S%.3f").to_string();
+            let time_str = event.timestamp.format("%H:%M:%S").to_string();
             let severity_color = match event.severity {
                 EventSeverity::Error | EventSeverity::Critical => theme::error(),
                 EventSeverity::Warning => theme::warning(),
@@ -175,17 +177,12 @@ impl Component for EventsScreen {
                 _ => theme::text_secondary(),
             };
             let category = format!("{:?}", event.category);
-            let msg_width = usize::from(layout[1].width.saturating_sub(50).max(10));
             let msg: String = event.message.chars().take(msg_width).collect();
 
             lines.push(Line::from(vec![
                 Span::styled(
-                    format!("  {time_str:<18}"),
+                    format!("  {time_str:<12}"),
                     Style::default().fg(theme::warning()),
-                ),
-                Span::styled(
-                    format!("{:<16}", &event.event_type),
-                    Style::default().fg(severity_color),
                 ),
                 Span::styled(
                     format!("{category:<11}"),
