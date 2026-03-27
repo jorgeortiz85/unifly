@@ -140,7 +140,7 @@ jobs:
           to: ${{ github.ref_name }}
           version-name: ${{ github.ref_name }}
           provider: anthropic
-          model: claude-sonnet-4-5-20250929
+          model: claude-opus-4-6
           api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           output-file: RELEASE_NOTES.md
       - name: Create GitHub Release
