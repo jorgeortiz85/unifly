@@ -7,4 +7,4 @@ mod data_store;
 mod refresh;
 
 pub use data_store::DataStore;
-pub(crate) use refresh::RefreshSnapshot;
+pub(crate) use refresh::{RefreshSnapshot, event_storage_key};

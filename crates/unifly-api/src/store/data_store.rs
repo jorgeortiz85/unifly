@@ -219,6 +219,10 @@ impl DataStore {
         *self.last_ws_event.borrow()
     }
 
+    pub(crate) fn mark_ws_event(&self, timestamp: DateTime<Utc>) {
+        let _ = self.last_ws_event.send(Some(timestamp));
+    }
+
     /// How long ago the last full refresh occurred, or `None` if never refreshed.
     pub fn data_age(&self) -> Option<chrono::Duration> {
         self.last_full_refresh().map(|t| Utc::now() - t)

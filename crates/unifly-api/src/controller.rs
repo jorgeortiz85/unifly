@@ -4,11 +4,12 @@
 // Handles authentication, background refresh, command routing,
 // and reactive data streaming through the DataStore.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::sync::Arc;
 use std::time::Duration;
 
+use futures_util::stream::{self, StreamExt};
 use tokio::sync::{Mutex, broadcast, mpsc, watch};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
@@ -23,7 +24,7 @@ use crate::model::{
     Network, NetworkManagement, NetworkPurpose, RadiusProfile, Site, SysInfo, SystemInfo,
     TrafficMatchingList, Voucher, VpnServer, VpnTunnel, WanInterface, WifiBroadcast,
 };
-use crate::store::DataStore;
+use crate::store::{DataStore, event_storage_key};
 use crate::stream::EntityStream;
 
 use crate::transport::{TlsMode, TransportConfig};
@@ -32,6 +33,7 @@ use crate::{IntegrationClient, LegacyClient};
 
 const COMMAND_CHANNEL_SIZE: usize = 64;
 const EVENT_CHANNEL_SIZE: usize = 256;
+const REFRESH_DETAIL_CONCURRENCY: usize = 16;
 
 // ── ConnectionState ──────────────────────────────────────────────
 
@@ -68,8 +70,8 @@ struct ControllerInner {
     /// Child token for the current connection — cancelled on disconnect,
     /// replaced on reconnect (avoids permanent cancellation).
     cancel_child: Mutex<CancellationToken>,
-    legacy_client: Mutex<Option<LegacyClient>>,
-    integration_client: Mutex<Option<IntegrationClient>>,
+    legacy_client: Mutex<Option<Arc<LegacyClient>>>,
+    integration_client: Mutex<Option<Arc<IntegrationClient>>>,
     /// Resolved Integration API site UUID (populated on connect).
     site_id: Mutex<Option<uuid::Uuid>>,
     /// WebSocket event stream handle (populated on connect if enabled).
@@ -159,7 +161,7 @@ impl Controller {
                 let site_id = resolve_site_id(&integration, &config.site).await?;
                 debug!(site_id = %site_id, "resolved Integration API site UUID");
 
-                *self.inner.integration_client.lock().await = Some(integration);
+                *self.inner.integration_client.lock().await = Some(Arc::new(integration));
                 *self.inner.site_id.lock().await = Some(site_id);
             }
             AuthCredentials::Credentials { username, password } => {
@@ -176,7 +178,7 @@ impl Controller {
                 client.login(username, password).await?;
                 debug!("session authentication successful");
 
-                *self.inner.legacy_client.lock().await = Some(client);
+                *self.inner.legacy_client.lock().await = Some(Arc::new(client));
             }
             AuthCredentials::Hybrid {
                 api_key,
@@ -198,7 +200,7 @@ impl Controller {
                 let site_id = resolve_site_id(&integration, &config.site).await?;
                 debug!(site_id = %site_id, "resolved Integration API site UUID");
 
-                *self.inner.integration_client.lock().await = Some(integration);
+                *self.inner.integration_client.lock().await = Some(Arc::new(integration));
                 *self.inner.site_id.lock().await = Some(site_id);
 
                 // Legacy API client — attempt login but degrade gracefully
@@ -213,7 +215,7 @@ impl Controller {
                     Ok(client) => match client.login(username, password).await {
                         Ok(()) => {
                             debug!("legacy session authentication successful (hybrid)");
-                            *self.inner.legacy_client.lock().await = Some(client);
+                            *self.inner.legacy_client.lock().await = Some(Arc::new(client));
                         }
                         Err(e) => {
                             let msg = format!(
@@ -247,7 +249,7 @@ impl Controller {
                 };
                 debug!(site_id = %site_id, "resolved cloud Integration API site UUID");
 
-                *self.inner.integration_client.lock().await = Some(integration);
+                *self.inner.integration_client.lock().await = Some(Arc::new(integration));
                 *self.inner.site_id.lock().await = Some(site_id);
 
                 let msg =
@@ -290,8 +292,7 @@ impl Controller {
     ///
     /// Non-fatal on failure — the TUI falls back to polling.
     async fn spawn_websocket(&self, cancel: &CancellationToken, handles: &mut Vec<JoinHandle<()>>) {
-        let legacy_guard = self.inner.legacy_client.lock().await;
-        let Some(ref legacy) = *legacy_guard else {
+        let Some(legacy) = self.inner.legacy_client.lock().await.clone() else {
             debug!("no legacy client — WebSocket unavailable");
             return;
         };
@@ -323,7 +324,6 @@ impl Controller {
         };
 
         let cookie = legacy.cookie_header();
-        drop(legacy_guard);
 
         if cookie.is_none() {
             warn!("no session cookie — WebSocket requires legacy auth (skipping)");
@@ -362,6 +362,8 @@ impl Controller {
                     result = ws_rx.recv() => {
                         match result {
                             Ok(ws_event) => {
+                                store.mark_ws_event(chrono::Utc::now());
+
                                 // Extract real-time stats from device:sync messages
                                 if ws_event.key == "device:sync" || ws_event.key == "device:update" {
                                     apply_device_sync(&store, &ws_event.extra);
@@ -398,25 +400,27 @@ impl Controller {
         // Cancel the child token (not the parent — allows reconnect).
         self.inner.cancel_child.lock().await.cancel();
 
+        // Shut down WebSocket promptly so any active read/handshake wakes up.
+        if let Some(handle) = self.inner.ws_handle.lock().await.take() {
+            handle.shutdown();
+        }
+
         // Join all background tasks
         let mut handles = self.inner.task_handles.lock().await;
         for handle in handles.drain(..) {
             let _ = handle.await;
         }
 
+        let legacy = self.inner.legacy_client.lock().await.clone();
+
         // Logout if session-based (Credentials or Hybrid both have active sessions)
         if matches!(
             self.inner.config.auth,
             AuthCredentials::Credentials { .. } | AuthCredentials::Hybrid { .. }
-        ) && let Some(ref client) = *self.inner.legacy_client.lock().await
+        ) && let Some(client) = legacy
             && let Err(e) = client.logout().await
         {
             warn!(error = %e, "logout failed (non-fatal)");
-        }
-
-        // Shut down WebSocket if active
-        if let Some(handle) = self.inner.ws_handle.lock().await.take() {
-            handle.shutdown();
         }
 
         *self.inner.legacy_client.lock().await = None;
@@ -445,10 +449,10 @@ impl Controller {
     /// broadcast through the event channel (not stored).
     #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
     pub async fn full_refresh(&self) -> Result<(), CoreError> {
-        let integration_guard = self.inner.integration_client.lock().await;
+        let integration = self.inner.integration_client.lock().await.clone();
         let site_id = *self.inner.site_id.lock().await;
 
-        if let (Some(integration), Some(sid)) = (integration_guard.as_ref(), site_id) {
+        if let (Some(integration), Some(sid)) = (integration, site_id) {
             // ── Integration API path (preferred) ─────────────────
             let page_limit = 200;
 
@@ -502,20 +506,22 @@ impl Controller {
                 "fetching network details"
             );
             let networks: Vec<Network> = {
-                let futs = network_ids.into_iter().map(|nid| async move {
-                    match integration.get_network(&sid, &nid).await {
-                        Ok(detail) => Some(Network::from(detail)),
-                        Err(e) => {
-                            warn!(network_id = %nid, error = %e, "network detail fetch failed");
-                            None
+                stream::iter(network_ids.into_iter().map(|nid| {
+                    let integration = Arc::clone(&integration);
+                    async move {
+                        match integration.get_network(&sid, &nid).await {
+                            Ok(detail) => Some(Network::from(detail)),
+                            Err(e) => {
+                                warn!(network_id = %nid, error = %e, "network detail fetch failed");
+                                None
+                            }
                         }
                     }
-                });
-                futures_util::future::join_all(futs)
-                    .await
-                    .into_iter()
-                    .flatten()
-                    .collect()
+                }))
+                .buffer_unordered(REFRESH_DETAIL_CONCURRENCY)
+                .filter_map(async move |network| network)
+                .collect::<Vec<_>>()
+                .await
             };
             let wifi: Vec<WifiBroadcast> = wifi_res?.into_iter().map(WifiBroadcast::from).collect();
             let policies: Vec<FirewallPolicy> = policies_res?
@@ -540,28 +546,31 @@ impl Controller {
                 "enriching devices with statistics"
             );
             let mut devices = {
-                let futs = devices.into_iter().map(|mut device| async {
-                    if let EntityId::Uuid(device_uuid) = &device.id {
-                        match integration.get_device_statistics(&sid, device_uuid).await {
-                            Ok(stats_resp) => {
-                                device.stats =
-                                    crate::convert::device_stats_from_integration(&stats_resp);
-                            }
-                            Err(e) => {
-                                warn!(
-                                    device = ?device.name,
-                                    error = %e,
-                                    "device stats fetch failed"
-                                );
+                stream::iter(devices.into_iter().map(|mut device| {
+                    let integration = Arc::clone(&integration);
+                    async move {
+                        if let EntityId::Uuid(device_uuid) = &device.id {
+                            match integration.get_device_statistics(&sid, device_uuid).await {
+                                Ok(stats_resp) => {
+                                    device.stats =
+                                        crate::convert::device_stats_from_integration(&stats_resp);
+                                }
+                                Err(e) => {
+                                    warn!(
+                                        device = ?device.name,
+                                        error = %e,
+                                        "device stats fetch failed"
+                                    );
+                                }
                             }
                         }
+                        device
                     }
-                    device
-                });
-                futures_util::future::join_all(futs).await
+                }))
+                .buffer_unordered(REFRESH_DETAIL_CONCURRENCY)
+                .collect::<Vec<_>>()
+                .await
             };
-
-            drop(integration_guard);
 
             // Supplement with Legacy API data (events, health, client traffic, device stats, DHCP reservations)
             #[allow(clippy::type_complexity)]
@@ -571,8 +580,8 @@ impl Controller {
                 Vec<crate::legacy::models::LegacyClientEntry>,
                 Vec<crate::legacy::models::LegacyDevice>,
                 Vec<crate::legacy::models::LegacyUserEntry>,
-            ) = match *self.inner.legacy_client.lock().await {
-                Some(ref legacy) => {
+            ) = match self.inner.legacy_client.lock().await.clone() {
+                Some(legacy) => {
                     let (events_res, health_res, clients_res, devices_res, users_res) =
                         tokio::join!(
                             legacy.list_events(Some(100)),
@@ -583,13 +592,7 @@ impl Controller {
                         );
 
                     let events = match events_res {
-                        Ok(raw) => {
-                            let evts: Vec<Event> = raw.into_iter().map(Event::from).collect();
-                            for evt in &evts {
-                                let _ = self.inner.event_tx.send(Arc::new(evt.clone()));
-                            }
-                            evts
-                        }
+                        Ok(raw) => raw.into_iter().map(Event::from).collect(),
                         Err(e) => {
                             warn!(error = %e, "legacy event fetch failed (non-fatal)");
                             Vec::new()
@@ -716,6 +719,8 @@ impl Controller {
                     .send_modify(|h| *h = Arc::new(legacy_health));
             }
 
+            let fresh_legacy_events = unseen_events(self.store(), &legacy_events);
+
             self.inner
                 .store
                 .apply_integration_snapshot(crate::store::RefreshSnapshot {
@@ -732,13 +737,18 @@ impl Controller {
                     events: legacy_events,
                     traffic_matching_lists,
                 });
+
+            for event in fresh_legacy_events {
+                let _ = self.inner.event_tx.send(Arc::new(event));
+            }
         } else {
             // ── Legacy-only path ─────────────────────────────────
-            drop(integration_guard);
-
-            let legacy_guard = self.inner.legacy_client.lock().await;
-            let legacy = legacy_guard
-                .as_ref()
+            let legacy = self
+                .inner
+                .legacy_client
+                .lock()
+                .await
+                .clone()
                 .ok_or(CoreError::ControllerDisconnected)?;
 
             let (devices_res, clients_res, events_res, sites_res) = tokio::join!(
@@ -752,12 +762,7 @@ impl Controller {
             let clients: Vec<Client> = clients_res?.into_iter().map(Client::from).collect();
             let events: Vec<Event> = events_res?.into_iter().map(Event::from).collect();
             let sites: Vec<Site> = sites_res?.into_iter().map(Site::from).collect();
-
-            drop(legacy_guard);
-
-            for event in &events {
-                let _ = self.inner.event_tx.send(Arc::new(event.clone()));
-            }
+            let fresh_events = unseen_events(self.store(), &events);
 
             self.inner
                 .store
@@ -775,6 +780,10 @@ impl Controller {
                     events,
                     traffic_matching_lists: Vec::new(),
                 });
+
+            for event in fresh_events {
+                let _ = self.inner.event_tx.send(Arc::new(event));
+            }
         }
 
         debug!(
@@ -968,7 +977,7 @@ impl Controller {
     pub async fn list_vpn_servers(&self) -> Result<Vec<VpnServer>, CoreError> {
         let guard = self.inner.integration_client.lock().await;
         let site_id = *self.inner.site_id.lock().await;
-        let (ic, sid) = require_integration(&guard, site_id, "list_vpn_servers")?;
+        let (ic, sid) = require_integration(guard.as_ref(), site_id, "list_vpn_servers")?;
         let raw = ic
             .paginate_all(200, |off, lim| ic.list_vpn_servers(&sid, off, lim))
             .await?;
@@ -1005,7 +1014,7 @@ impl Controller {
     pub async fn list_vpn_tunnels(&self) -> Result<Vec<VpnTunnel>, CoreError> {
         let guard = self.inner.integration_client.lock().await;
         let site_id = *self.inner.site_id.lock().await;
-        let (ic, sid) = require_integration(&guard, site_id, "list_vpn_tunnels")?;
+        let (ic, sid) = require_integration(guard.as_ref(), site_id, "list_vpn_tunnels")?;
         let raw = ic
             .paginate_all(200, |off, lim| ic.list_vpn_tunnels(&sid, off, lim))
             .await?;
@@ -1042,7 +1051,7 @@ impl Controller {
     pub async fn list_wans(&self) -> Result<Vec<WanInterface>, CoreError> {
         let guard = self.inner.integration_client.lock().await;
         let site_id = *self.inner.site_id.lock().await;
-        let (ic, sid) = require_integration(&guard, site_id, "list_wans")?;
+        let (ic, sid) = require_integration(guard.as_ref(), site_id, "list_wans")?;
         let raw = ic
             .paginate_all(200, |off, lim| ic.list_wans(&sid, off, lim))
             .await?;
@@ -1090,7 +1099,7 @@ impl Controller {
     pub async fn list_dpi_categories(&self) -> Result<Vec<DpiCategory>, CoreError> {
         let guard = self.inner.integration_client.lock().await;
         let site_id = *self.inner.site_id.lock().await;
-        let (ic, sid) = require_integration(&guard, site_id, "list_dpi_categories")?;
+        let (ic, sid) = require_integration(guard.as_ref(), site_id, "list_dpi_categories")?;
         let raw = ic
             .paginate_all(200, |off, lim| ic.list_dpi_categories(&sid, off, lim))
             .await?;
@@ -1131,7 +1140,7 @@ impl Controller {
     pub async fn list_dpi_applications(&self) -> Result<Vec<DpiApplication>, CoreError> {
         let guard = self.inner.integration_client.lock().await;
         let site_id = *self.inner.site_id.lock().await;
-        let (ic, sid) = require_integration(&guard, site_id, "list_dpi_applications")?;
+        let (ic, sid) = require_integration(guard.as_ref(), site_id, "list_dpi_applications")?;
         let raw = ic
             .paginate_all(200, |off, lim| ic.list_dpi_applications(&sid, off, lim))
             .await?;
@@ -1177,7 +1186,7 @@ impl Controller {
     pub async fn list_radius_profiles(&self) -> Result<Vec<RadiusProfile>, CoreError> {
         let guard = self.inner.integration_client.lock().await;
         let site_id = *self.inner.site_id.lock().await;
-        let (ic, sid) = require_integration(&guard, site_id, "list_radius_profiles")?;
+        let (ic, sid) = require_integration(guard.as_ref(), site_id, "list_radius_profiles")?;
         let raw = ic
             .paginate_all(200, |off, lim| ic.list_radius_profiles(&sid, off, lim))
             .await?;
@@ -1238,7 +1247,7 @@ impl Controller {
     ) -> Result<serde_json::Value, CoreError> {
         let guard = self.inner.integration_client.lock().await;
         let site_id = *self.inner.site_id.lock().await;
-        let (ic, sid) = require_integration(&guard, site_id, "get_network_references")?;
+        let (ic, sid) = require_integration(guard.as_ref(), site_id, "get_network_references")?;
         let uuid = require_uuid(network_id)?;
         let refs = ic.get_network_references(&sid, &uuid).await?;
         Ok(serde_json::to_value(refs).unwrap_or_default())
@@ -1250,8 +1259,19 @@ impl Controller {
     ) -> Result<crate::integration_types::FirewallPolicyOrdering, CoreError> {
         let guard = self.inner.integration_client.lock().await;
         let site_id = *self.inner.site_id.lock().await;
-        let (ic, sid) = require_integration(&guard, site_id, "get_firewall_policy_ordering")?;
+        let (ic, sid) =
+            require_integration(guard.as_ref(), site_id, "get_firewall_policy_ordering")?;
         Ok(ic.get_firewall_policy_ordering(&sid).await?)
+    }
+
+    /// Fetch ACL rule ordering (Integration API).
+    pub async fn get_acl_rule_ordering(
+        &self,
+    ) -> Result<crate::integration_types::AclRuleOrdering, CoreError> {
+        let guard = self.inner.integration_client.lock().await;
+        let site_id = *self.inner.site_id.lock().await;
+        let (ic, sid) = require_integration(guard.as_ref(), site_id, "get_acl_rule_ordering")?;
+        Ok(ic.get_acl_rule_ordering(&sid).await?)
     }
 
     /// List pending devices.
@@ -1302,14 +1322,14 @@ impl Controller {
     /// List controller backups (legacy API).
     pub async fn list_backups(&self) -> Result<Vec<serde_json::Value>, CoreError> {
         let guard = self.inner.legacy_client.lock().await;
-        let legacy = require_legacy(&guard)?;
+        let legacy = require_legacy(guard.as_ref())?;
         Ok(legacy.list_backups().await?)
     }
 
     /// Download a controller backup file (legacy API).
     pub async fn download_backup(&self, filename: &str) -> Result<Vec<u8>, CoreError> {
         let guard = self.inner.legacy_client.lock().await;
-        let legacy = require_legacy(&guard)?;
+        let legacy = require_legacy(guard.as_ref())?;
         Ok(legacy.download_backup(filename).await?)
     }
 
@@ -1324,7 +1344,7 @@ impl Controller {
         attrs: Option<&[String]>,
     ) -> Result<Vec<serde_json::Value>, CoreError> {
         let guard = self.inner.legacy_client.lock().await;
-        let legacy = require_legacy(&guard)?;
+        let legacy = require_legacy(guard.as_ref())?;
         Ok(legacy.get_site_stats(interval, start, end, attrs).await?)
     }
 
@@ -1336,7 +1356,7 @@ impl Controller {
         attrs: Option<&[String]>,
     ) -> Result<Vec<serde_json::Value>, CoreError> {
         let guard = self.inner.legacy_client.lock().await;
-        let legacy = require_legacy(&guard)?;
+        let legacy = require_legacy(guard.as_ref())?;
         Ok(legacy.get_device_stats(interval, macs, attrs).await?)
     }
 
@@ -1348,7 +1368,7 @@ impl Controller {
         attrs: Option<&[String]>,
     ) -> Result<Vec<serde_json::Value>, CoreError> {
         let guard = self.inner.legacy_client.lock().await;
-        let legacy = require_legacy(&guard)?;
+        let legacy = require_legacy(guard.as_ref())?;
         Ok(legacy.get_client_stats(interval, macs, attrs).await?)
     }
 
@@ -1361,7 +1381,7 @@ impl Controller {
         attrs: Option<&[String]>,
     ) -> Result<Vec<serde_json::Value>, CoreError> {
         let guard = self.inner.legacy_client.lock().await;
-        let legacy = require_legacy(&guard)?;
+        let legacy = require_legacy(guard.as_ref())?;
         Ok(legacy
             .get_gateway_stats(interval, start, end, attrs)
             .await?)
@@ -1374,7 +1394,7 @@ impl Controller {
         macs: Option<&[String]>,
     ) -> Result<Vec<serde_json::Value>, CoreError> {
         let guard = self.inner.legacy_client.lock().await;
-        let legacy = require_legacy(&guard)?;
+        let legacy = require_legacy(guard.as_ref())?;
         Ok(legacy.get_dpi_stats(group_by, macs).await?)
     }
 
@@ -1385,7 +1405,7 @@ impl Controller {
     /// Fetch admin list from the Legacy API.
     pub async fn list_admins(&self) -> Result<Vec<Admin>, CoreError> {
         let guard = self.inner.legacy_client.lock().await;
-        let legacy = require_legacy(&guard)?;
+        let legacy = require_legacy(guard.as_ref())?;
         let raw = legacy.list_admins().await?;
         Ok(raw
             .into_iter()
@@ -1417,7 +1437,7 @@ impl Controller {
     /// Fetch alarms from the Legacy API.
     pub async fn list_alarms(&self) -> Result<Vec<Alarm>, CoreError> {
         let guard = self.inner.legacy_client.lock().await;
-        let legacy = require_legacy(&guard)?;
+        let legacy = require_legacy(guard.as_ref())?;
         let raw = legacy.list_alarms().await?;
         Ok(raw.into_iter().map(Alarm::from).collect())
     }
@@ -1459,7 +1479,7 @@ impl Controller {
 
         // Fallback to Legacy API (requires session auth).
         let guard = self.inner.legacy_client.lock().await;
-        let legacy = require_legacy(&guard)?;
+        let legacy = require_legacy(guard.as_ref())?;
         let raw = legacy.get_sysinfo().await?;
         Ok(SystemInfo {
             controller_name: raw
@@ -1493,7 +1513,7 @@ impl Controller {
     /// Fetch site health dashboard from the Legacy API.
     pub async fn get_site_health(&self) -> Result<Vec<HealthSummary>, CoreError> {
         let guard = self.inner.legacy_client.lock().await;
-        let legacy = require_legacy(&guard)?;
+        let legacy = require_legacy(guard.as_ref())?;
         let raw = legacy.get_health().await?;
         Ok(convert_health_summaries(raw))
     }
@@ -1501,7 +1521,7 @@ impl Controller {
     /// Fetch low-level sysinfo from the Legacy API.
     pub async fn get_sysinfo(&self) -> Result<SysInfo, CoreError> {
         let guard = self.inner.legacy_client.lock().await;
-        let legacy = require_legacy(&guard)?;
+        let legacy = require_legacy(guard.as_ref())?;
         let raw = legacy.get_sysinfo().await?;
         Ok(SysInfo {
             timezone: raw
@@ -1703,9 +1723,10 @@ async fn command_processor_task(controller: Controller, mut rx: mpsc::Receiver<C
 async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandResult, CoreError> {
     let store = &controller.inner.store;
 
-    // Acquire both clients for routing decisions
-    let integration_guard = controller.inner.integration_client.lock().await;
-    let legacy_guard = controller.inner.legacy_client.lock().await;
+    // Snapshot both clients so command execution doesn't hold controller locks
+    // across awaited network I/O.
+    let integration = controller.inner.integration_client.lock().await.clone();
+    let legacy = controller.inner.legacy_client.lock().await.clone();
     let site_id = *controller.inner.site_id.lock().await;
 
     match cmd {
@@ -1714,22 +1735,22 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
             mac,
             ignore_device_limit,
         } => {
-            if let (Some(ic), Some(sid)) = (integration_guard.as_ref(), site_id) {
+            if let (Some(ic), Some(sid)) = (integration.as_ref(), site_id) {
                 ic.adopt_device(&sid, mac.as_str(), ignore_device_limit)
                     .await?;
             } else {
-                let legacy = require_legacy(&legacy_guard)?;
+                let legacy = require_legacy(legacy.as_ref())?;
                 legacy.adopt_device(mac.as_str()).await?;
             }
             Ok(CommandResult::Ok)
         }
 
         Command::RestartDevice { id } => {
-            if let (Some(ic), Some(sid)) = (integration_guard.as_ref(), site_id) {
+            if let (Some(ic), Some(sid)) = (integration.as_ref(), site_id) {
                 let device_uuid = require_uuid(&id)?;
                 ic.device_action(&sid, &device_uuid, "RESTART").await?;
             } else {
-                let legacy = require_legacy(&legacy_guard)?;
+                let legacy = require_legacy(legacy.as_ref())?;
                 let mac = device_mac(store, &id)?;
                 legacy.restart_device(mac.as_str()).await?;
             }
@@ -1737,7 +1758,7 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
         }
 
         Command::LocateDevice { mac, enable } => {
-            if let (Some(ic), Some(sid)) = (integration_guard.as_ref(), site_id) {
+            if let (Some(ic), Some(sid)) = (integration.as_ref(), site_id) {
                 let device =
                     store
                         .device_by_mac(&mac)
@@ -1748,14 +1769,14 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
                 let action = if enable { "LOCATE_ON" } else { "LOCATE_OFF" };
                 ic.device_action(&sid, &device_uuid, action).await?;
             } else {
-                let legacy = require_legacy(&legacy_guard)?;
+                let legacy = require_legacy(legacy.as_ref())?;
                 legacy.locate_device(mac.as_str(), enable).await?;
             }
             Ok(CommandResult::Ok)
         }
 
         Command::UpgradeDevice { mac, firmware_url } => {
-            let legacy = require_legacy(&legacy_guard)?;
+            let legacy = require_legacy(legacy.as_ref())?;
             legacy
                 .upgrade_device(mac.as_str(), firmware_url.as_deref())
                 .await?;
@@ -1763,19 +1784,19 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
         }
 
         Command::RemoveDevice { id } => {
-            let (ic, sid) = require_integration(&integration_guard, site_id, "RemoveDevice")?;
+            let (ic, sid) = require_integration(integration.as_ref(), site_id, "RemoveDevice")?;
             let device_uuid = require_uuid(&id)?;
             ic.remove_device(&sid, &device_uuid).await?;
             Ok(CommandResult::Ok)
         }
 
         Command::ProvisionDevice { mac } => {
-            let legacy = require_legacy(&legacy_guard)?;
+            let legacy = require_legacy(legacy.as_ref())?;
             legacy.provision_device(mac.as_str()).await?;
             Ok(CommandResult::Ok)
         }
         Command::SpeedtestDevice => {
-            let legacy = require_legacy(&legacy_guard)?;
+            let legacy = require_legacy(legacy.as_ref())?;
             legacy.speedtest().await?;
             Ok(CommandResult::Ok)
         }
@@ -1784,7 +1805,7 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
             device_id,
             port_idx,
         } => {
-            let (ic, sid) = require_integration(&integration_guard, site_id, "PowerCyclePort")?;
+            let (ic, sid) = require_integration(integration.as_ref(), site_id, "PowerCyclePort")?;
             let device_uuid = require_uuid(&device_id)?;
             ic.port_action(&sid, &device_uuid, port_idx, "POWER_CYCLE")
                 .await?;
@@ -1793,7 +1814,7 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
 
         // ── Client operations ────────────────────────────────────
         Command::BlockClient { mac } => {
-            if let (Some(ic), Some(sid)) = (integration_guard.as_ref(), site_id) {
+            if let (Some(ic), Some(sid)) = (integration.as_ref(), site_id) {
                 let client =
                     store
                         .client_by_mac(&mac)
@@ -1803,14 +1824,14 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
                 let client_uuid = require_uuid(&client.id)?;
                 ic.client_action(&sid, &client_uuid, "BLOCK").await?;
             } else {
-                let legacy = require_legacy(&legacy_guard)?;
+                let legacy = require_legacy(legacy.as_ref())?;
                 legacy.block_client(mac.as_str()).await?;
             }
             Ok(CommandResult::Ok)
         }
 
         Command::UnblockClient { mac } => {
-            if let (Some(ic), Some(sid)) = (integration_guard.as_ref(), site_id) {
+            if let (Some(ic), Some(sid)) = (integration.as_ref(), site_id) {
                 let client =
                     store
                         .client_by_mac(&mac)
@@ -1820,14 +1841,14 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
                 let client_uuid = require_uuid(&client.id)?;
                 ic.client_action(&sid, &client_uuid, "UNBLOCK").await?;
             } else {
-                let legacy = require_legacy(&legacy_guard)?;
+                let legacy = require_legacy(legacy.as_ref())?;
                 legacy.unblock_client(mac.as_str()).await?;
             }
             Ok(CommandResult::Ok)
         }
 
         Command::KickClient { mac } => {
-            if let (Some(ic), Some(sid)) = (integration_guard.as_ref(), site_id) {
+            if let (Some(ic), Some(sid)) = (integration.as_ref(), site_id) {
                 let client =
                     store
                         .client_by_mac(&mac)
@@ -1837,14 +1858,14 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
                 let client_uuid = require_uuid(&client.id)?;
                 ic.client_action(&sid, &client_uuid, "RECONNECT").await?;
             } else {
-                let legacy = require_legacy(&legacy_guard)?;
+                let legacy = require_legacy(legacy.as_ref())?;
                 legacy.kick_client(mac.as_str()).await?;
             }
             Ok(CommandResult::Ok)
         }
 
         Command::ForgetClient { mac } => {
-            let legacy = require_legacy(&legacy_guard)?;
+            let legacy = require_legacy(legacy.as_ref())?;
             legacy.forget_client(mac.as_str()).await?;
             Ok(CommandResult::Ok)
         }
@@ -1856,7 +1877,7 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
             rx_rate_kbps,
             tx_rate_kbps,
         } => {
-            let legacy = require_legacy(&legacy_guard)?;
+            let legacy = require_legacy(legacy.as_ref())?;
             let mac = client_mac(store, &client_id)?;
             let minutes = time_limit_minutes.unwrap_or(60);
             #[allow(clippy::as_conversions, clippy::cast_possible_truncation)]
@@ -1875,7 +1896,7 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
         }
 
         Command::UnauthorizeGuest { client_id } => {
-            let legacy = require_legacy(&legacy_guard)?;
+            let legacy = require_legacy(legacy.as_ref())?;
             let mac = client_mac(store, &client_id)?;
             legacy.unauthorize_guest(mac.as_str()).await?;
             Ok(CommandResult::Ok)
@@ -1886,7 +1907,7 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
             ip,
             network_id,
         } => {
-            let legacy = require_legacy(&legacy_guard)?;
+            let legacy = require_legacy(legacy.as_ref())?;
             legacy
                 .set_client_fixed_ip(mac.as_str(), &ip.to_string(), &network_id.to_string())
                 .await?;
@@ -1894,40 +1915,40 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
         }
 
         Command::RemoveClientFixedIp { mac } => {
-            let legacy = require_legacy(&legacy_guard)?;
+            let legacy = require_legacy(legacy.as_ref())?;
             legacy.remove_client_fixed_ip(mac.as_str()).await?;
             Ok(CommandResult::Ok)
         }
 
         // ── Alarm operations ─────────────────────────────────────
         Command::ArchiveAlarm { id } => {
-            let legacy = require_legacy(&legacy_guard)?;
+            let legacy = require_legacy(legacy.as_ref())?;
             legacy.archive_alarm(&id.to_string()).await?;
             Ok(CommandResult::Ok)
         }
 
         Command::ArchiveAllAlarms => {
-            let legacy = require_legacy(&legacy_guard)?;
+            let legacy = require_legacy(legacy.as_ref())?;
             legacy.archive_all_alarms().await?;
             Ok(CommandResult::Ok)
         }
 
         // ── Backup operations ────────────────────────────────────
         Command::CreateBackup => {
-            let legacy = require_legacy(&legacy_guard)?;
+            let legacy = require_legacy(legacy.as_ref())?;
             legacy.create_backup().await?;
             Ok(CommandResult::Ok)
         }
 
         Command::DeleteBackup { filename } => {
-            let legacy = require_legacy(&legacy_guard)?;
+            let legacy = require_legacy(legacy.as_ref())?;
             legacy.delete_backup(&filename).await?;
             Ok(CommandResult::Ok)
         }
 
         // ── Network CRUD (Integration API) ───────────────────────
         Command::CreateNetwork(req) => {
-            let (ic, sid) = require_integration(&integration_guard, site_id, "CreateNetwork")?;
+            let (ic, sid) = require_integration(integration.as_ref(), site_id, "CreateNetwork")?;
             let crate::command::CreateNetworkRequest {
                 name,
                 vlan_id,
@@ -2019,7 +2040,7 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
         }
 
         Command::UpdateNetwork { id, update } => {
-            let (ic, sid) = require_integration(&integration_guard, site_id, "UpdateNetwork")?;
+            let (ic, sid) = require_integration(integration.as_ref(), site_id, "UpdateNetwork")?;
             let uuid = require_uuid(&id)?;
             // Fetch existing to merge partial update
             let existing = ic.get_network(&sid, &uuid).await?;
@@ -2057,7 +2078,7 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
         }
 
         Command::DeleteNetwork { id, force: _ } => {
-            let (ic, sid) = require_integration(&integration_guard, site_id, "DeleteNetwork")?;
+            let (ic, sid) = require_integration(integration.as_ref(), site_id, "DeleteNetwork")?;
             let uuid = require_uuid(&id)?;
             ic.delete_network(&sid, &uuid).await?;
             Ok(CommandResult::Ok)
@@ -2066,7 +2087,7 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
         // ── WiFi Broadcast CRUD ──────────────────────────────────
         Command::CreateWifiBroadcast(req) => {
             let (ic, sid) =
-                require_integration(&integration_guard, site_id, "CreateWifiBroadcast")?;
+                require_integration(integration.as_ref(), site_id, "CreateWifiBroadcast")?;
             let body = build_create_wifi_broadcast_payload(&req);
             ic.create_wifi_broadcast(&sid, &body).await?;
             Ok(CommandResult::Ok)
@@ -2074,7 +2095,7 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
 
         Command::UpdateWifiBroadcast { id, update } => {
             let (ic, sid) =
-                require_integration(&integration_guard, site_id, "UpdateWifiBroadcast")?;
+                require_integration(integration.as_ref(), site_id, "UpdateWifiBroadcast")?;
             let uuid = require_uuid(&id)?;
             let existing = ic.get_wifi_broadcast(&sid, &uuid).await?;
             let payload = build_update_wifi_broadcast_payload(&existing, &update);
@@ -2084,7 +2105,7 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
 
         Command::DeleteWifiBroadcast { id, force: _ } => {
             let (ic, sid) =
-                require_integration(&integration_guard, site_id, "DeleteWifiBroadcast")?;
+                require_integration(integration.as_ref(), site_id, "DeleteWifiBroadcast")?;
             let uuid = require_uuid(&id)?;
             ic.delete_wifi_broadcast(&sid, &uuid).await?;
             Ok(CommandResult::Ok)
@@ -2093,7 +2114,7 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
         // ── Firewall Policy CRUD ─────────────────────────────────
         Command::CreateFirewallPolicy(req) => {
             let (ic, sid) =
-                require_integration(&integration_guard, site_id, "CreateFirewallPolicy")?;
+                require_integration(integration.as_ref(), site_id, "CreateFirewallPolicy")?;
             let action_str = match req.action {
                 FirewallAction::Allow => "ALLOW",
                 FirewallAction::Block => "DROP",
@@ -2125,7 +2146,7 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
 
         Command::UpdateFirewallPolicy { id, update } => {
             let (ic, sid) =
-                require_integration(&integration_guard, site_id, "UpdateFirewallPolicy")?;
+                require_integration(integration.as_ref(), site_id, "UpdateFirewallPolicy")?;
             let uuid = require_uuid(&id)?;
             let existing = ic.get_firewall_policy(&sid, &uuid).await?;
 
@@ -2210,7 +2231,7 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
 
         Command::DeleteFirewallPolicy { id } => {
             let (ic, sid) =
-                require_integration(&integration_guard, site_id, "DeleteFirewallPolicy")?;
+                require_integration(integration.as_ref(), site_id, "DeleteFirewallPolicy")?;
             let uuid = require_uuid(&id)?;
             ic.delete_firewall_policy(&sid, &uuid).await?;
             Ok(CommandResult::Ok)
@@ -2222,7 +2243,7 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
             logging,
         } => {
             let (ic, sid) =
-                require_integration(&integration_guard, site_id, "PatchFirewallPolicy")?;
+                require_integration(integration.as_ref(), site_id, "PatchFirewallPolicy")?;
             let uuid = require_uuid(&id)?;
             let body = crate::integration_types::FirewallPolicyPatch {
                 enabled,
@@ -2237,7 +2258,7 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
             ordered_ids,
         } => {
             let (ic, sid) =
-                require_integration(&integration_guard, site_id, "ReorderFirewallPolicies")?;
+                require_integration(integration.as_ref(), site_id, "ReorderFirewallPolicies")?;
             let uuids: Result<Vec<uuid::Uuid>, _> = ordered_ids.iter().map(require_uuid).collect();
             let body = crate::integration_types::FirewallPolicyOrdering {
                 before_system_defined: uuids?,
@@ -2249,7 +2270,8 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
 
         // ── Firewall Zone CRUD ───────────────────────────────────
         Command::CreateFirewallZone(req) => {
-            let (ic, sid) = require_integration(&integration_guard, site_id, "CreateFirewallZone")?;
+            let (ic, sid) =
+                require_integration(integration.as_ref(), site_id, "CreateFirewallZone")?;
             let network_uuids: Result<Vec<uuid::Uuid>, _> =
                 req.network_ids.iter().map(require_uuid).collect();
             let body = crate::integration_types::FirewallZoneCreateUpdate {
@@ -2261,7 +2283,8 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
         }
 
         Command::UpdateFirewallZone { id, update } => {
-            let (ic, sid) = require_integration(&integration_guard, site_id, "UpdateFirewallZone")?;
+            let (ic, sid) =
+                require_integration(integration.as_ref(), site_id, "UpdateFirewallZone")?;
             let uuid = require_uuid(&id)?;
             let existing = ic.get_firewall_zone(&sid, &uuid).await?;
             let network_ids = if let Some(ids) = update.network_ids {
@@ -2279,7 +2302,8 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
         }
 
         Command::DeleteFirewallZone { id } => {
-            let (ic, sid) = require_integration(&integration_guard, site_id, "DeleteFirewallZone")?;
+            let (ic, sid) =
+                require_integration(integration.as_ref(), site_id, "DeleteFirewallZone")?;
             let uuid = require_uuid(&id)?;
             ic.delete_firewall_zone(&sid, &uuid).await?;
             Ok(CommandResult::Ok)
@@ -2287,7 +2311,7 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
 
         // ── ACL Rule CRUD ────────────────────────────────────────
         Command::CreateAclRule(req) => {
-            let (ic, sid) = require_integration(&integration_guard, site_id, "CreateAclRule")?;
+            let (ic, sid) = require_integration(integration.as_ref(), site_id, "CreateAclRule")?;
             let action_str = match req.action {
                 FirewallAction::Allow => "ALLOW",
                 FirewallAction::Block => "BLOCK",
@@ -2332,7 +2356,7 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
         }
 
         Command::UpdateAclRule { id, update } => {
-            let (ic, sid) = require_integration(&integration_guard, site_id, "UpdateAclRule")?;
+            let (ic, sid) = require_integration(integration.as_ref(), site_id, "UpdateAclRule")?;
             let uuid = require_uuid(&id)?;
             let existing = ic.get_acl_rule(&sid, &uuid).await?;
             let action_str = match update.action {
@@ -2356,14 +2380,14 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
         }
 
         Command::DeleteAclRule { id } => {
-            let (ic, sid) = require_integration(&integration_guard, site_id, "DeleteAclRule")?;
+            let (ic, sid) = require_integration(integration.as_ref(), site_id, "DeleteAclRule")?;
             let uuid = require_uuid(&id)?;
             ic.delete_acl_rule(&sid, &uuid).await?;
             Ok(CommandResult::Ok)
         }
 
         Command::ReorderAclRules { ordered_ids } => {
-            let (ic, sid) = require_integration(&integration_guard, site_id, "ReorderAclRules")?;
+            let (ic, sid) = require_integration(integration.as_ref(), site_id, "ReorderAclRules")?;
             let uuids: Result<Vec<uuid::Uuid>, _> = ordered_ids.iter().map(require_uuid).collect();
             let body = crate::integration_types::AclRuleOrdering {
                 ordered_acl_rule_ids: uuids?,
@@ -2374,7 +2398,7 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
 
         // ── DNS Policy CRUD ──────────────────────────────────────
         Command::CreateDnsPolicy(req) => {
-            let (ic, sid) = require_integration(&integration_guard, site_id, "CreateDnsPolicy")?;
+            let (ic, sid) = require_integration(integration.as_ref(), site_id, "CreateDnsPolicy")?;
             let policy_type_str = dns_policy_type_name(req.policy_type);
             let fields = build_create_dns_policy_fields(&req)?;
             let body = crate::integration_types::DnsPolicyCreateUpdate {
@@ -2387,7 +2411,7 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
         }
 
         Command::UpdateDnsPolicy { id, update } => {
-            let (ic, sid) = require_integration(&integration_guard, site_id, "UpdateDnsPolicy")?;
+            let (ic, sid) = require_integration(integration.as_ref(), site_id, "UpdateDnsPolicy")?;
             let uuid = require_uuid(&id)?;
             let existing = ic.get_dns_policy(&sid, &uuid).await?;
             let fields = build_update_dns_policy_fields(&existing, &update)?;
@@ -2402,7 +2426,7 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
         }
 
         Command::DeleteDnsPolicy { id } => {
-            let (ic, sid) = require_integration(&integration_guard, site_id, "DeleteDnsPolicy")?;
+            let (ic, sid) = require_integration(integration.as_ref(), site_id, "DeleteDnsPolicy")?;
             let uuid = require_uuid(&id)?;
             ic.delete_dns_policy(&sid, &uuid).await?;
             Ok(CommandResult::Ok)
@@ -2411,7 +2435,7 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
         // ── Traffic Matching List CRUD ───────────────────────────
         Command::CreateTrafficMatchingList(req) => {
             let (ic, sid) =
-                require_integration(&integration_guard, site_id, "CreateTrafficMatchingList")?;
+                require_integration(integration.as_ref(), site_id, "CreateTrafficMatchingList")?;
             let mut fields = serde_json::Map::new();
             fields.insert(
                 "items".into(),
@@ -2434,7 +2458,7 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
 
         Command::UpdateTrafficMatchingList { id, update } => {
             let (ic, sid) =
-                require_integration(&integration_guard, site_id, "UpdateTrafficMatchingList")?;
+                require_integration(integration.as_ref(), site_id, "UpdateTrafficMatchingList")?;
             let uuid = require_uuid(&id)?;
             let existing = ic.get_traffic_matching_list(&sid, &uuid).await?;
             let mut fields = serde_json::Map::new();
@@ -2466,7 +2490,7 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
 
         Command::DeleteTrafficMatchingList { id } => {
             let (ic, sid) =
-                require_integration(&integration_guard, site_id, "DeleteTrafficMatchingList")?;
+                require_integration(integration.as_ref(), site_id, "DeleteTrafficMatchingList")?;
             let uuid = require_uuid(&id)?;
             ic.delete_traffic_matching_list(&sid, &uuid).await?;
             Ok(CommandResult::Ok)
@@ -2474,7 +2498,7 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
 
         // ── Voucher management ───────────────────────────────────
         Command::CreateVouchers(req) => {
-            let (ic, sid) = require_integration(&integration_guard, site_id, "CreateVouchers")?;
+            let (ic, sid) = require_integration(integration.as_ref(), site_id, "CreateVouchers")?;
             #[allow(clippy::as_conversions, clippy::cast_possible_wrap)]
             let body = crate::integration_types::VoucherCreateRequest {
                 name: req.name.unwrap_or_else(|| "Voucher".into()),
@@ -2491,41 +2515,41 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
         }
 
         Command::DeleteVoucher { id } => {
-            let (ic, sid) = require_integration(&integration_guard, site_id, "DeleteVoucher")?;
+            let (ic, sid) = require_integration(integration.as_ref(), site_id, "DeleteVoucher")?;
             let uuid = require_uuid(&id)?;
             ic.delete_voucher(&sid, &uuid).await?;
             Ok(CommandResult::Ok)
         }
 
         Command::PurgeVouchers { filter } => {
-            let (ic, sid) = require_integration(&integration_guard, site_id, "PurgeVouchers")?;
+            let (ic, sid) = require_integration(integration.as_ref(), site_id, "PurgeVouchers")?;
             ic.purge_vouchers(&sid, &filter).await?;
             Ok(CommandResult::Ok)
         }
 
         // ── System administration ────────────────────────────────
         Command::CreateSite { name, description } => {
-            let legacy = require_legacy(&legacy_guard)?;
+            let legacy = require_legacy(legacy.as_ref())?;
             legacy.create_site(&name, &description).await?;
             Ok(CommandResult::Ok)
         }
         Command::DeleteSite { name } => {
-            let legacy = require_legacy(&legacy_guard)?;
+            let legacy = require_legacy(legacy.as_ref())?;
             legacy.delete_site(&name).await?;
             Ok(CommandResult::Ok)
         }
         Command::InviteAdmin { name, email, role } => {
-            let legacy = require_legacy(&legacy_guard)?;
+            let legacy = require_legacy(legacy.as_ref())?;
             legacy.invite_admin(&name, &email, &role).await?;
             Ok(CommandResult::Ok)
         }
         Command::RevokeAdmin { id } => {
-            let legacy = require_legacy(&legacy_guard)?;
+            let legacy = require_legacy(legacy.as_ref())?;
             legacy.revoke_admin(&id.to_string()).await?;
             Ok(CommandResult::Ok)
         }
         Command::UpdateAdmin { id, role } => {
-            let legacy = require_legacy(&legacy_guard)?;
+            let legacy = require_legacy(legacy.as_ref())?;
             legacy
                 .update_admin(&id.to_string(), role.as_deref())
                 .await?;
@@ -2533,12 +2557,12 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
         }
 
         Command::RebootController => {
-            let legacy = require_legacy(&legacy_guard)?;
+            let legacy = require_legacy(legacy.as_ref())?;
             legacy.reboot_controller().await?;
             Ok(CommandResult::Ok)
         }
         Command::PoweroffController => {
-            let legacy = require_legacy(&legacy_guard)?;
+            let legacy = require_legacy(legacy.as_ref())?;
             legacy.poweroff_controller().await?;
             Ok(CommandResult::Ok)
         }
@@ -2726,21 +2750,39 @@ fn require_uuid(id: &EntityId) -> Result<uuid::Uuid, CoreError> {
     })
 }
 
+fn unseen_events(store: &DataStore, events: &[Event]) -> Vec<Event> {
+    let mut seen: HashSet<String> = store
+        .events_snapshot()
+        .iter()
+        .map(|event| event_storage_key(event))
+        .collect();
+
+    events
+        .iter()
+        .filter(|event| seen.insert(event_storage_key(event)))
+        .cloned()
+        .collect()
+}
+
 fn require_legacy<'a>(
-    guard: &'a tokio::sync::MutexGuard<'_, Option<LegacyClient>>,
+    legacy: Option<&'a Arc<LegacyClient>>,
 ) -> Result<&'a LegacyClient, CoreError> {
-    guard.as_ref().ok_or_else(|| CoreError::Unsupported {
-        operation: "Legacy API operation".into(),
-        required: "Legacy API credentials".into(),
-    })
+    legacy
+        .map(Arc::as_ref)
+        .ok_or_else(|| CoreError::Unsupported {
+            operation: "Legacy API operation".into(),
+            required: "Legacy API credentials".into(),
+        })
 }
 
 fn require_integration<'a>(
-    guard: &'a tokio::sync::MutexGuard<'_, Option<IntegrationClient>>,
+    integration: Option<&'a Arc<IntegrationClient>>,
     site_id: Option<uuid::Uuid>,
     operation: &str,
 ) -> Result<(&'a IntegrationClient, uuid::Uuid), CoreError> {
-    let client = guard.as_ref().ok_or_else(|| unsupported(operation))?;
+    let client = integration
+        .map(Arc::as_ref)
+        .ok_or_else(|| unsupported(operation))?;
     let sid = site_id.ok_or_else(|| unsupported(operation))?;
     Ok((client, sid))
 }

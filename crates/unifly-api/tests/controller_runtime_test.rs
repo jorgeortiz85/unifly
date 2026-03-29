@@ -44,9 +44,13 @@ fn secret(value: &str) -> SecretString {
 }
 
 fn empty_legacy_envelope() -> serde_json::Value {
+    legacy_envelope(json!([]))
+}
+
+fn legacy_envelope(data: serde_json::Value) -> serde_json::Value {
     json!({
         "meta": { "rc": "ok" },
-        "data": [],
+        "data": data,
     })
 }
 
@@ -72,6 +76,14 @@ fn empty_integration_page(limit: i32) -> serde_json::Value {
 }
 
 async fn mock_legacy_connect(server: &MockServer, site_envelope: serde_json::Value) {
+    mock_legacy_connect_with_events(server, site_envelope, empty_legacy_envelope()).await;
+}
+
+async fn mock_legacy_connect_with_events(
+    server: &MockServer,
+    site_envelope: serde_json::Value,
+    event_envelope: serde_json::Value,
+) {
     Mock::given(method("GET"))
         .and(path("/api/auth/login"))
         .respond_with(ResponseTemplate::new(404))
@@ -104,7 +116,7 @@ async fn mock_legacy_connect(server: &MockServer, site_envelope: serde_json::Val
 
     Mock::given(method("GET"))
         .and(path("/api/s/default/stat/event"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(empty_legacy_envelope()))
+        .respond_with(ResponseTemplate::new(200).set_body_json(event_envelope))
         .mount(server)
         .await;
 
@@ -275,6 +287,56 @@ async fn websocket_enabled_for_events_watch_path() {
         cookie.contains("unifly_session=legacy-cookie"),
         "expected websocket cookie header to carry the legacy session, got: {cookie}"
     );
+
+    controller.disconnect().await;
+}
+
+#[tokio::test]
+async fn full_refresh_does_not_rebroadcast_duplicate_legacy_events() {
+    let server = MockServer::start().await;
+    mock_legacy_connect_with_events(
+        &server,
+        legacy_site_envelope(),
+        legacy_envelope(json!([{
+            "_id": "evt-1",
+            "key": "EVT_TEST",
+            "msg": "Switch lost contact",
+            "datetime": "2025-01-01T00:00:00Z",
+            "subsystem": "device",
+            "site_id": LEGACY_SITE_ID,
+        }])),
+    )
+    .await;
+
+    let controller = Controller::new(base_config(
+        Url::parse(&server.uri()).unwrap(),
+        AuthCredentials::Credentials {
+            username: "admin".into(),
+            password: secret("password"),
+        },
+        LEGACY_SITE_NAME,
+        false,
+    ));
+    let mut events = controller.events();
+
+    controller.connect().await.unwrap();
+
+    let first_event = timeout(Duration::from_secs(1), events.recv())
+        .await
+        .expect("initial refresh should broadcast legacy events")
+        .expect("broadcast channel should stay open");
+    assert_eq!(first_event.message, "Switch lost contact");
+    assert_eq!(controller.events_snapshot().len(), 1);
+
+    controller.full_refresh().await.unwrap();
+
+    assert!(
+        timeout(Duration::from_millis(250), events.recv())
+            .await
+            .is_err(),
+        "refresh should not rebroadcast already-seen legacy events"
+    );
+    assert_eq!(controller.events_snapshot().len(), 1);
 
     controller.disconnect().await;
 }

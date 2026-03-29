@@ -51,6 +51,43 @@ pub(crate) struct RefreshSnapshot {
     pub traffic_matching_lists: Vec<TrafficMatchingList>,
 }
 
+pub(crate) fn event_storage_key(event: &Event) -> String {
+    event.id.as_ref().map_or_else(
+        || {
+            format!(
+                "evt:{}:{}:{}:{}:{}:{}:{}",
+                event.timestamp.timestamp_millis(),
+                event.raw_key.as_deref().unwrap_or_default(),
+                event.event_type,
+                event.message,
+                event
+                    .site_id
+                    .as_ref()
+                    .map(ToString::to_string)
+                    .unwrap_or_default(),
+                event
+                    .device_mac
+                    .as_ref()
+                    .map(ToString::to_string)
+                    .unwrap_or_default(),
+                event
+                    .client_mac
+                    .as_ref()
+                    .map(ToString::to_string)
+                    .unwrap_or_default(),
+            )
+        },
+        std::string::ToString::to_string,
+    )
+}
+
+pub(crate) fn event_storage_id(event: &Event, key: &str) -> EntityId {
+    event
+        .id
+        .clone()
+        .unwrap_or_else(|| EntityId::Legacy(key.to_owned()))
+}
+
 impl DataStore {
     /// Apply a full Integration API data refresh.
     ///
@@ -184,13 +221,8 @@ impl DataStore {
             snap.events
                 .into_iter()
                 .map(|e| {
-                    let key = e.id.as_ref().map_or_else(
-                        || format!("evt:{}", e.timestamp.timestamp_millis()),
-                        std::string::ToString::to_string,
-                    );
-                    let id =
-                        e.id.clone()
-                            .unwrap_or_else(|| EntityId::Legacy(key.clone()));
+                    let key = event_storage_key(&e);
+                    let id = event_storage_id(&e, &key);
                     (key, id, e)
                 })
                 .collect(),
@@ -216,6 +248,8 @@ impl DataStore {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::model::{EventCategory, EventSeverity};
+    use chrono::{TimeZone, Utc};
 
     #[test]
     fn upsert_and_prune_batches_snapshot_updates() {
@@ -237,5 +271,55 @@ mod tests {
         assert_eq!(collection.len(), 2);
         assert!(collection.get_by_key("stale").is_none());
         assert_eq!(collection.snapshot().len(), 2);
+    }
+
+    #[test]
+    fn event_snapshot_keeps_distinct_id_less_events_with_same_timestamp() {
+        let store = DataStore::new();
+        let timestamp = Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap();
+
+        store.apply_integration_snapshot(RefreshSnapshot {
+            devices: Vec::new(),
+            clients: Vec::new(),
+            networks: Vec::new(),
+            wifi: Vec::new(),
+            policies: Vec::new(),
+            zones: Vec::new(),
+            acls: Vec::new(),
+            dns: Vec::new(),
+            vouchers: Vec::new(),
+            sites: Vec::new(),
+            events: vec![
+                Event {
+                    id: None,
+                    timestamp,
+                    category: EventCategory::System,
+                    severity: EventSeverity::Info,
+                    event_type: "EVT_TEST".into(),
+                    message: "first".into(),
+                    device_mac: None,
+                    client_mac: None,
+                    site_id: None,
+                    raw_key: Some("EVT_TEST".into()),
+                    source: crate::model::common::DataSource::LegacyApi,
+                },
+                Event {
+                    id: None,
+                    timestamp,
+                    category: EventCategory::System,
+                    severity: EventSeverity::Info,
+                    event_type: "EVT_TEST".into(),
+                    message: "second".into(),
+                    device_mac: None,
+                    client_mac: None,
+                    site_id: None,
+                    raw_key: Some("EVT_TEST".into()),
+                    source: crate::model::common::DataSource::LegacyApi,
+                },
+            ],
+            traffic_matching_lists: Vec::new(),
+        });
+
+        assert_eq!(store.events_snapshot().len(), 2);
     }
 }
