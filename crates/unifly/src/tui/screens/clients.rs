@@ -11,7 +11,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Borders, Cell, Paragraph, Row, Table, TableState};
 use tokio::sync::mpsc::UnboundedSender;
 
-use unifly_api::{Client, ClientType};
+use unifly_api::{Client, ClientType, EntityId};
 
 use crate::tui::action::{Action, ClientTypeFilter};
 use crate::tui::component::Component;
@@ -26,7 +26,7 @@ pub struct ClientsScreen {
     filter: ClientTypeFilter,
     search_query: String,
     detail_open: bool,
-    detail_client_idx: usize,
+    detail_client_id: Option<EntityId>,
 }
 
 impl Default for ClientsScreen {
@@ -45,7 +45,7 @@ impl ClientsScreen {
             filter: ClientTypeFilter::All,
             search_query: String::new(),
             detail_open: false,
-            detail_client_idx: 0,
+            detail_client_id: None,
         }
     }
 
@@ -83,6 +83,16 @@ impl ClientsScreen {
         self.table_state.selected().unwrap_or(0)
     }
 
+    fn detail_client_index(&self, filtered: &[&Arc<Client>]) -> Option<usize> {
+        let id = self.detail_client_id.as_ref()?;
+        filtered.iter().position(|client| client.id == *id)
+    }
+
+    fn detail_client<'a>(&self, filtered: &'a [&Arc<Client>]) -> Option<&'a Arc<Client>> {
+        let idx = self.detail_client_index(filtered)?;
+        filtered.get(idx).copied()
+    }
+
     fn select(&mut self, idx: usize) {
         let filtered = self.filtered_clients();
         let clamped = if filtered.is_empty() {
@@ -115,6 +125,37 @@ impl ClientsScreen {
             ClientTypeFilter::Guest => ClientTypeFilter::All,
         };
         self.table_state.select(Some(0));
+    }
+
+    fn reconcile_selection_after_view_change(&mut self, reset_to_top: bool) {
+        let (filtered_len, detail_idx) = {
+            let filtered = self.filtered_clients();
+            let detail_idx = if self.detail_open {
+                self.detail_client_index(&filtered)
+            } else {
+                None
+            };
+            (filtered.len(), detail_idx)
+        };
+
+        if self.detail_open {
+            if let Some(idx) = detail_idx {
+                self.table_state.select(Some(idx));
+                return;
+            }
+
+            self.detail_open = false;
+            self.detail_client_id = None;
+        }
+
+        if reset_to_top {
+            self.table_state.select(Some(0));
+        } else if filtered_len == 0 {
+            self.table_state.select(Some(0));
+        } else {
+            let idx = self.selected_index().min(filtered_len - 1);
+            self.table_state.select(Some(idx));
+        }
     }
 
     #[allow(clippy::unused_self, clippy::too_many_lines, clippy::as_conversions)]
@@ -297,11 +338,12 @@ impl Component for ClientsScreen {
             return match key.code {
                 KeyCode::Esc => {
                     self.detail_open = false;
+                    self.detail_client_id = None;
                     Ok(Some(Action::CloseDetail))
                 }
                 KeyCode::Char('b') => {
                     let filtered = self.filtered_clients();
-                    if let Some(client) = filtered.get(self.detail_client_idx) {
+                    if let Some(client) = self.detail_client(&filtered) {
                         Ok(Some(Action::RequestBlockClient(client.id.clone())))
                     } else {
                         Ok(None)
@@ -309,7 +351,7 @@ impl Component for ClientsScreen {
                 }
                 KeyCode::Char('B') => {
                     let filtered = self.filtered_clients();
-                    if let Some(client) = filtered.get(self.detail_client_idx) {
+                    if let Some(client) = self.detail_client(&filtered) {
                         Ok(Some(Action::RequestUnblockClient(client.id.clone())))
                     } else {
                         Ok(None)
@@ -317,7 +359,7 @@ impl Component for ClientsScreen {
                 }
                 KeyCode::Char('x') => {
                     let filtered = self.filtered_clients();
-                    if let Some(client) = filtered.get(self.detail_client_idx) {
+                    if let Some(client) = self.detail_client(&filtered) {
                         Ok(Some(Action::RequestKickClient(client.id.clone())))
                     } else {
                         Ok(None)
@@ -364,7 +406,7 @@ impl Component for ClientsScreen {
                 let id = self.filtered_clients().get(idx).map(|c| c.id.clone());
                 if let Some(id) = id {
                     self.detail_open = true;
-                    self.detail_client_idx = idx;
+                    self.detail_client_id = Some(id.clone());
                     Ok(Some(Action::OpenClientDetail(id)))
                 } else {
                     Ok(None)
@@ -402,24 +444,23 @@ impl Component for ClientsScreen {
         match action {
             Action::ClientsUpdated(clients) => {
                 self.clients = Arc::clone(clients);
-                let filtered_len = self.filtered_clients().len();
-                if filtered_len > 0 && self.selected_index() >= filtered_len {
-                    self.select(filtered_len - 1);
-                }
+                self.reconcile_selection_after_view_change(false);
             }
             Action::FilterClientType(filter) => {
                 self.filter = *filter;
-                self.table_state.select(Some(0));
+                self.reconcile_selection_after_view_change(true);
             }
             Action::SearchInput(query) => {
                 self.search_query.clone_from(query);
-                self.table_state.select(Some(0));
+                self.reconcile_selection_after_view_change(true);
             }
             Action::CloseSearch => {
                 self.search_query.clear();
+                self.reconcile_selection_after_view_change(true);
             }
             Action::CloseDetail => {
                 self.detail_open = false;
+                self.detail_client_id = None;
             }
             _ => {}
         }
@@ -484,7 +525,12 @@ impl Component for ClientsScreen {
         ]);
 
         // Table rows
-        let selected_idx = self.selected_index();
+        let selected_idx = if self.detail_open {
+            self.detail_client_index(&filtered)
+                .unwrap_or_else(|| self.selected_index())
+        } else {
+            self.selected_index()
+        };
         let rows: Vec<Row> =
             filtered
                 .iter()
@@ -637,7 +683,7 @@ impl Component for ClientsScreen {
 
         // Render detail panel if open
         if let Some(detail_area) = detail_area
-            && let Some(client) = filtered.get(self.detail_client_idx)
+            && let Some(client) = self.detail_client(&filtered)
         {
             self.render_detail(frame, detail_area, client);
         }
@@ -653,5 +699,82 @@ impl Component for ClientsScreen {
 
     fn id(&self) -> &'static str {
         "Clients"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use serde_json::json;
+    use unifly_api::integration_types::ClientResponse;
+    use uuid::Uuid;
+
+    fn test_client(id: Uuid, name: &str, mac: &str) -> Arc<Client> {
+        Arc::new(
+            ClientResponse {
+                id,
+                name: name.to_owned(),
+                client_type: "WIRELESS".to_owned(),
+                ip_address: Some("192.168.1.10".to_owned()),
+                connected_at: None,
+                access: json!({ "macAddress": mac }),
+            }
+            .into(),
+        )
+    }
+
+    #[test]
+    fn detail_actions_follow_client_identity_after_refresh() {
+        let alpha_id = Uuid::from_u128(1);
+        let bravo_id = Uuid::from_u128(2);
+        let alpha = test_client(alpha_id, "alpha", "aa:bb:cc:dd:ee:01");
+        let bravo = test_client(bravo_id, "bravo", "aa:bb:cc:dd:ee:02");
+
+        let mut screen = ClientsScreen::new();
+        let clients = Arc::new(vec![Arc::clone(&alpha), Arc::clone(&bravo)]);
+        screen.clients = Arc::clone(&clients);
+        screen.table_state.select(Some(1));
+        assert!(matches!(
+            screen
+                .handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))
+                .unwrap(),
+            Some(Action::OpenClientDetail(id)) if id == bravo.id
+        ));
+
+        let refreshed = Arc::new(vec![Arc::clone(&bravo), Arc::clone(&alpha)]);
+        screen.clients = Arc::clone(&refreshed);
+        screen.update(&Action::ClientsUpdated(refreshed)).unwrap();
+
+        assert_eq!(screen.detail_client_id.as_ref(), Some(&bravo.id));
+        assert_eq!(screen.table_state.selected(), Some(0));
+
+        assert!(matches!(
+            screen
+                .handle_key_event(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE))
+                .unwrap(),
+            Some(Action::RequestKickClient(id)) if id == bravo.id
+        ));
+    }
+
+    #[test]
+    fn detail_closes_when_target_falls_out_of_filter() {
+        let alpha = test_client(Uuid::from_u128(1), "alpha", "aa:bb:cc:dd:ee:01");
+        let bravo = test_client(Uuid::from_u128(2), "bravo", "aa:bb:cc:dd:ee:02");
+
+        let mut screen = ClientsScreen::new();
+        screen.clients = Arc::new(vec![Arc::clone(&alpha), Arc::clone(&bravo)]);
+        screen.table_state.select(Some(1));
+        screen
+            .handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))
+            .unwrap();
+
+        screen
+            .update(&Action::SearchInput("alpha".to_owned()))
+            .unwrap();
+
+        assert!(!screen.detail_open);
+        assert!(screen.detail_client_id.is_none());
+        assert_eq!(screen.table_state.selected(), Some(0));
     }
 }
