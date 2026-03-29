@@ -1,0 +1,261 @@
+use std::sync::Arc;
+
+use tabled::Tabled;
+use unifly_api::Device;
+
+use crate::cli::output::Painter;
+
+#[derive(Tabled)]
+pub(super) struct DeviceRow {
+    #[tabled(rename = "ID")]
+    id: String,
+    #[tabled(rename = "Name")]
+    name: String,
+    #[tabled(rename = "Model")]
+    model: String,
+    #[tabled(rename = "Type")]
+    dtype: String,
+    #[tabled(rename = "State")]
+    state: String,
+    #[tabled(rename = "IP")]
+    ip: String,
+    #[tabled(rename = "MAC")]
+    mac: String,
+}
+
+#[derive(Tabled)]
+pub(super) struct PendingDeviceRow {
+    #[tabled(rename = "IP")]
+    ip: String,
+    #[tabled(rename = "Model")]
+    model: String,
+    #[tabled(rename = "MAC")]
+    mac: String,
+    #[tabled(rename = "State")]
+    state: String,
+    #[tabled(rename = "Version")]
+    firmware: String,
+    #[tabled(rename = "Supported")]
+    supported: String,
+}
+
+#[derive(Tabled)]
+pub(super) struct DeviceTagRow {
+    #[tabled(rename = "ID")]
+    pub(super) id: String,
+    #[tabled(rename = "Name")]
+    pub(super) name: String,
+}
+
+pub(super) fn device_row(device: &Arc<Device>, painter: &Painter) -> DeviceRow {
+    DeviceRow {
+        id: painter.id(&device.id.to_string()),
+        name: painter.name(&device.name.clone().unwrap_or_default()),
+        model: painter.muted(&device.model.clone().unwrap_or_default()),
+        dtype: painter.muted(&format!("{:?}", device.device_type)),
+        state: painter.state(&format!("{:?}", device.state)),
+        ip: painter.ip(&device.ip.map(|ip| ip.to_string()).unwrap_or_default()),
+        mac: painter.mac(&device.mac.to_string()),
+    }
+}
+
+pub(super) fn detail(device: &Arc<Device>) -> String {
+    let mut lines = vec![
+        format!("ID:       {}", device.id),
+        format!("Name:     {}", device.name.as_deref().unwrap_or("-")),
+        format!("MAC:      {}", device.mac),
+        format!(
+            "IP:       {}",
+            device.ip.map_or_else(|| "-".into(), |ip| ip.to_string())
+        ),
+        format!("Model:    {}", device.model.as_deref().unwrap_or("-")),
+        format!("Type:     {:?}", device.device_type),
+        format!("State:    {:?}", device.state),
+        format!(
+            "Firmware: {}",
+            device.firmware_version.as_deref().unwrap_or("-")
+        ),
+    ];
+    if let Some(uptime) = device.stats.uptime_secs {
+        lines.push(format!("Uptime:   {uptime}s"));
+    }
+    if let Some(cpu) = device.stats.cpu_utilization_pct {
+        lines.push(format!("CPU:      {cpu:.1}%"));
+    }
+    if let Some(memory) = device.stats.memory_utilization_pct {
+        lines.push(format!("Memory:   {memory:.1}%"));
+    }
+    lines.join("\n")
+}
+
+pub(super) fn stats_detail(device: &Arc<Device>) -> String {
+    [
+        format!("ID:          {}", device.id),
+        format!("Name:        {}", device.name.as_deref().unwrap_or("-")),
+        format!("MAC:         {}", device.mac),
+        format!(
+            "Uptime:      {}",
+            device
+                .stats
+                .uptime_secs
+                .map_or_else(|| "-".into(), |value| format!("{value}s"))
+        ),
+        format!(
+            "CPU:         {}",
+            device
+                .stats
+                .cpu_utilization_pct
+                .map_or_else(|| "-".into(), |value| format!("{value:.1}%"))
+        ),
+        format!(
+            "Memory:      {}",
+            device
+                .stats
+                .memory_utilization_pct
+                .map_or_else(|| "-".into(), |value| format!("{value:.1}%"))
+        ),
+        format!(
+            "Load Avg 1m: {}",
+            device
+                .stats
+                .load_average_1m
+                .map_or_else(|| "-".into(), |value| format!("{value:.2}"))
+        ),
+        format!(
+            "Load Avg 5m: {}",
+            device
+                .stats
+                .load_average_5m
+                .map_or_else(|| "-".into(), |value| format!("{value:.2}"))
+        ),
+        format!(
+            "Load Avg15m: {}",
+            device
+                .stats
+                .load_average_15m
+                .map_or_else(|| "-".into(), |value| format!("{value:.2}"))
+        ),
+    ]
+    .join("\n")
+}
+
+fn pending_string<'a>(value: &'a serde_json::Value, key: &str) -> &'a str {
+    value
+        .get(key)
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("")
+}
+
+pub(super) fn pending_device_row(value: &serde_json::Value, painter: &Painter) -> PendingDeviceRow {
+    PendingDeviceRow {
+        ip: painter.ip(pending_string(value, "ipAddress")),
+        model: painter.muted(pending_string(value, "model")),
+        mac: painter.mac(
+            value
+                .get("macAddress")
+                .or_else(|| value.get("mac"))
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or(""),
+        ),
+        state: {
+            let state = pending_string(value, "state");
+            painter.state(if state.is_empty() { "PENDING" } else { state })
+        },
+        firmware: painter.muted(pending_string(value, "firmwareVersion")),
+        supported: painter.enabled(
+            value
+                .get("supported")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false),
+        ),
+    }
+}
+
+pub(super) fn pending_device_identity(value: &serde_json::Value) -> String {
+    value
+        .get("macAddress")
+        .or_else(|| value.get("mac"))
+        .and_then(serde_json::Value::as_str)
+        .or_else(|| value.get("ipAddress").and_then(serde_json::Value::as_str))
+        .unwrap_or("")
+        .to_owned()
+}
+
+pub(super) fn device_tag_row(value: &serde_json::Value, painter: &Painter) -> DeviceTagRow {
+    DeviceTagRow {
+        id: painter.id(value
+            .get("id")
+            .or_else(|| value.get("_id"))
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("")),
+        name: painter.name(
+            value
+                .get("name")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or(""),
+        ),
+    }
+}
+
+pub(super) fn device_tag_identity(value: &serde_json::Value) -> String {
+    value
+        .get("id")
+        .or_else(|| value.get("_id"))
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("")
+        .to_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{pending_device_identity, pending_device_row};
+    use crate::cli::args::{ColorMode, GlobalOpts, OutputFormat};
+    use crate::cli::output::Painter;
+
+    fn plain_painter() -> Painter {
+        Painter::new(&GlobalOpts {
+            profile: None,
+            controller: None,
+            site: None,
+            api_key: None,
+            output: OutputFormat::Plain,
+            color: ColorMode::Never,
+            verbose: 0,
+            quiet: false,
+            yes: false,
+            insecure: false,
+            timeout: 30,
+        })
+    }
+
+    #[test]
+    fn pending_device_row_uses_actual_api_fields() {
+        let row = pending_device_row(
+            &serde_json::json!({
+                "macAddress": "aa:bb:cc:dd:ee:ff",
+                "ipAddress": "10.0.0.20",
+                "model": "U7-Pro",
+                "state": "DISCOVERED",
+                "firmwareVersion": "1.2.3",
+                "supported": true
+            }),
+            &plain_painter(),
+        );
+
+        assert_eq!(row.ip, "10.0.0.20");
+        assert_eq!(row.model, "U7-Pro");
+        assert_eq!(row.mac, "aa:bb:cc:dd:ee:ff");
+        assert_eq!(row.state, "DISCOVERED");
+        assert_eq!(row.firmware, "1.2.3");
+        assert_eq!(row.supported, "yes");
+    }
+
+    #[test]
+    fn pending_device_identity_prefers_mac_address() {
+        let identity = pending_device_identity(&serde_json::json!({
+            "macAddress": "aa:bb:cc:dd:ee:ff",
+            "ipAddress": "10.0.0.20"
+        }));
+        assert_eq!(identity, "aa:bb:cc:dd:ee:ff");
+    }
+}
