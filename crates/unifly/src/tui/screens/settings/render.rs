@@ -1,5 +1,6 @@
 use super::{SettingsField, SettingsScreen, SettingsState};
 
+use crate::tui::forms::widgets::render_input_field;
 use crate::tui::theme;
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Layout, Rect};
@@ -91,62 +92,6 @@ impl SettingsScreen {
         let inner = block.inner(panel);
         frame.render_widget(block, panel);
         inner
-    }
-
-    fn render_input_field(
-        &self,
-        frame: &mut Frame,
-        area: Rect,
-        label: &str,
-        value: &str,
-        active: bool,
-        masked: bool,
-    ) {
-        if area.height < 3 {
-            return;
-        }
-
-        let label_area = Rect::new(area.x, area.y, area.width, 1);
-        let label_style = if active {
-            Style::default().fg(theme::accent_secondary())
-        } else {
-            Style::default().fg(theme::text_secondary())
-        };
-        frame.render_widget(Paragraph::new(Span::styled(label, label_style)), label_area);
-
-        let display = if masked && !value.is_empty() {
-            "\u{25CF}".repeat(value.len())
-        } else {
-            value.to_string()
-        };
-
-        let border_color = if active {
-            theme::accent_primary()
-        } else {
-            theme::border_unfocused()
-        };
-
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_type(BorderType::Rounded)
-            .border_style(Style::default().fg(border_color));
-
-        let block_area = Rect::new(area.x, area.y + 1, area.width, 3.min(area.height - 1));
-        let inner = block.inner(block_area);
-        frame.render_widget(block, block_area);
-
-        let text = if active {
-            format!("{display}\u{2588}")
-        } else {
-            display
-        };
-        frame.render_widget(
-            Paragraph::new(Span::styled(
-                text,
-                Style::default().fg(theme::accent_secondary()),
-            )),
-            inner,
-        );
     }
 
     fn render_auth_selector(&self, frame: &mut Frame, area: Rect) {
@@ -279,7 +224,7 @@ impl SettingsScreen {
 
         for ((field, _), chunk) in field_layout.iter().zip(chunks.iter().copied()) {
             match field {
-                SettingsField::Url => self.render_input_field(
+                SettingsField::Url => render_input_field(
                     frame,
                     chunk,
                     "  Controller URL",
@@ -288,7 +233,7 @@ impl SettingsScreen {
                     false,
                 ),
                 SettingsField::AuthMode => self.render_auth_selector(frame, chunk),
-                SettingsField::ApiKey => self.render_input_field(
+                SettingsField::ApiKey => render_input_field(
                     frame,
                     chunk,
                     "  API Key",
@@ -296,7 +241,7 @@ impl SettingsScreen {
                     self.active_field == SettingsField::ApiKey,
                     true,
                 ),
-                SettingsField::Username => self.render_input_field(
+                SettingsField::Username => render_input_field(
                     frame,
                     chunk,
                     "  Username",
@@ -304,7 +249,7 @@ impl SettingsScreen {
                     self.active_field == SettingsField::Username,
                     false,
                 ),
-                SettingsField::Password => self.render_input_field(
+                SettingsField::Password => render_input_field(
                     frame,
                     chunk,
                     "  Password",
@@ -312,7 +257,7 @@ impl SettingsScreen {
                     self.active_field == SettingsField::Password,
                     !self.show_password,
                 ),
-                SettingsField::Site => self.render_input_field(
+                SettingsField::Site => render_input_field(
                     frame,
                     chunk,
                     "  Site",

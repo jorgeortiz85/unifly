@@ -1,5 +1,6 @@
 use super::{AuthMode, CredentialField, OnboardingScreen, WizardStep};
 
+use crate::tui::forms::widgets::render_input_field;
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
@@ -119,63 +120,6 @@ impl OnboardingScreen {
             area,
         );
     }
-
-    fn render_input_field(
-        &self,
-        frame: &mut Frame,
-        area: Rect,
-        label: &str,
-        value: &str,
-        active: bool,
-        masked: bool,
-    ) {
-        if area.height < 3 {
-            return;
-        }
-
-        let label_area = Rect::new(area.x, area.y, area.width, 1);
-        let label_style = if active {
-            Style::default().fg(theme::accent_secondary())
-        } else {
-            Style::default().fg(theme::text_secondary())
-        };
-        frame.render_widget(Paragraph::new(Span::styled(label, label_style)), label_area);
-
-        let display = if masked && !value.is_empty() {
-            "\u{25CF}".repeat(value.len())
-        } else {
-            value.to_string()
-        };
-
-        let border_color = if active {
-            theme::accent_primary()
-        } else {
-            theme::border_unfocused()
-        };
-
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_type(BorderType::Rounded)
-            .border_style(Style::default().fg(border_color));
-
-        let block_area = Rect::new(area.x, area.y + 1, area.width, 3.min(area.height - 1));
-        let inner = block.inner(block_area);
-        frame.render_widget(block, block_area);
-
-        let text = if active {
-            format!("{display}\u{2588}")
-        } else {
-            display
-        };
-        frame.render_widget(
-            Paragraph::new(Span::styled(
-                text,
-                Style::default().fg(theme::accent_secondary()),
-            )),
-            inner,
-        );
-    }
-
     fn render_key_hints(&self, frame: &mut Frame, area: Rect) {
         let hints = match self.step {
             WizardStep::Welcome => "Enter continue  Ctrl+C quit",
@@ -256,7 +200,7 @@ impl OnboardingScreen {
             layout[0],
         );
 
-        self.render_input_field(
+        render_input_field(
             frame,
             layout[1],
             "  Controller URL",
@@ -348,7 +292,7 @@ impl OnboardingScreen {
                 fields_area.width,
                 4,
             );
-            self.render_input_field(
+            render_input_field(
                 frame,
                 input_area,
                 "  API Key",
@@ -366,7 +310,7 @@ impl OnboardingScreen {
                 fields_area.width,
                 4,
             );
-            self.render_input_field(
+            render_input_field(
                 frame,
                 username_area,
                 "  Username",
@@ -382,7 +326,7 @@ impl OnboardingScreen {
                 fields_area.width,
                 4,
             );
-            self.render_input_field(
+            render_input_field(
                 frame,
                 password_area,
                 "  Password",
@@ -412,7 +356,7 @@ impl OnboardingScreen {
             layout[0],
         );
 
-        self.render_input_field(frame, layout[1], "  Site", &self.draft.site, true, false);
+        render_input_field(frame, layout[1], "  Site", &self.draft.site, true, false);
     }
 
     fn render_testing(&self, frame: &mut Frame, area: Rect) {
