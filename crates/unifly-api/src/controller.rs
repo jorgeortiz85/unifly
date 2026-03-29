@@ -29,6 +29,7 @@ use crate::websocket::{ReconnectConfig, WebSocketHandle};
 use crate::{IntegrationClient, LegacyClient};
 
 mod commands;
+mod legacy_queries;
 mod lifecycle;
 mod payloads;
 mod query;
