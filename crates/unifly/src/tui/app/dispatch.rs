@@ -1,61 +1,14 @@
 use std::time::Duration;
 
 use color_eyre::eyre::Result;
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
-use tracing::debug;
 
 use unifly_api::Command;
 
 use super::{App, ConnectionStatus};
-use crate::tui::action::{Action, ConfirmAction, StatsPeriod};
+use crate::tui::action::{Action, ConfirmAction};
 use crate::tui::screen::ScreenId;
 
 impl App {
-    /// Map a key event to an action. Global keys are handled here;
-    /// screen-specific keys are delegated to the active screen component.
-    pub(super) fn handle_key_event(&mut self, key: KeyEvent) -> Result<Option<Action>> {
-        if let Some(action) = self.handle_special_screen_key_event(key)? {
-            return Ok(Some(action));
-        }
-
-        if self.active_screen == ScreenId::Setup || self.active_screen == ScreenId::Settings {
-            return Ok(None);
-        }
-
-        if self.pending_confirm.is_some() {
-            return Ok(match key.code {
-                KeyCode::Char('y' | 'Y') => Some(Action::ConfirmYes),
-                KeyCode::Char('n' | 'N') | KeyCode::Esc => Some(Action::ConfirmNo),
-                _ => None,
-            });
-        }
-
-        if self.search_active {
-            return self.handle_search_key_event(key);
-        }
-
-        if self.help_visible {
-            return Ok(match key.code {
-                KeyCode::Esc | KeyCode::Char('?') => Some(Action::ToggleHelp),
-                _ => None,
-            });
-        }
-
-        if let Some(action) = self.handle_global_key_event(key) {
-            return Ok(Some(action));
-        }
-
-        self.forward_key_to_active_screen(key)
-    }
-
-    /// Handle mouse events (delegate to active screen).
-    pub(super) fn handle_mouse_event(&mut self, mouse: MouseEvent) -> Result<Option<Action>> {
-        if let Some(screen) = self.screens.get_mut(&self.active_screen) {
-            return screen.handle_mouse_event(mouse);
-        }
-        Ok(None)
-    }
-
     /// Process a single action — update app state and propagate to components.
     #[allow(clippy::too_many_lines, clippy::cognitive_complexity)]
     pub(super) fn process_action(&mut self, action: &Action) -> Result<()> {
@@ -232,116 +185,6 @@ impl App {
             other => {
                 self.forward_to_screen(self.active_screen, other)?;
             }
-        }
-
-        Ok(())
-    }
-
-    fn handle_special_screen_key_event(&mut self, key: KeyEvent) -> Result<Option<Action>> {
-        if self.active_screen == ScreenId::Setup || self.active_screen == ScreenId::Settings {
-            if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('c') {
-                return Ok(Some(Action::Quit));
-            }
-
-            if let Some(screen) = self.screens.get_mut(&self.active_screen) {
-                return screen.handle_key_event(key);
-            }
-        }
-
-        Ok(None)
-    }
-
-    fn handle_search_key_event(&mut self, key: KeyEvent) -> Result<Option<Action>> {
-        Ok(match key.code {
-            KeyCode::Esc => {
-                self.search_query.clear();
-                Some(Action::CloseSearch)
-            }
-            KeyCode::Enter => Some(Action::SearchSubmit),
-            KeyCode::Backspace => {
-                self.search_query.pop();
-                Some(Action::SearchInput(self.search_query.clone()))
-            }
-            KeyCode::Char(c) => {
-                self.search_query.push(c);
-                Some(Action::SearchInput(self.search_query.clone()))
-            }
-            _ => None,
-        })
-    }
-
-    fn handle_global_key_event(&self, key: KeyEvent) -> Option<Action> {
-        match (key.modifiers, key.code) {
-            (KeyModifiers::CONTROL, KeyCode::Char('c'))
-            | (KeyModifiers::NONE, KeyCode::Char('q')) => Some(Action::Quit),
-            (KeyModifiers::NONE, KeyCode::Char('?')) => Some(Action::ToggleHelp),
-            (KeyModifiers::NONE, KeyCode::Char('/')) => Some(Action::OpenSearch),
-            (KeyModifiers::NONE, KeyCode::Char(',')) => Some(Action::OpenSettings),
-            (KeyModifiers::NONE, KeyCode::Char(c @ '1'..='8')) => {
-                #[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
-                let n = c.to_digit(10).unwrap_or(0) as u8;
-                ScreenId::from_number(n).map(Action::SwitchScreen)
-            }
-            (KeyModifiers::NONE, KeyCode::Tab) => {
-                Some(Action::SwitchScreen(self.active_screen.next()))
-            }
-            (KeyModifiers::SHIFT, KeyCode::BackTab) => {
-                Some(Action::SwitchScreen(self.active_screen.prev()))
-            }
-            (KeyModifiers::NONE, KeyCode::Esc) => Some(Action::GoBack),
-            _ => None,
-        }
-    }
-
-    fn forward_key_to_active_screen(&mut self, key: KeyEvent) -> Result<Option<Action>> {
-        if let Some(screen) = self.screens.get_mut(&self.active_screen) {
-            return screen.handle_key_event(key);
-        }
-
-        Ok(None)
-    }
-
-    fn switch_screen(&mut self, target: ScreenId) -> Result<()> {
-        if target == self.active_screen {
-            return Ok(());
-        }
-
-        debug!("switching screen: {} → {}", self.active_screen, target);
-
-        if let Some(screen) = self.screens.get_mut(&self.active_screen) {
-            screen.set_focused(false);
-        }
-
-        self.previous_screen = Some(self.active_screen);
-        self.active_screen = target;
-
-        if let Some(screen) = self.screens.get_mut(&self.active_screen) {
-            screen.set_focused(true);
-        }
-
-        if target == ScreenId::Stats {
-            self.action_tx
-                .send(Action::RequestStats(StatsPeriod::default()))?;
-        }
-
-        Ok(())
-    }
-
-    fn forward_to_all_screens(&mut self, action: &Action) -> Result<()> {
-        for screen in self.screens.values_mut() {
-            if let Some(follow_up) = screen.update(action)? {
-                self.action_tx.send(follow_up)?;
-            }
-        }
-
-        Ok(())
-    }
-
-    fn forward_to_screen(&mut self, screen_id: ScreenId, action: &Action) -> Result<()> {
-        if let Some(screen) = self.screens.get_mut(&screen_id)
-            && let Some(follow_up) = screen.update(action)?
-        {
-            self.action_tx.send(follow_up)?;
         }
 
         Ok(())

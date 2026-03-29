@@ -3,6 +3,7 @@
 mod commands;
 mod dispatch;
 mod lifecycle;
+mod navigation;
 mod render;
 mod stats;
 
