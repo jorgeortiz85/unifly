@@ -1,5 +1,6 @@
 use std::time::Instant;
 
+use color_eyre::eyre::Result;
 use tracing::warn;
 
 use unifly_api::{Command, EntityId, MacAddress};
@@ -8,6 +9,95 @@ use super::App;
 use crate::tui::action::{Action, ConfirmAction, Notification};
 
 impl App {
+    pub(super) fn handle_command_action(&mut self, action: &Action) -> Result<bool> {
+        match action {
+            Action::RequestRestart(id) => {
+                let name = self.resolve_device_name(id);
+                self.queue_confirm(ConfirmAction::RestartDevice {
+                    id: id.clone(),
+                    name,
+                })?;
+            }
+            Action::RequestAdopt(mac) => {
+                self.queue_confirm(ConfirmAction::AdoptDevice { mac: mac.clone() })?;
+            }
+            Action::RequestUnadopt(id) => {
+                let name = self.resolve_device_name(id);
+                self.queue_confirm(ConfirmAction::UnadoptDevice {
+                    id: id.clone(),
+                    name,
+                })?;
+            }
+            Action::RequestLocate(id) => {
+                if let Some(mac) = self.resolve_device_mac(id) {
+                    self.execute_command(
+                        Command::LocateDevice {
+                            mac: mac.clone(),
+                            enable: true,
+                        },
+                        format!("Locating {mac}"),
+                    );
+                }
+            }
+            Action::RequestPortPowerCycle(device_id, port_idx) => {
+                self.queue_confirm(ConfirmAction::PowerCyclePort {
+                    device_id: device_id.clone(),
+                    port_idx: *port_idx,
+                })?;
+            }
+            Action::RequestBlockClient(id) => {
+                let name = self.resolve_client_name(id);
+                self.queue_confirm(ConfirmAction::BlockClient {
+                    id: id.clone(),
+                    name,
+                })?;
+            }
+            Action::RequestUnblockClient(id) => {
+                let name = self.resolve_client_name(id);
+                self.queue_confirm(ConfirmAction::UnblockClient {
+                    id: id.clone(),
+                    name,
+                })?;
+            }
+            Action::RequestForgetClient(id) => {
+                let name = self.resolve_client_name(id);
+                self.queue_confirm(ConfirmAction::ForgetClient {
+                    id: id.clone(),
+                    name,
+                })?;
+            }
+            Action::RequestKickClient(id) => {
+                if let Some(mac) = self.resolve_client_mac(id) {
+                    let name = self.resolve_client_name(id);
+                    self.execute_command(Command::KickClient { mac }, format!("Kicked {name}"));
+                }
+            }
+            Action::ShowConfirm(confirm) => {
+                self.pending_confirm = Some(confirm.clone());
+            }
+            Action::ConfirmYes => {
+                if let Some(confirm) = self.pending_confirm.take() {
+                    self.execute_confirm(confirm);
+                }
+            }
+            Action::ConfirmNo => {
+                self.pending_confirm = None;
+            }
+            Action::NetworkSave(id, update) => {
+                self.execute_command(
+                    Command::UpdateNetwork {
+                        id: id.clone(),
+                        update: *update.clone(),
+                    },
+                    "Updated network".into(),
+                );
+            }
+            _ => return Ok(false),
+        }
+
+        Ok(true)
+    }
+
     pub(super) fn resolve_device_name(&self, id: &EntityId) -> String {
         self.controller
             .as_ref()
@@ -120,5 +210,54 @@ impl App {
 
     pub(super) fn show_notification(&mut self, notification: Notification) {
         self.notification = Some((notification, Instant::now()));
+    }
+
+    fn queue_confirm(&self, confirm: ConfirmAction) -> Result<()> {
+        self.action_tx.send(Action::ShowConfirm(confirm))?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn request_adopt_queues_confirmation() {
+        let mut app = App::new(None);
+
+        app.process_action(&Action::RequestAdopt("aa-bb-cc-dd-ee-ff".into()))
+            .expect("request handling should succeed");
+
+        let queued = app
+            .action_rx
+            .try_recv()
+            .expect("confirm action should be queued");
+        assert!(matches!(
+            queued,
+            Action::ShowConfirm(ConfirmAction::AdoptDevice { ref mac })
+                if mac == "aa-bb-cc-dd-ee-ff"
+        ));
+    }
+
+    #[test]
+    fn request_port_power_cycle_queues_confirmation() {
+        let mut app = App::new(None);
+        let device_id = EntityId::from("507f1f77bcf86cd799439011");
+
+        app.process_action(&Action::RequestPortPowerCycle(device_id.clone(), 7))
+            .expect("request handling should succeed");
+
+        let queued = app
+            .action_rx
+            .try_recv()
+            .expect("confirm action should be queued");
+        assert!(matches!(
+            queued,
+            Action::ShowConfirm(ConfirmAction::PowerCyclePort {
+                ref device_id,
+                port_idx: 7,
+            }) if device_id == &EntityId::from("507f1f77bcf86cd799439011")
+        ));
     }
 }

@@ -2,16 +2,18 @@ use std::time::Duration;
 
 use color_eyre::eyre::Result;
 
-use unifly_api::Command;
-
 use super::{App, ConnectionStatus};
-use crate::tui::action::{Action, ConfirmAction};
+use crate::tui::action::Action;
 use crate::tui::screen::ScreenId;
 
 impl App {
     /// Process a single action — update app state and propagate to components.
     #[allow(clippy::too_many_lines, clippy::cognitive_complexity)]
     pub(super) fn process_action(&mut self, action: &Action) -> Result<()> {
+        if self.handle_command_action(action)? {
+            return Ok(());
+        }
+
         match action {
             Action::Quit => {
                 self.running = false;
@@ -75,83 +77,6 @@ impl App {
             | Action::StatsUpdated(_)
             | Action::NetworkEditResult(_) => {
                 self.forward_to_all_screens(action)?;
-            }
-            Action::RequestRestart(id) => {
-                let name = self.resolve_device_name(id);
-                self.action_tx
-                    .send(Action::ShowConfirm(ConfirmAction::RestartDevice {
-                        id: id.clone(),
-                        name,
-                    }))?;
-            }
-            Action::RequestUnadopt(id) => {
-                let name = self.resolve_device_name(id);
-                self.action_tx
-                    .send(Action::ShowConfirm(ConfirmAction::UnadoptDevice {
-                        id: id.clone(),
-                        name,
-                    }))?;
-            }
-            Action::RequestLocate(id) => {
-                if let Some(mac) = self.resolve_device_mac(id) {
-                    self.execute_command(
-                        Command::LocateDevice {
-                            mac: mac.clone(),
-                            enable: true,
-                        },
-                        format!("Locating {mac}"),
-                    );
-                }
-            }
-            Action::RequestBlockClient(id) => {
-                let name = self.resolve_client_name(id);
-                self.action_tx
-                    .send(Action::ShowConfirm(ConfirmAction::BlockClient {
-                        id: id.clone(),
-                        name,
-                    }))?;
-            }
-            Action::RequestUnblockClient(id) => {
-                let name = self.resolve_client_name(id);
-                self.action_tx
-                    .send(Action::ShowConfirm(ConfirmAction::UnblockClient {
-                        id: id.clone(),
-                        name,
-                    }))?;
-            }
-            Action::RequestForgetClient(id) => {
-                let name = self.resolve_client_name(id);
-                self.action_tx
-                    .send(Action::ShowConfirm(ConfirmAction::ForgetClient {
-                        id: id.clone(),
-                        name,
-                    }))?;
-            }
-            Action::RequestKickClient(id) => {
-                if let Some(mac) = self.resolve_client_mac(id) {
-                    let name = self.resolve_client_name(id);
-                    self.execute_command(Command::KickClient { mac }, format!("Kicked {name}"));
-                }
-            }
-            Action::ShowConfirm(confirm) => {
-                self.pending_confirm = Some(confirm.clone());
-            }
-            Action::ConfirmYes => {
-                if let Some(confirm) = self.pending_confirm.take() {
-                    self.execute_confirm(confirm);
-                }
-            }
-            Action::ConfirmNo => {
-                self.pending_confirm = None;
-            }
-            Action::NetworkSave(id, update) => {
-                self.execute_command(
-                    Command::UpdateNetwork {
-                        id: id.clone(),
-                        update: *update.clone(),
-                    },
-                    "Updated network".into(),
-                );
             }
             Action::RequestStats(period) => {
                 self.stats_period = *period;
