@@ -226,7 +226,9 @@ unifly uses two APIs for maximum coverage:
 ### Integration API
 
 - **Auth:** API key via header
-- **Endpoints:** Full CRUD for networks, WiFi, firewall, clients, devices
+- **Endpoints:** Configuration and action endpoints for devices, clients, networks,
+  WiFi, firewall policies/zones, ACLs, DNS, traffic lists, hotspot vouchers,
+  VPN, WANs, RADIUS, countries, and DPI categories/applications
 - **Format:** Modern JSON with UUIDs
 - **Best for:** Configuration management, automation
 
@@ -239,6 +241,7 @@ unifly uses two APIs for maximum coverage:
 
 ### Hybrid Mode
 
-Combines both APIs for complete coverage. API key handles CRUD operations
-while credentials enable events, stats, and legacy device commands.
+Combines both APIs for complete coverage. API key handles configuration and
+action endpoints while credentials enable events, stats, and legacy-only device
+operations.
 This is the recommended mode for full functionality.

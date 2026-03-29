@@ -11,19 +11,19 @@ The official REST API introduced in UniFi Network 7.x+.
 | **Auth** | API key via `X-API-KEY` header |
 | **Base URL** | `https://<controller>/proxy/network/integration/v1/` |
 | **Format** | JSON with typed responses |
-| **Methods** | Full CRUD (GET, POST, PUT, DELETE) |
+| **Methods** | Full CRUD plus action endpoints (GET, POST, PUT, DELETE) |
 
 ### Covered Resources
 
-Devices, clients, networks, WiFi (WLANs), firewall policies, firewall zones, ACL rules, DNS records, traffic matching lists, hotspot vouchers, VPN servers, VPN tunnels, RADIUS profiles, WAN interfaces, sites, system info.
+Devices, clients, networks, WiFi (WLANs), firewall policies, firewall zones, ACL rules, DNS records, traffic matching lists, hotspot vouchers, VPN servers, VPN tunnels, RADIUS profiles, WAN interfaces, sites, system info, device actions, port actions, device statistics, countries, and DPI categories/applications.
 
 ### Limitations
 
 - No event streaming
 - No historical statistics
-- No device commands (restart, upgrade, adopt)
-- No DPI data
 - No alarm management
+
+Legacy still owns the live and historical monitoring surfaces: event streaming, stats/reporting, and admin workflows.
 
 ## Legacy API
 

@@ -515,7 +515,7 @@ Create a custom firewall zone.
 ```bash
 unifly firewall zones create \
   --name "IoT Zone" \
-  --network-ids "net-uuid-1,net-uuid-2"
+  --networks "net-uuid-1,net-uuid-2"
 ```
 
 #### `unifly firewall zones update <id>`
@@ -525,7 +525,7 @@ Update a zone.
 ```bash
 unifly firewall zones update "zone-uuid" \
   [--name "Renamed Zone"] \
-  [--network-ids "net-uuid-1,net-uuid-2"]
+  [--networks "net-uuid-1,net-uuid-2"]
 ```
 
 #### `unifly firewall zones delete <id>`
@@ -562,7 +562,7 @@ Create an ACL rule.
 
 ```bash
 unifly acl create \
-  --type ipv4|mac \
+  --rule-type ipv4|mac \
   --action allow|block \
   [additional flags per type]
 ```
@@ -813,20 +813,20 @@ unifly sites delete --name "Branch Office"
 List recent events.
 
 ```bash
-unifly events list [--hours 24] [-o FORMAT]
+unifly events list [--within 24] [-o FORMAT]
 ```
 
-- `--hours` — Lookback period (default: 24)
+- `--within` — Lookback period in hours (default: 24)
 
 ### `unifly events watch`
 
 Stream real-time events via WebSocket.
 
 ```bash
-unifly events watch [--type "EVT_SW_*"]
+unifly events watch [--types "EVT_SW_*"]
 ```
 
-- `--type` — Filter by event type pattern (glob matching)
+- `--types` — Filter by event type pattern (comma-separated glob matching)
 
 ---
 
@@ -881,7 +881,7 @@ Per-device statistics.
 
 ```bash
 unifly stats device \
-  [--mac "aa:bb:cc:dd:ee:ff"] \
+  [--macs "aa:bb:cc:dd:ee:ff"] \
   [--interval hourly] \
   [--start "..."] [--end "..."] \
   [-o FORMAT]
@@ -893,7 +893,7 @@ Per-client statistics.
 
 ```bash
 unifly stats client \
-  [--mac "aa:bb:cc:dd:ee:ff"] \
+  [--macs "aa:bb:cc:dd:ee:ff"] \
   [--interval hourly] \
   [-o FORMAT]
 ```
@@ -912,8 +912,8 @@ Deep packet inspection traffic analysis.
 
 ```bash
 unifly stats dpi \
-  [--group-by app|category] \
-  [--mac "aa:bb:cc:dd:ee:ff"] \
+  [--group-by by-app|by-cat] \
+  [--macs "aa:bb:cc:dd:ee:ff"] \
   [-o FORMAT]
 ```
 
@@ -923,7 +923,7 @@ Flags common to all stats commands:
 - `--start` — Start of time range (ISO 8601)
 - `--end` — End of time range (ISO 8601)
 - `--attrs` — Comma-separated attribute names to include
-- `--mac` — Filter by specific device/client MAC
+- `--macs` — Filter by specific device/client MAC addresses
 
 ---
 
@@ -1112,6 +1112,22 @@ No subcommands or flags beyond the standard global flags.
 
 ---
 
+## TUI
+
+### `unifly tui`
+
+Launch the real-time terminal dashboard.
+
+```bash
+unifly tui
+unifly tui -p office
+```
+
+The same global flags apply, including `--insecure`, `--timeout`, `--output`,
+and `--profile`.
+
+---
+
 ## Countries
 
 ### `unifly countries`
@@ -1148,13 +1164,18 @@ unifly config show
 
 ### `unifly config set <key> <value>`
 
-Set a configuration value.
+Set a configuration value on the active profile. You can also target a named
+profile explicitly with `profiles.<name>.<key>`.
 
 ```bash
+unifly -p home config set controller "https://192.168.1.1"
+unifly -p home config set auth_mode "hybrid"
+unifly -p home config set api_key "your-api-key"
 unifly config set profiles.home.controller "https://192.168.1.1"
-unifly config set profiles.home.auth_mode "hybrid"
-unifly config set profiles.home.api_key "your-api-key"
 ```
+
+Valid keys: `controller`, `site`, `auth_mode`, `api_key`, `api_key_env`,
+`username`, `insecure`, `timeout`, `ca_cert`.
 
 ### `unifly config profiles`
 
@@ -1177,7 +1198,7 @@ unifly config use home
 Store a password in the OS keyring.
 
 ```bash
-unifly config set-password home
+unifly config set-password --profile home
 ```
 
 ---

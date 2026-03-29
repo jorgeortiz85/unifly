@@ -36,7 +36,7 @@ NETWORK_ID=$(unifly networks create \
 # 2. Create a firewall zone for it
 ZONE_ID=$(unifly firewall zones create \
   --name "IoT Zone" \
-  --network-ids "$NETWORK_ID" \
+  --networks "$NETWORK_ID" \
   -o json | jq -r '.id')
 
 # 3. Create WiFi SSID on the network
@@ -49,7 +49,10 @@ unifly wifi create \
 
 # 4. Block IoT zone from reaching Internal zone
 unifly firewall policies create \
+  --name "Block IoT to Internal" \
   --action block \
+  --source-zone "$ZONE_ID" \
+  --dest-zone "$INTERNAL_ZONE_ID" \
   --description "Block IoT to Internal" \
   --logging
 ```
@@ -61,7 +64,7 @@ Create multiple DNS records from a list:
 ```bash
 # From a CSV: domain,type,value
 while IFS=',' read -r domain type value; do
-  unifly dns create --domain "$domain" --type "$type" --value "$value" --ttl 3600
+  unifly dns create --domain "$domain" --record-type "$type" --value "$value" --ttl 3600
 done < dns_records.csv
 ```
 
@@ -191,7 +194,7 @@ fi
 
 ```bash
 # Stream events and filter for security alerts
-unifly events watch --type "EVT_IPS_*" | while read -r event; do
+unifly events watch --types "EVT_IPS_*" | while read -r event; do
   echo "SECURITY: $event"
   # Forward to SIEM, Slack, etc.
 done
@@ -205,7 +208,7 @@ unifly stats client --interval daily -o json | \
   jq 'sort_by(-.rx_bytes + -.tx_bytes) | .[0:10] | .[] | {mac, rx_bytes, tx_bytes}'
 
 # DPI breakdown by category
-unifly stats dpi --group-by category -o json | \
+unifly stats dpi --group-by by-cat -o json | \
   jq 'sort_by(-.bytes) | .[0:10]'
 ```
 
@@ -289,7 +292,7 @@ unifly clients block "$MAC"
 unifly clients kick "$MAC"
 
 # 3. Document the event
-unifly events list --hours 1 -o json | \
+unifly events list --within 1 -o json | \
   jq --arg mac "$MAC" '.[] | select(.client // "" | contains($mac))'
 ```
 

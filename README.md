@@ -37,7 +37,7 @@
 
 ## 💜 What is unifly?
 
-A complete command-line toolkit for managing Ubiquiti UniFi network controllers. One binary with 23 CLI commands for scripting and a built-in TUI dashboard for real-time monitoring, powered by a shared async engine that speaks every UniFi API dialect.
+A complete command-line toolkit for managing Ubiquiti UniFi network controllers. One binary with 24 top-level commands for scripting and a built-in TUI dashboard for real-time monitoring, powered by a shared async engine that speaks every UniFi API dialect.
 
 > _Manage devices, monitor clients, inspect VLANs, stream events, and watch bandwidth charts, all without leaving your terminal._
 
@@ -51,9 +51,9 @@ UniFi controllers expose multiple APIs with different capabilities. unifly unifi
 | --- | --- |
 | 🔮 **Dual API Engine** | Integration API (REST, API key) + Legacy API (session, cookie/CSRF) with automatic Hybrid negotiation |
 | ⚡ **Real-Time TUI** | 8-screen dashboard with area-fill traffic charts, CPU/MEM gauges, live client counts, zoomable topology |
-| 🦋 **23 Resource Commands** | Devices, clients, networks, WiFi, firewall policies, zones, ACLs, DNS, VPN, hotspot vouchers, DPI, RADIUS, topology... |
+| 🦋 **24 Top-Level Commands** | Devices, clients, networks, WiFi, firewall policies, zones, ACLs, DNS, VPN, hotspot vouchers, DPI, RADIUS, topology, `tui`... |
 | 💎 **Flexible Output** | Table, JSON, compact JSON, YAML, and plain text. Pipe-friendly for scripting |
-| 🔒 **Secure Credentials** | OS keyring storage for API keys and passwords. Nothing in plaintext |
+| 🔒 **Secure Credentials** | OS keyring storage for API keys and passwords, with plaintext config support when you choose it |
 | 🌐 **Multi-Profile** | Named profiles for multiple controllers. Switch with a single flag |
 | 🧠 **Smart Config** | Interactive wizard, environment variables, TOML config, CLI overrides |
 | 📡 **WebSocket Events** | Live event streaming with 10K rolling buffer, severity filtering, pause/scroll-back |
@@ -87,7 +87,7 @@ Run the interactive setup wizard:
 unifly config init
 ```
 
-The wizard walks you through controller URL, authentication method, and site selection. Credentials are stored in your OS keyring, never written to disk in plaintext.
+The wizard walks you through controller URL, authentication method, and site selection. Credentials can be stored in your OS keyring or saved in plaintext config, depending on the option you choose.
 
 Once configured:
 
@@ -174,6 +174,7 @@ Best of both worlds: API key for Integration API CRUD, username/password for Leg
 | `vpn` | | View VPN servers and tunnels |
 | `wans` | | View WAN interfaces |
 | `wifi` | `w` | Manage WiFi broadcasts (SSIDs) |
+| `tui` | | Launch the real-time terminal dashboard |
 
 Most resource groups support `list` and `get`; some also expose `create`, `update`, `delete`, `patch`, or specialized actions. Run `unifly <command> --help` for details.
 

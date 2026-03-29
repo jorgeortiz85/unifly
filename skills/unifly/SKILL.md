@@ -16,9 +16,10 @@ description: >-
 # unifly — UniFi Network Management
 
 unifly is a CLI and TUI for managing Ubiquiti UniFi network infrastructure.
-It provides full CRUD operations across 23 entity types, real-time monitoring,
-and automation-friendly output formats. unifly communicates with UniFi controllers
-via dual APIs (Integration API + Legacy API) for maximum coverage.
+It provides full CRUD operations across 23 entity types, plus `topology` and the
+`tui` dashboard for discovery and real-time monitoring, with automation-friendly
+output formats. unifly communicates with UniFi controllers via dual APIs
+(Integration API + Legacy API) for maximum coverage.
 
 ## Prerequisites
 
@@ -74,11 +75,12 @@ Configure a profile:
 unifly config init
 
 # Or set values directly
-unifly config set profiles.home.controller "https://192.168.1.1"
-unifly config set profiles.home.auth_mode "hybrid"
-unifly config set profiles.home.api_key "YOUR_API_KEY"
-unifly config set profiles.home.username "admin"
-unifly config set-password home  # stores in OS keyring
+# Active profile shorthand works here; dotted paths also work for named profiles.
+unifly -p home config set controller "https://192.168.1.1"
+unifly -p home config set auth_mode "hybrid"
+unifly -p home config set api_key "YOUR_API_KEY"
+unifly -p home config set username "admin"
+unifly config set-password --profile home  # stores in OS keyring
 ```
 
 ### Configuration
@@ -126,6 +128,7 @@ unifly [global-flags] <entity> <action> [args] [flags]
 | `radius`            |              | profiles                                                                                                   | RADIUS profiles          |
 | `countries`         |              | _(no subcommands)_                                                                                         | Country code lookup      |
 | `config`            |              | init, show, set, profiles, use, set-password                                                               | CLI configuration        |
+| `tui`               |              | _(no subcommands)_                                                                                         | Real-time dashboard      |
 | `completions`       |              | bash, zsh, fish, powershell, elvish                                                                        | Shell completions        |
 
 For the complete command reference with all flags and arguments, consult
@@ -301,13 +304,13 @@ unifly devices speedtest
 unifly events watch
 
 # Filter by event type
-unifly events watch --type "EVT_SW_*"
+unifly events watch --types "EVT_SW_*"
 
 # Historical stats (hourly, last 24h)
 unifly stats site --interval hourly --start "2024-01-01T00:00:00Z"
 
 # DPI traffic analysis
-unifly stats dpi --group-by app
+unifly stats dpi --group-by by-app
 ```
 
 ### Guest & Hotspot

@@ -19,6 +19,7 @@
 | `alarms` | | Manage alarms |
 | `stats` | | Query statistics and reports |
 | `system` | `sys` | System operations and info |
+| `topology` | `topo` | Show network topology tree |
 | `admin` | | Administrator management |
 | `dpi` | | DPI reference data |
 | `radius` | | View RADIUS profiles |
@@ -26,6 +27,7 @@
 | `countries` | | List available country codes |
 | `config` | | Manage CLI configuration |
 | `completions` | | Generate shell completions |
+| `tui` | | Launch the real-time terminal dashboard |
 
 Most resource groups support `list` and `get`; some also expose `create`, `update`, `delete`, `patch`, or specialized actions. Run `unifly <command> --help` for details.
 
@@ -33,7 +35,7 @@ Most resource groups support `list` and `get`; some also expose `create`, `updat
 
 ```bash
 unifly devices list                   # All adopted devices
-unifly devices list --filter online   # Filter by status
+unifly devices list --filter "state.eq('ONLINE')"   # Filter by status
 unifly devices get <ID>               # Device details
 unifly devices restart <ID>           # Restart a device
 unifly devices upgrade <ID>           # Trigger firmware upgrade
