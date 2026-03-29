@@ -4,12 +4,9 @@
 // Handles authentication, background refresh, command routing,
 // and reactive data streaming through the DataStore.
 
-use std::collections::{HashMap, HashSet};
 use std::net::Ipv6Addr;
 use std::sync::Arc;
-use std::time::Duration;
 
-use futures_util::stream::{self, StreamExt};
 use tokio::sync::{Mutex, broadcast, mpsc, watch};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
@@ -33,6 +30,7 @@ use crate::{IntegrationClient, LegacyClient};
 
 mod commands;
 mod payloads;
+mod refresh;
 
 use self::commands::route_command;
 
@@ -279,7 +277,11 @@ impl Controller {
         if interval_secs > 0 {
             let ctrl = self.clone();
             let cancel = child.clone();
-            handles.push(tokio::spawn(refresh_task(ctrl, interval_secs, cancel)));
+            handles.push(tokio::spawn(refresh::refresh_task(
+                ctrl,
+                interval_secs,
+                cancel,
+            )));
         }
 
         // WebSocket event stream
@@ -445,359 +447,6 @@ impl Controller {
             .connection_state
             .send(ConnectionState::Disconnected);
         debug!("disconnected");
-    }
-
-    /// Fetch all data from the controller and update the DataStore.
-    ///
-    /// Pulls devices, clients, and events from the Legacy API, converts
-    /// them to domain types, and applies them to the store. Events are
-    /// broadcast through the event channel (not stored).
-    #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
-    pub async fn full_refresh(&self) -> Result<(), CoreError> {
-        let integration = self.inner.integration_client.lock().await.clone();
-        let site_id = *self.inner.site_id.lock().await;
-
-        if let (Some(integration), Some(sid)) = (integration, site_id) {
-            // ── Integration API path (preferred) ─────────────────
-            let page_limit = 200;
-
-            let (devices_res, clients_res, networks_res, wifi_res) = tokio::join!(
-                integration.paginate_all(page_limit, |off, lim| {
-                    integration.list_devices(&sid, off, lim)
-                }),
-                integration.paginate_all(page_limit, |off, lim| {
-                    integration.list_clients(&sid, off, lim)
-                }),
-                integration.paginate_all(page_limit, |off, lim| {
-                    integration.list_networks(&sid, off, lim)
-                }),
-                integration.paginate_all(page_limit, |off, lim| {
-                    integration.list_wifi_broadcasts(&sid, off, lim)
-                }),
-            );
-
-            let (policies_res, zones_res, acls_res, dns_res, vouchers_res) = tokio::join!(
-                integration.paginate_all(page_limit, |off, lim| {
-                    integration.list_firewall_policies(&sid, off, lim)
-                }),
-                integration.paginate_all(page_limit, |off, lim| {
-                    integration.list_firewall_zones(&sid, off, lim)
-                }),
-                integration.paginate_all(page_limit, |off, lim| {
-                    integration.list_acl_rules(&sid, off, lim)
-                }),
-                integration.paginate_all(page_limit, |off, lim| {
-                    integration.list_dns_policies(&sid, off, lim)
-                }),
-                integration.paginate_all(page_limit, |off, lim| {
-                    integration.list_vouchers(&sid, off, lim)
-                }),
-            );
-
-            let (sites_res, tml_res) = tokio::join!(
-                integration.paginate_all(50, |off, lim| { integration.list_sites(off, lim) }),
-                integration.paginate_all(page_limit, |off, lim| {
-                    integration.list_traffic_matching_lists(&sid, off, lim)
-                }),
-            );
-
-            // Core endpoints — failure is fatal
-            let devices: Vec<Device> = devices_res?.into_iter().map(Device::from).collect();
-            let mut clients: Vec<Client> = clients_res?.into_iter().map(Client::from).collect();
-            // Fetch full details for each network (list endpoint omits ipv4/ipv6 config)
-            let network_ids: Vec<uuid::Uuid> = networks_res?.into_iter().map(|n| n.id).collect();
-            info!(
-                network_count = network_ids.len(),
-                "fetching network details"
-            );
-            let networks: Vec<Network> = {
-                stream::iter(network_ids.into_iter().map(|nid| {
-                    let integration = Arc::clone(&integration);
-                    async move {
-                        match integration.get_network(&sid, &nid).await {
-                            Ok(detail) => Some(Network::from(detail)),
-                            Err(e) => {
-                                warn!(network_id = %nid, error = %e, "network detail fetch failed");
-                                None
-                            }
-                        }
-                    }
-                }))
-                .buffer_unordered(REFRESH_DETAIL_CONCURRENCY)
-                .filter_map(async move |network| network)
-                .collect::<Vec<_>>()
-                .await
-            };
-            let wifi: Vec<WifiBroadcast> = wifi_res?.into_iter().map(WifiBroadcast::from).collect();
-            let policies: Vec<FirewallPolicy> = policies_res?
-                .into_iter()
-                .map(FirewallPolicy::from)
-                .collect();
-            let zones: Vec<FirewallZone> = zones_res?.into_iter().map(FirewallZone::from).collect();
-            let sites: Vec<Site> = sites_res?.into_iter().map(Site::from).collect();
-            let traffic_matching_lists: Vec<TrafficMatchingList> = tml_res?
-                .into_iter()
-                .map(TrafficMatchingList::from)
-                .collect();
-
-            // Optional endpoints — 404 means the controller doesn't support them
-            let acls: Vec<AclRule> = unwrap_or_empty("acl/rules", acls_res);
-            let dns: Vec<DnsPolicy> = unwrap_or_empty("dns/policies", dns_res);
-            let vouchers: Vec<Voucher> = unwrap_or_empty("vouchers", vouchers_res);
-
-            // Enrich devices with per-device statistics (parallel, non-fatal)
-            info!(
-                device_count = devices.len(),
-                "enriching devices with statistics"
-            );
-            let mut devices = {
-                stream::iter(devices.into_iter().map(|mut device| {
-                    let integration = Arc::clone(&integration);
-                    async move {
-                        if let EntityId::Uuid(device_uuid) = &device.id {
-                            match integration.get_device_statistics(&sid, device_uuid).await {
-                                Ok(stats_resp) => {
-                                    device.stats =
-                                        crate::convert::device_stats_from_integration(&stats_resp);
-                                }
-                                Err(e) => {
-                                    warn!(
-                                        device = ?device.name,
-                                        error = %e,
-                                        "device stats fetch failed"
-                                    );
-                                }
-                            }
-                        }
-                        device
-                    }
-                }))
-                .buffer_unordered(REFRESH_DETAIL_CONCURRENCY)
-                .collect::<Vec<_>>()
-                .await
-            };
-
-            // Supplement with Legacy API data (events, health, client traffic, device stats, DHCP reservations)
-            #[allow(clippy::type_complexity)]
-            let (legacy_events, legacy_health, legacy_clients, legacy_devices, legacy_users): (
-                Vec<Event>,
-                Vec<HealthSummary>,
-                Vec<crate::legacy::models::LegacyClientEntry>,
-                Vec<crate::legacy::models::LegacyDevice>,
-                Vec<crate::legacy::models::LegacyUserEntry>,
-            ) = match self.inner.legacy_client.lock().await.clone() {
-                Some(legacy) => {
-                    let (events_res, health_res, clients_res, devices_res, users_res) =
-                        tokio::join!(
-                            legacy.list_events(Some(100)),
-                            legacy.get_health(),
-                            legacy.list_clients(),
-                            legacy.list_devices(),
-                            legacy.list_users(),
-                        );
-
-                    let events = match events_res {
-                        Ok(raw) => raw.into_iter().map(Event::from).collect(),
-                        Err(e) => {
-                            warn!(error = %e, "legacy event fetch failed (non-fatal)");
-                            Vec::new()
-                        }
-                    };
-
-                    let health = match health_res {
-                        Ok(raw) => convert_health_summaries(raw),
-                        Err(e) => {
-                            warn!(error = %e, "legacy health fetch failed (non-fatal)");
-                            Vec::new()
-                        }
-                    };
-
-                    let lc = match clients_res {
-                        Ok(raw) => raw,
-                        Err(e) => {
-                            warn!(
-                                error = %e,
-                                "legacy client fetch failed (non-fatal)"
-                            );
-                            Vec::new()
-                        }
-                    };
-
-                    let ld = match devices_res {
-                        Ok(raw) => raw,
-                        Err(e) => {
-                            warn!(error = %e, "legacy device fetch failed (non-fatal)");
-                            Vec::new()
-                        }
-                    };
-
-                    let lu = match users_res {
-                        Ok(raw) => raw,
-                        Err(e) => {
-                            warn!(error = %e, "legacy user fetch failed (non-fatal)");
-                            Vec::new()
-                        }
-                    };
-
-                    (events, health, lc, ld, lu)
-                }
-                None => (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new()),
-            };
-
-            // Merge Legacy client traffic (tx/rx bytes, hostname) into Integration clients.
-            // Match by IP address — Integration API clients often lack real MAC addresses
-            // in the access object, falling back to UUIDs which don't match Legacy MACs.
-            if !legacy_clients.is_empty() {
-                let legacy_by_ip: HashMap<&str, &crate::legacy::models::LegacyClientEntry> =
-                    legacy_clients
-                        .iter()
-                        .filter_map(|lc| lc.ip.as_deref().map(|ip| (ip, lc)))
-                        .collect();
-                let mut merged = 0u32;
-                for client in &mut clients {
-                    let ip_key = client.ip.map(|ip| ip.to_string());
-                    if let Some(lc) = ip_key.as_deref().and_then(|ip| legacy_by_ip.get(ip)) {
-                        if client.tx_bytes.is_none() {
-                            client.tx_bytes = lc.tx_bytes.and_then(|b| u64::try_from(b).ok());
-                        }
-                        if client.rx_bytes.is_none() {
-                            client.rx_bytes = lc.rx_bytes.and_then(|b| u64::try_from(b).ok());
-                        }
-                        if client.hostname.is_none() {
-                            client.hostname.clone_from(&lc.hostname);
-                        }
-                        // Merge wireless info (Legacy has AP MAC, signal, channel)
-                        if client.wireless.is_none() {
-                            let legacy_client: Client = Client::from((*lc).clone());
-                            client.wireless = legacy_client.wireless;
-                            if client.uplink_device_mac.is_none() {
-                                client.uplink_device_mac = legacy_client.uplink_device_mac;
-                            }
-                        }
-                        merged += 1;
-                    }
-                }
-                debug!(
-                    total_clients = clients.len(),
-                    legacy_available = legacy_by_ip.len(),
-                    merged,
-                    "client traffic merge (by IP)"
-                );
-            }
-
-            // Merge Legacy user DHCP reservations (fixed IP) into clients by MAC.
-            if !legacy_users.is_empty() {
-                let users_by_mac: HashMap<String, &crate::legacy::models::LegacyUserEntry> =
-                    legacy_users
-                        .iter()
-                        .map(|u| (u.mac.to_lowercase(), u))
-                        .collect();
-                for client in &mut clients {
-                    if let Some(user) = users_by_mac.get(&client.mac.as_str().to_lowercase()) {
-                        client.use_fixedip = user.use_fixedip.unwrap_or(false);
-                        client.fixed_ip = user.fixed_ip.as_deref().and_then(|s| s.parse().ok());
-                    }
-                }
-            }
-
-            // Merge Legacy device num_sta (client counts) into Integration devices
-            if !legacy_devices.is_empty() {
-                let legacy_by_mac: HashMap<&str, &crate::legacy::models::LegacyDevice> =
-                    legacy_devices.iter().map(|d| (d.mac.as_str(), d)).collect();
-                for device in &mut devices {
-                    if let Some(ld) = legacy_by_mac.get(device.mac.as_str()) {
-                        if device.client_count.is_none() {
-                            device.client_count = ld.num_sta.and_then(|n| n.try_into().ok());
-                        }
-                        if device.wan_ipv6.is_none() {
-                            device.wan_ipv6 = parse_legacy_device_wan_ipv6(&ld.extra);
-                        }
-                    }
-                }
-            }
-
-            // Push health to DataStore
-            if !legacy_health.is_empty() {
-                self.inner
-                    .store
-                    .site_health
-                    .send_modify(|h| *h = Arc::new(legacy_health));
-            }
-
-            let fresh_legacy_events = unseen_events(self.store(), &legacy_events);
-
-            self.inner
-                .store
-                .apply_integration_snapshot(crate::store::RefreshSnapshot {
-                    devices,
-                    clients,
-                    networks,
-                    wifi,
-                    policies,
-                    zones,
-                    acls,
-                    dns,
-                    vouchers,
-                    sites,
-                    events: legacy_events,
-                    traffic_matching_lists,
-                });
-
-            for event in fresh_legacy_events {
-                let _ = self.inner.event_tx.send(Arc::new(event));
-            }
-        } else {
-            // ── Legacy-only path ─────────────────────────────────
-            let legacy = self
-                .inner
-                .legacy_client
-                .lock()
-                .await
-                .clone()
-                .ok_or(CoreError::ControllerDisconnected)?;
-
-            let (devices_res, clients_res, events_res, sites_res) = tokio::join!(
-                legacy.list_devices(),
-                legacy.list_clients(),
-                legacy.list_events(Some(100)),
-                legacy.list_sites(),
-            );
-
-            let devices: Vec<Device> = devices_res?.into_iter().map(Device::from).collect();
-            let clients: Vec<Client> = clients_res?.into_iter().map(Client::from).collect();
-            let events: Vec<Event> = events_res?.into_iter().map(Event::from).collect();
-            let sites: Vec<Site> = sites_res?.into_iter().map(Site::from).collect();
-            let fresh_events = unseen_events(self.store(), &events);
-
-            self.inner
-                .store
-                .apply_integration_snapshot(crate::store::RefreshSnapshot {
-                    devices,
-                    clients,
-                    networks: Vec::new(),
-                    wifi: Vec::new(),
-                    policies: Vec::new(),
-                    zones: Vec::new(),
-                    acls: Vec::new(),
-                    dns: Vec::new(),
-                    vouchers: Vec::new(),
-                    sites,
-                    events,
-                    traffic_matching_lists: Vec::new(),
-                });
-
-            for event in fresh_events {
-                let _ = self.inner.event_tx.send(Arc::new(event));
-            }
-        }
-
-        debug!(
-            devices = self.inner.store.device_count(),
-            clients = self.inner.store.client_count(),
-            "data refresh complete"
-        );
-
-        Ok(())
     }
 
     // ── Command execution ────────────────────────────────────────
@@ -1688,24 +1337,6 @@ fn apply_device_sync(store: &DataStore, data: &serde_json::Value) {
     store.devices.upsert(key, id, device);
 }
 
-/// Periodically refresh data from the controller.
-async fn refresh_task(controller: Controller, interval_secs: u64, cancel: CancellationToken) {
-    let mut interval = tokio::time::interval(Duration::from_secs(interval_secs));
-    interval.tick().await; // consume the immediate first tick
-
-    loop {
-        tokio::select! {
-            biased;
-            () = cancel.cancelled() => break,
-            _ = interval.tick() => {
-                if let Err(e) = controller.full_refresh().await {
-                    warn!(error = %e, "periodic refresh failed");
-                }
-            }
-        }
-    }
-}
-
 /// Process commands from the mpsc channel, routing each to the
 /// appropriate Legacy API call.
 async fn command_processor_task(controller: Controller, mut rx: mpsc::Receiver<CommandEnvelope>) {
@@ -1825,28 +1456,6 @@ fn tls_to_transport(tls: &TlsVerification) -> TlsMode {
     }
 }
 
-/// Downgrade a paginated result to an empty `Vec` when the endpoint returns 404.
-///
-/// Some Integration API endpoints (ACL rules, DNS policies, vouchers) are not
-/// available on all controller firmware versions. Rather than failing the entire
-/// refresh, we log a debug message and return an empty collection.
-fn unwrap_or_empty<S, D>(endpoint: &str, result: Result<Vec<S>, crate::error::Error>) -> Vec<D>
-where
-    D: From<S>,
-{
-    match result {
-        Ok(items) => items.into_iter().map(D::from).collect(),
-        Err(ref e) if e.is_not_found() => {
-            debug!("{endpoint}: not available (404), treating as empty");
-            Vec::new()
-        }
-        Err(e) => {
-            warn!("{endpoint}: unexpected error {e}, treating as empty");
-            Vec::new()
-        }
-    }
-}
-
 /// Resolve the Integration API site UUID from a site name or UUID string.
 ///
 /// If `site_name` is already a valid UUID, returns it directly.
@@ -1879,20 +1488,6 @@ fn require_uuid(id: &EntityId) -> Result<uuid::Uuid, CoreError> {
         operation: "Integration API operation on legacy ID".into(),
         required: "UUID-based entity ID".into(),
     })
-}
-
-fn unseen_events(store: &DataStore, events: &[Event]) -> Vec<Event> {
-    let mut seen: HashSet<String> = store
-        .events_snapshot()
-        .iter()
-        .map(|event| event_storage_key(event))
-        .collect();
-
-    events
-        .iter()
-        .filter(|event| seen.insert(event_storage_key(event)))
-        .cloned()
-        .collect()
 }
 
 fn require_legacy<'a>(
