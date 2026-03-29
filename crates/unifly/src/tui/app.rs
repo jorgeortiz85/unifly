@@ -5,6 +5,7 @@ mod dispatch;
 mod lifecycle;
 mod navigation;
 mod render;
+mod screens;
 mod stats;
 
 use std::collections::HashMap;

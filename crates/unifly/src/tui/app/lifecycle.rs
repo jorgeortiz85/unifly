@@ -5,7 +5,6 @@ use unifly_api::Controller;
 
 use super::App;
 use crate::tui::action::{Action, Notification};
-use crate::tui::component::Component;
 use crate::tui::screen::ScreenId;
 
 impl App {
@@ -17,11 +16,7 @@ impl App {
 
         let controller = Controller::new(config.clone());
         self.controller = Some(controller.clone());
-        self.active_screen = ScreenId::Dashboard;
-
-        if let Some(screen) = self.screens.get_mut(&ScreenId::Dashboard) {
-            screen.set_focused(true);
-        }
+        self.set_active_screen(ScreenId::Dashboard);
 
         self.spawn_data_bridge(controller);
         self.action_tx
@@ -35,20 +30,12 @@ impl App {
             return Ok(());
         }
 
-        let mut screen = crate::tui::screens::settings::SettingsScreen::new();
-        screen.init(self.action_tx.clone())?;
-        self.screens.insert(ScreenId::Settings, Box::new(screen));
         self.previous_screen = Some(self.active_screen);
-
-        if let Some(current) = self.screens.get_mut(&self.active_screen) {
-            current.set_focused(false);
-        }
-
-        self.active_screen = ScreenId::Settings;
-
-        if let Some(settings) = self.screens.get_mut(&ScreenId::Settings) {
-            settings.set_focused(true);
-        }
+        self.install_screen(
+            ScreenId::Settings,
+            crate::tui::screens::settings::SettingsScreen::new(),
+        )?;
+        self.set_active_screen(ScreenId::Settings);
 
         Ok(())
     }
@@ -56,11 +43,7 @@ impl App {
     pub(super) fn close_settings(&mut self) {
         self.screens.remove(&ScreenId::Settings);
         let target = self.previous_screen.take().unwrap_or(ScreenId::Dashboard);
-        self.active_screen = target;
-
-        if let Some(screen) = self.screens.get_mut(&target) {
-            screen.set_focused(true);
-        }
+        self.set_active_screen(target);
     }
 
     pub(super) fn apply_settings(&mut self, config: &unifly_api::ControllerConfig) -> Result<()> {
@@ -71,11 +54,7 @@ impl App {
         self.spawn_data_bridge(controller);
 
         self.screens.remove(&ScreenId::Settings);
-        self.active_screen = ScreenId::Dashboard;
-
-        if let Some(screen) = self.screens.get_mut(&ScreenId::Dashboard) {
-            screen.set_focused(true);
-        }
+        self.set_active_screen(ScreenId::Dashboard);
 
         self.action_tx.send(Action::Notify(Notification::success(
             "Settings saved, reconnecting\u{2026}",
@@ -95,5 +74,50 @@ impl App {
     fn reset_data_bridge(&mut self) {
         self.data_cancel.cancel();
         self.data_cancel = CancellationToken::new();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn settings_overlay_round_trips_focus_and_history() {
+        let mut app = App::new(None);
+        app.active_screen = ScreenId::Dashboard;
+        app.screens
+            .get_mut(&ScreenId::Dashboard)
+            .expect("dashboard screen should exist")
+            .set_focused(true);
+
+        app.open_settings().expect("settings should open");
+
+        assert_eq!(app.active_screen, ScreenId::Settings);
+        assert_eq!(app.previous_screen, Some(ScreenId::Dashboard));
+        assert!(app.screens.contains_key(&ScreenId::Settings));
+        assert!(
+            app.screens
+                .get(&ScreenId::Settings)
+                .expect("settings screen should exist")
+                .focused()
+        );
+        assert!(
+            !app.screens
+                .get(&ScreenId::Dashboard)
+                .expect("dashboard screen should exist")
+                .focused()
+        );
+
+        app.close_settings();
+
+        assert_eq!(app.active_screen, ScreenId::Dashboard);
+        assert_eq!(app.previous_screen, None);
+        assert!(!app.screens.contains_key(&ScreenId::Settings));
+        assert!(
+            app.screens
+                .get(&ScreenId::Dashboard)
+                .expect("dashboard screen should exist")
+                .focused()
+        );
     }
 }

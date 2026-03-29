@@ -1,9 +1,8 @@
 use color_eyre::eyre::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
-use tracing::debug;
 
 use super::App;
-use crate::tui::action::{Action, StatsPeriod};
+use crate::tui::action::Action;
 use crate::tui::screen::ScreenId;
 
 impl App {
@@ -115,52 +114,6 @@ impl App {
 
         Ok(None)
     }
-
-    pub(super) fn switch_screen(&mut self, target: ScreenId) -> Result<()> {
-        if target == self.active_screen {
-            return Ok(());
-        }
-
-        debug!("switching screen: {} → {}", self.active_screen, target);
-
-        if let Some(screen) = self.screens.get_mut(&self.active_screen) {
-            screen.set_focused(false);
-        }
-
-        self.previous_screen = Some(self.active_screen);
-        self.active_screen = target;
-
-        if let Some(screen) = self.screens.get_mut(&self.active_screen) {
-            screen.set_focused(true);
-        }
-
-        if target == ScreenId::Stats {
-            self.action_tx
-                .send(Action::RequestStats(StatsPeriod::default()))?;
-        }
-
-        Ok(())
-    }
-
-    pub(super) fn forward_to_all_screens(&mut self, action: &Action) -> Result<()> {
-        for screen in self.screens.values_mut() {
-            if let Some(follow_up) = screen.update(action)? {
-                self.action_tx.send(follow_up)?;
-            }
-        }
-
-        Ok(())
-    }
-
-    pub(super) fn forward_to_screen(&mut self, screen_id: ScreenId, action: &Action) -> Result<()> {
-        if let Some(screen) = self.screens.get_mut(&screen_id)
-            && let Some(follow_up) = screen.update(action)?
-        {
-            self.action_tx.send(follow_up)?;
-        }
-
-        Ok(())
-    }
 }
 
 #[cfg(test)]
@@ -208,23 +161,5 @@ mod tests {
             .expect("search close should succeed");
         assert!(matches!(action, Some(Action::CloseSearch)));
         assert!(app.search_query.is_empty());
-    }
-
-    #[test]
-    fn switching_to_stats_requests_default_period() {
-        let mut app = App::new(None);
-        app.active_screen = ScreenId::Dashboard;
-
-        app.switch_screen(ScreenId::Stats)
-            .expect("screen switch should succeed");
-
-        assert_eq!(app.previous_screen, Some(ScreenId::Dashboard));
-        assert_eq!(app.active_screen, ScreenId::Stats);
-
-        let queued = app
-            .action_rx
-            .try_recv()
-            .expect("stats request should be queued");
-        assert!(matches!(queued, Action::RequestStats(StatsPeriod::OneHour)));
     }
 }
