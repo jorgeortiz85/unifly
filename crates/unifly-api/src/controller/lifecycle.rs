@@ -146,7 +146,9 @@ impl Controller {
 
         if let Some(rx) = self.inner.command_rx.lock().await.take() {
             let ctrl = self.clone();
-            handles.push(tokio::spawn(command_processor_task(ctrl, rx)));
+            handles.push(tokio::spawn(super::runtime::command_processor_task(
+                ctrl, rx,
+            )));
         }
 
         let interval_secs = config.refresh_interval_secs;
@@ -247,7 +249,7 @@ impl Controller {
                                 store.mark_ws_event(chrono::Utc::now());
 
                                 if ws_event.key == "device:sync" || ws_event.key == "device:update" {
-                                    apply_device_sync(&store, &ws_event.extra);
+                                    super::runtime::apply_device_sync(&store, &ws_event.extra);
                                 }
 
                                 if ws_event.key.starts_with("EVT_") {
