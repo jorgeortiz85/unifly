@@ -23,7 +23,6 @@ pub fn resolve_device_id(controller: &Controller, identifier: &str) -> Result<En
 }
 
 /// Resolve a device identifier to a MacAddress via snapshot lookup.
-#[allow(clippy::unnecessary_wraps)]
 pub fn resolve_device_mac(
     controller: &Controller,
     identifier: &str,
@@ -34,8 +33,13 @@ pub fn resolve_device_mac(
             return Ok(device.mac.clone());
         }
     }
-    // If not in snapshot, treat the identifier itself as a MAC
-    Ok(MacAddress::new(identifier))
+
+    identifier
+        .parse::<MacAddress>()
+        .map_err(|_| CliError::Validation {
+            field: "device".into(),
+            reason: "expected a device UUID from the snapshot or a valid MAC address".into(),
+        })
 }
 
 /// Resolve a client identifier (UUID or MAC) to an EntityId via snapshot lookup.
@@ -324,8 +328,9 @@ pub async fn ensure_integration_access(
 
 #[cfg(test)]
 mod tests {
-    use super::{apply_list_args, matches_json_filter};
+    use super::{apply_list_args, matches_json_filter, resolve_device_mac};
     use crate::cli::args::ListArgs;
+    use unifly_api::{Controller, ControllerConfig};
 
     #[test]
     fn apply_list_args_respects_offset_limit() {
@@ -376,5 +381,26 @@ mod tests {
         assert!(!matches_json_filter(&item, "name.eq('gamma')"));
         assert!(!matches_json_filter(&item, "Alpha Beta"));
         assert!(!matches_json_filter(&item, "name.starts_with('alpha')"));
+    }
+
+    #[test]
+    fn resolve_device_mac_accepts_valid_fallback_mac() {
+        let controller = Controller::new(ControllerConfig::default());
+        match resolve_device_mac(&controller, "AABBCCDDEEFF") {
+            Ok(mac) => assert_eq!(mac.as_str(), "aa:bb:cc:dd:ee:ff"),
+            Err(err) => panic!("expected valid MAC fallback, got {err:?}"),
+        }
+    }
+
+    #[test]
+    fn resolve_device_mac_rejects_invalid_fallback_identifier() {
+        let controller = Controller::new(ControllerConfig::default());
+        match resolve_device_mac(&controller, "definitely-not-a-mac") {
+            Err(crate::cli::error::CliError::Validation { field, .. }) => {
+                assert_eq!(field, "device");
+            }
+            Ok(mac) => panic!("expected validation error, got {mac:?}"),
+            Err(other) => panic!("expected validation error, got {other:?}"),
+        }
     }
 }

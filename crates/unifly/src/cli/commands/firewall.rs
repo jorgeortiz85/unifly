@@ -106,6 +106,48 @@ fn policy_detail(p: &Arc<FirewallPolicy>) -> String {
     lines.join("\n")
 }
 
+fn build_filter_spec(
+    field_prefix: &str,
+    networks: Option<Vec<String>>,
+    ips: Option<Vec<String>>,
+    ports: Option<Vec<String>>,
+) -> Result<Option<TrafficFilterSpec>, CliError> {
+    let selected = [
+        networks.as_ref().map(|_| "network"),
+        ips.as_ref().map(|_| "ip"),
+        ports.as_ref().map(|_| "port"),
+    ]
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>();
+
+    if selected.len() > 1 {
+        return Err(CliError::Validation {
+            field: format!("{field_prefix}-filter"),
+            reason: format!(
+                "choose only one of --{field_prefix}-network, --{field_prefix}-ip, or --{field_prefix}-port"
+            ),
+        });
+    }
+
+    Ok(if let Some(nets) = networks {
+        Some(TrafficFilterSpec::Network {
+            network_ids: nets,
+            match_opposite: false,
+        })
+    } else if let Some(addrs) = ips {
+        Some(TrafficFilterSpec::IpAddress {
+            addresses: addrs,
+            match_opposite: false,
+        })
+    } else {
+        ports.map(|p| TrafficFilterSpec::Port {
+            ports: p,
+            match_opposite: false,
+        })
+    })
+}
+
 // ── Zone table row ──────────────────────────────────────────────────
 
 #[derive(Tabled)]
@@ -234,8 +276,8 @@ async fn handle_policies(
                     description,
                     ip_version,
                     connection_states: states,
-                    source_filter: build_filter_spec(src_network, src_ip, src_port),
-                    destination_filter: build_filter_spec(dst_network, dst_ip, dst_port),
+                    source_filter: build_filter_spec("src", src_network, src_ip, src_port)?,
+                    destination_filter: build_filter_spec("dst", dst_network, dst_ip, dst_port)?,
                 }
             };
 
@@ -279,8 +321,8 @@ async fn handle_policies(
                 serde_json::from_value(util::read_json_file(path)?)?
             } else {
                 UpdateFirewallPolicyRequest {
-                    source_filter: build_filter_spec(src_network, src_ip, src_port),
-                    destination_filter: build_filter_spec(dst_network, dst_ip, dst_port),
+                    source_filter: build_filter_spec("src", src_network, src_ip, src_port)?,
+                    destination_filter: build_filter_spec("dst", dst_network, dst_ip, dst_port)?,
                     connection_states: states,
                     ip_version,
                     ..UpdateFirewallPolicyRequest::default()
@@ -509,27 +551,31 @@ async fn handle_zones(
     }
 }
 
-/// Build a `TrafficFilterSpec` from the CLI filter flags.
-/// Priority: network > ip > port (first one specified wins).
-fn build_filter_spec(
-    networks: Option<Vec<String>>,
-    ips: Option<Vec<String>>,
-    ports: Option<Vec<String>>,
-) -> Option<TrafficFilterSpec> {
-    if let Some(nets) = networks {
-        Some(TrafficFilterSpec::Network {
-            network_ids: nets,
-            match_opposite: false,
-        })
-    } else if let Some(addrs) = ips {
-        Some(TrafficFilterSpec::IpAddress {
-            addresses: addrs,
-            match_opposite: false,
-        })
-    } else {
-        ports.map(|p| TrafficFilterSpec::Port {
-            ports: p,
-            match_opposite: false,
-        })
+#[cfg(test)]
+mod tests {
+    use super::build_filter_spec;
+    use crate::cli::error::CliError;
+    use unifly_api::TrafficFilterSpec;
+
+    #[test]
+    fn build_filter_spec_accepts_single_filter_family() {
+        let spec = build_filter_spec("src", Some(vec!["lan".into()]), None, None);
+        assert!(matches!(spec, Ok(Some(TrafficFilterSpec::Network { .. }))));
+    }
+
+    #[test]
+    fn build_filter_spec_rejects_multiple_filter_families() {
+        let err = build_filter_spec(
+            "src",
+            Some(vec!["lan".into()]),
+            Some(vec!["10.0.0.1".into()]),
+            None,
+        );
+
+        match err {
+            Err(CliError::Validation { field, .. }) => assert_eq!(field, "src-filter"),
+            Ok(_) => panic!("expected validation error, got success"),
+            Err(other) => panic!("expected validation error, got {other:?}"),
+        }
     }
 }

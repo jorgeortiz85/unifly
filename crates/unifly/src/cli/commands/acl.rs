@@ -54,6 +54,18 @@ fn detail(r: &Arc<AclRule>) -> String {
     .join("\n")
 }
 
+fn render_reorder_ids(output: &crate::cli::args::OutputFormat, ids: &[String]) -> String {
+    match output {
+        crate::cli::args::OutputFormat::Json => {
+            serde_json::to_string_pretty(ids).unwrap_or_default()
+        }
+        crate::cli::args::OutputFormat::JsonCompact => {
+            serde_json::to_string(ids).unwrap_or_default()
+        }
+        _ => ids.join("\n"),
+    }
+}
+
 // ── Handler ─────────────────────────────────────────────────────────
 
 #[allow(clippy::too_many_lines)]
@@ -194,16 +206,28 @@ pub async fn handle(
                 let _ = get;
                 let snap = controller.acl_rules_snapshot();
                 let ids: Vec<String> = snap.iter().map(|r| r.id.to_string()).collect();
-                let out = match &global.output {
-                    crate::cli::args::OutputFormat::Json
-                    | crate::cli::args::OutputFormat::JsonCompact => {
-                        serde_json::to_string_pretty(&ids).unwrap_or_default()
-                    }
-                    _ => ids.join("\n"),
-                };
+                let out = render_reorder_ids(&global.output, &ids);
                 output::print_output(&out, global.quiet);
             }
             Ok(())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::render_reorder_ids;
+    use crate::cli::args::OutputFormat;
+
+    #[test]
+    fn render_reorder_ids_keeps_json_compact_compact() {
+        let rendered = render_reorder_ids(&OutputFormat::JsonCompact, &["a".into(), "b".into()]);
+        assert_eq!(rendered, "[\"a\",\"b\"]");
+    }
+
+    #[test]
+    fn render_reorder_ids_pretty_prints_json() {
+        let rendered = render_reorder_ids(&OutputFormat::Json, &["a".into()]);
+        assert!(rendered.contains('\n'));
     }
 }

@@ -5,6 +5,7 @@
 // identifiers behind a single ergonomic interface.
 
 use serde::{Deserialize, Serialize};
+use std::error::Error as StdError;
 use std::fmt;
 use std::str::FromStr;
 use uuid::Uuid;
@@ -82,17 +83,53 @@ impl From<&str> for EntityId {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MacAddress(String);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ParseMacAddressError;
+
 impl MacAddress {
     /// Create a normalized MAC address from any common format.
     /// Accepts colon-separated, dash-separated, or bare hex.
+    ///
+    /// For strict validation, use [`MacAddress::try_new`] or `str::parse`.
     pub fn new(raw: impl AsRef<str>) -> Self {
-        let normalized = raw.as_ref().to_lowercase().replace('-', ":");
-        Self(normalized)
+        let raw = raw.as_ref();
+        Self::try_new(raw).unwrap_or_else(|_| Self(raw.trim().to_lowercase().replace('-', ":")))
+    }
+
+    pub fn try_new(raw: impl AsRef<str>) -> Result<Self, ParseMacAddressError> {
+        normalize_mac(raw.as_ref())
+            .map(Self)
+            .ok_or(ParseMacAddressError)
     }
 
     pub fn as_str(&self) -> &str {
         &self.0
     }
+}
+
+fn normalize_mac(raw: &str) -> Option<String> {
+    let compact = raw
+        .trim()
+        .chars()
+        .filter(|ch| *ch != ':' && *ch != '-')
+        .collect::<String>()
+        .to_ascii_lowercase();
+
+    if compact.len() != 12 || !compact.chars().all(|ch| ch.is_ascii_hexdigit()) {
+        return None;
+    }
+
+    let bytes = compact.as_bytes();
+    let mut normalized = String::with_capacity(17);
+    for (idx, pair) in bytes.chunks_exact(2).enumerate() {
+        if idx > 0 {
+            normalized.push(':');
+        }
+        normalized.push(char::from(pair[0]));
+        normalized.push(char::from(pair[1]));
+    }
+
+    Some(normalized)
 }
 
 impl fmt::Display for MacAddress {
@@ -101,11 +138,19 @@ impl fmt::Display for MacAddress {
     }
 }
 
+impl fmt::Display for ParseMacAddressError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "expected a 12-digit hexadecimal MAC address")
+    }
+}
+
+impl StdError for ParseMacAddressError {}
+
 impl FromStr for MacAddress {
-    type Err = std::convert::Infallible;
+    type Err = ParseMacAddressError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self::new(s))
+        Self::try_new(s)
     }
 }
 
@@ -155,5 +200,17 @@ mod tests {
     fn mac_address_from_str() {
         let mac: MacAddress = "AA-BB-CC-DD-EE-FF".parse().unwrap();
         assert_eq!(mac.to_string(), "aa:bb:cc:dd:ee:ff");
+    }
+
+    #[test]
+    fn mac_address_normalizes_bare_hex() {
+        let mac = MacAddress::new("AABBCCDDEEFF");
+        assert_eq!(mac.as_str(), "aa:bb:cc:dd:ee:ff");
+    }
+
+    #[test]
+    fn mac_address_parse_rejects_invalid_input() {
+        assert!("not-a-mac".parse::<MacAddress>().is_err());
+        assert!("AA:BB:CC:DD:EE".parse::<MacAddress>().is_err());
     }
 }

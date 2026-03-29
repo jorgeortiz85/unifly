@@ -33,16 +33,18 @@ struct DeviceRow {
 
 #[derive(Tabled)]
 struct PendingDeviceRow {
-    #[tabled(rename = "ID")]
-    id: String,
-    #[tabled(rename = "Name")]
-    name: String,
+    #[tabled(rename = "IP")]
+    ip: String,
     #[tabled(rename = "Model")]
     model: String,
     #[tabled(rename = "MAC")]
     mac: String,
     #[tabled(rename = "State")]
     state: String,
+    #[tabled(rename = "Version")]
+    firmware: String,
+    #[tabled(rename = "Supported")]
+    supported: String,
 }
 
 #[derive(Tabled)]
@@ -134,6 +136,45 @@ fn stats_detail(d: &Arc<Device>) -> String {
         ),
     ]
     .join("\n")
+}
+
+fn pending_string<'a>(value: &'a serde_json::Value, key: &str) -> &'a str {
+    value
+        .get(key)
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("")
+}
+
+fn pending_device_row(v: &serde_json::Value, p: &output::Painter) -> PendingDeviceRow {
+    PendingDeviceRow {
+        ip: p.ip(pending_string(v, "ipAddress")),
+        model: p.muted(pending_string(v, "model")),
+        mac: p.mac(
+            v.get("macAddress")
+                .or_else(|| v.get("mac"))
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or(""),
+        ),
+        state: {
+            let s = pending_string(v, "state");
+            p.state(if s.is_empty() { "PENDING" } else { s })
+        },
+        firmware: p.muted(pending_string(v, "firmwareVersion")),
+        supported: p.enabled(
+            v.get("supported")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false),
+        ),
+    }
+}
+
+fn pending_device_identity(v: &serde_json::Value) -> String {
+    v.get("macAddress")
+        .or_else(|| v.get("mac"))
+        .and_then(serde_json::Value::as_str)
+        .or_else(|| v.get("ipAddress").and_then(serde_json::Value::as_str))
+        .unwrap_or("")
+        .to_owned()
 }
 
 // ── Handler ─────────────────────────────────────────────────────────
@@ -279,43 +320,8 @@ pub async fn handle(
             let out = output::render_list(
                 &global.output,
                 &pending,
-                |v| PendingDeviceRow {
-                    id: p.id(v
-                        .get("id")
-                        .and_then(serde_json::Value::as_str)
-                        .unwrap_or("")),
-                    name: p.name(
-                        v.get("name")
-                            .and_then(serde_json::Value::as_str)
-                            .unwrap_or(""),
-                    ),
-                    model: p.muted(
-                        v.get("model")
-                            .and_then(serde_json::Value::as_str)
-                            .unwrap_or(""),
-                    ),
-                    mac: p.mac(
-                        v.get("macAddress")
-                            .or_else(|| v.get("mac"))
-                            .and_then(serde_json::Value::as_str)
-                            .unwrap_or(""),
-                    ),
-                    state: {
-                        let s = v
-                            .get("state")
-                            .and_then(serde_json::Value::as_str)
-                            .unwrap_or("PENDING");
-                        p.state(s)
-                    },
-                },
-                |v| {
-                    v.get("id")
-                        .and_then(serde_json::Value::as_str)
-                        .or_else(|| v.get("macAddress").and_then(serde_json::Value::as_str))
-                        .or_else(|| v.get("mac").and_then(serde_json::Value::as_str))
-                        .unwrap_or("")
-                        .to_owned()
-                },
+                |v| pending_device_row(v, &p),
+                pending_device_identity,
             );
             output::print_output(&out, global.quiet);
             Ok(())
@@ -385,5 +391,59 @@ pub async fn handle(
             output::print_output(&out, global.quiet);
             Ok(())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{pending_device_identity, pending_device_row};
+    use crate::cli::args::{ColorMode, OutputFormat};
+    use crate::cli::output::Painter;
+
+    fn plain_painter() -> Painter {
+        Painter::new(&crate::cli::args::GlobalOpts {
+            profile: None,
+            controller: None,
+            site: None,
+            api_key: None,
+            output: OutputFormat::Plain,
+            color: ColorMode::Never,
+            verbose: 0,
+            quiet: false,
+            yes: false,
+            insecure: false,
+            timeout: 30,
+        })
+    }
+
+    #[test]
+    fn pending_device_row_uses_actual_api_fields() {
+        let row = pending_device_row(
+            &serde_json::json!({
+                "macAddress": "aa:bb:cc:dd:ee:ff",
+                "ipAddress": "10.0.0.20",
+                "model": "U7-Pro",
+                "state": "DISCOVERED",
+                "firmwareVersion": "1.2.3",
+                "supported": true
+            }),
+            &plain_painter(),
+        );
+
+        assert_eq!(row.ip, "10.0.0.20");
+        assert_eq!(row.model, "U7-Pro");
+        assert_eq!(row.mac, "aa:bb:cc:dd:ee:ff");
+        assert_eq!(row.state, "DISCOVERED");
+        assert_eq!(row.firmware, "1.2.3");
+        assert_eq!(row.supported, "yes");
+    }
+
+    #[test]
+    fn pending_device_identity_prefers_mac_address() {
+        let identity = pending_device_identity(&serde_json::json!({
+            "macAddress": "aa:bb:cc:dd:ee:ff",
+            "ipAddress": "10.0.0.20"
+        }));
+        assert_eq!(identity, "aa:bb:cc:dd:ee:ff");
     }
 }
