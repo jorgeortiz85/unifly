@@ -169,6 +169,90 @@ async fn test_delete_firewall_policy() {
 }
 
 #[tokio::test]
+async fn test_get_firewall_policy_ordering_uses_zone_pair_query_params() {
+    let (server, client) = setup().await;
+
+    let site_id = Uuid::new_v4();
+    let source_zone_id = Uuid::new_v4();
+    let destination_zone_id = Uuid::new_v4();
+    let policy_id = Uuid::new_v4();
+    let body = json!({
+        "beforeSystemDefined": [policy_id],
+        "afterSystemDefined": [],
+    });
+
+    Mock::given(method("GET"))
+        .and(path(format!(
+            "/integration/v1/sites/{site_id}/firewall/policies/ordering"
+        )))
+        .and(query_param(
+            "sourceFirewallZoneId",
+            source_zone_id.to_string(),
+        ))
+        .and(query_param(
+            "destinationFirewallZoneId",
+            destination_zone_id.to_string(),
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(&body))
+        .mount(&server)
+        .await;
+
+    let ordering = client
+        .get_firewall_policy_ordering(&site_id, &source_zone_id, &destination_zone_id)
+        .await
+        .unwrap();
+
+    assert_eq!(ordering.before_system_defined, vec![policy_id]);
+    assert!(ordering.after_system_defined.is_empty());
+}
+
+#[tokio::test]
+async fn test_set_firewall_policy_ordering_uses_zone_pair_query_params() {
+    let (server, client) = setup().await;
+
+    let site_id = Uuid::new_v4();
+    let source_zone_id = Uuid::new_v4();
+    let destination_zone_id = Uuid::new_v4();
+    let policy_id = Uuid::new_v4();
+    let body = json!({
+        "beforeSystemDefined": [policy_id],
+        "afterSystemDefined": [],
+    });
+
+    Mock::given(method("PUT"))
+        .and(path(format!(
+            "/integration/v1/sites/{site_id}/firewall/policies/ordering"
+        )))
+        .and(query_param(
+            "sourceFirewallZoneId",
+            source_zone_id.to_string(),
+        ))
+        .and(query_param(
+            "destinationFirewallZoneId",
+            destination_zone_id.to_string(),
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(&body))
+        .mount(&server)
+        .await;
+
+    let ordering = client
+        .set_firewall_policy_ordering(
+            &site_id,
+            &source_zone_id,
+            &destination_zone_id,
+            &unifly_api::integration_types::FirewallPolicyOrdering {
+                before_system_defined: vec![policy_id],
+                after_system_defined: Vec::new(),
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(ordering.before_system_defined, vec![policy_id]);
+    assert!(ordering.after_system_defined.is_empty());
+}
+
+#[tokio::test]
 async fn test_pagination_empty_page() {
     let (server, client) = setup().await;
 

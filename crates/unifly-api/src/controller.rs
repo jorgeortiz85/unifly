@@ -1256,12 +1256,18 @@ impl Controller {
     /// Fetch firewall policy ordering (Integration API).
     pub async fn get_firewall_policy_ordering(
         &self,
+        source_zone_id: &EntityId,
+        destination_zone_id: &EntityId,
     ) -> Result<crate::integration_types::FirewallPolicyOrdering, CoreError> {
         let guard = self.inner.integration_client.lock().await;
         let site_id = *self.inner.site_id.lock().await;
         let (ic, sid) =
             require_integration(guard.as_ref(), site_id, "get_firewall_policy_ordering")?;
-        Ok(ic.get_firewall_policy_ordering(&sid).await?)
+        let source_zone_uuid = require_uuid(source_zone_id)?;
+        let destination_zone_uuid = require_uuid(destination_zone_id)?;
+        Ok(ic
+            .get_firewall_policy_ordering(&sid, &source_zone_uuid, &destination_zone_uuid)
+            .await?)
     }
 
     /// Fetch ACL rule ordering (Integration API).
@@ -2254,17 +2260,20 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
         }
 
         Command::ReorderFirewallPolicies {
-            zone_pair: _,
+            zone_pair,
             ordered_ids,
         } => {
             let (ic, sid) =
                 require_integration(integration.as_ref(), site_id, "ReorderFirewallPolicies")?;
+            let source_zone_uuid = require_uuid(&zone_pair.0)?;
+            let destination_zone_uuid = require_uuid(&zone_pair.1)?;
             let uuids: Result<Vec<uuid::Uuid>, _> = ordered_ids.iter().map(require_uuid).collect();
             let body = crate::integration_types::FirewallPolicyOrdering {
                 before_system_defined: uuids?,
                 after_system_defined: Vec::new(),
             };
-            ic.set_firewall_policy_ordering(&sid, &body).await?;
+            ic.set_firewall_policy_ordering(&sid, &source_zone_uuid, &destination_zone_uuid, &body)
+                .await?;
             Ok(CommandResult::Ok)
         }
 
@@ -2317,39 +2326,23 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
                 FirewallAction::Block => "BLOCK",
                 FirewallAction::Reject => "REJECT",
             };
-            let mut source_filter = serde_json::Map::new();
-            source_filter.insert(
-                "zoneId".into(),
-                serde_json::Value::String(req.source_zone_id.to_string()),
-            );
-            if let Some(source_port) = req.source_port {
-                source_filter.insert("port".into(), serde_json::Value::String(source_port));
-            }
-            if let Some(protocol) = req.protocol.clone() {
-                source_filter.insert("protocol".into(), serde_json::Value::String(protocol));
-            }
-
-            let mut destination_filter = serde_json::Map::new();
-            destination_filter.insert(
-                "zoneId".into(),
-                serde_json::Value::String(req.destination_zone_id.to_string()),
-            );
-            if let Some(destination_port) = req.destination_port {
-                destination_filter
-                    .insert("port".into(), serde_json::Value::String(destination_port));
-            }
-            if let Some(protocol) = req.protocol {
-                destination_filter.insert("protocol".into(), serde_json::Value::String(protocol));
-            }
             let body = crate::integration_types::AclRuleCreateUpdate {
                 name: req.name,
                 rule_type: req.rule_type,
                 action: action_str.into(),
                 enabled: req.enabled,
-                description: None,
-                source_filter: Some(serde_json::Value::Object(source_filter)),
-                destination_filter: Some(serde_json::Value::Object(destination_filter)),
-                enforcing_device_filter: None,
+                description: req.description,
+                source_filter: Some(build_acl_filter_value(
+                    &req.source_zone_id,
+                    req.source_port.as_deref(),
+                    req.protocol.as_deref(),
+                )),
+                destination_filter: Some(build_acl_filter_value(
+                    &req.destination_zone_id,
+                    req.destination_port.as_deref(),
+                    req.protocol.as_deref(),
+                )),
+                enforcing_device_filter: req.enforcing_device_filter,
             };
             ic.create_acl_rule(&sid, &body).await?;
             Ok(CommandResult::Ok)
@@ -2367,12 +2360,22 @@ async fn route_command(controller: &Controller, cmd: Command) -> Result<CommandR
             };
             let body = crate::integration_types::AclRuleCreateUpdate {
                 name: update.name.unwrap_or(existing.name),
-                rule_type: existing.rule_type,
+                rule_type: update.rule_type.unwrap_or(existing.rule_type),
                 action: action_str,
                 enabled: update.enabled.unwrap_or(existing.enabled),
-                description: existing.description,
-                source_filter: existing.source_filter,
-                destination_filter: existing.destination_filter,
+                description: update.description.or(existing.description),
+                source_filter: merge_acl_filter_value(
+                    existing.source_filter,
+                    update.source_zone_id.as_ref(),
+                    update.source_port.as_deref(),
+                    update.protocol.as_deref(),
+                ),
+                destination_filter: merge_acl_filter_value(
+                    existing.destination_filter,
+                    update.destination_zone_id.as_ref(),
+                    update.destination_port.as_deref(),
+                    update.protocol.as_deref(),
+                ),
                 enforcing_device_filter: existing.enforcing_device_filter,
             };
             ic.update_acl_rule(&sid, &uuid, &body).await?;
@@ -2812,6 +2815,58 @@ fn client_mac(store: &DataStore, id: &EntityId) -> Result<MacAddress, CoreError>
         .ok_or_else(|| CoreError::ClientNotFound {
             identifier: id.to_string(),
         })
+}
+
+fn build_acl_filter_value(
+    zone_id: &EntityId,
+    port: Option<&str>,
+    protocol: Option<&str>,
+) -> serde_json::Value {
+    let mut filter = serde_json::Map::new();
+    filter.insert(
+        "zoneId".into(),
+        serde_json::Value::String(zone_id.to_string()),
+    );
+    if let Some(port) = port {
+        filter.insert("port".into(), serde_json::Value::String(port.to_owned()));
+    }
+    if let Some(protocol) = protocol {
+        filter.insert(
+            "protocol".into(),
+            serde_json::Value::String(protocol.to_owned()),
+        );
+    }
+    serde_json::Value::Object(filter)
+}
+
+fn merge_acl_filter_value(
+    existing: Option<serde_json::Value>,
+    zone_id: Option<&EntityId>,
+    port: Option<&str>,
+    protocol: Option<&str>,
+) -> Option<serde_json::Value> {
+    let mut filter = match existing {
+        Some(serde_json::Value::Object(filter)) => filter,
+        Some(_) | None => serde_json::Map::new(),
+    };
+
+    if let Some(zone_id) = zone_id {
+        filter.insert(
+            "zoneId".into(),
+            serde_json::Value::String(zone_id.to_string()),
+        );
+    }
+    if let Some(port) = port {
+        filter.insert("port".into(), serde_json::Value::String(port.to_owned()));
+    }
+    if let Some(protocol) = protocol {
+        filter.insert(
+            "protocol".into(),
+            serde_json::Value::String(protocol.to_owned()),
+        );
+    }
+
+    (!filter.is_empty()).then_some(serde_json::Value::Object(filter))
 }
 
 /// Build a firewall policy source/destination JSON object from a zone ID

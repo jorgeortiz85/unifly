@@ -148,6 +148,21 @@ fn build_filter_spec(
     })
 }
 
+fn parse_reorder_zone_pair(
+    source_zone: Option<&str>,
+    dest_zone: Option<&str>,
+) -> Result<(EntityId, EntityId), CliError> {
+    match (source_zone, dest_zone) {
+        (Some(source_zone), Some(dest_zone)) => {
+            Ok((EntityId::from(source_zone), EntityId::from(dest_zone)))
+        }
+        _ => Err(CliError::Validation {
+            field: "zone-pair".into(),
+            reason: "firewall policy reordering requires both --source-zone and --dest-zone".into(),
+        }),
+    }
+}
+
 // ── Zone table row ──────────────────────────────────────────────────
 
 #[derive(Tabled)]
@@ -394,8 +409,9 @@ async fn handle_policies(
             get,
             set,
         } => {
+            let zone_pair =
+                parse_reorder_zone_pair(Some(source_zone.as_str()), Some(dest_zone.as_str()))?;
             if let Some(ids) = set {
-                let zone_pair = (EntityId::from(source_zone), EntityId::from(dest_zone));
                 let ordered_ids: Vec<EntityId> = ids.into_iter().map(EntityId::from).collect();
                 controller
                     .execute(CoreCommand::ReorderFirewallPolicies {
@@ -408,7 +424,9 @@ async fn handle_policies(
                 }
             } else {
                 let _ = get;
-                let ordering = controller.get_firewall_policy_ordering().await?;
+                let ordering = controller
+                    .get_firewall_policy_ordering(&zone_pair.0, &zone_pair.1)
+                    .await?;
                 let out = match &global.output {
                     crate::cli::args::OutputFormat::Table
                     | crate::cli::args::OutputFormat::Plain => {
@@ -553,9 +571,9 @@ async fn handle_zones(
 
 #[cfg(test)]
 mod tests {
-    use super::build_filter_spec;
+    use super::{build_filter_spec, parse_reorder_zone_pair};
     use crate::cli::error::CliError;
-    use unifly_api::TrafficFilterSpec;
+    use unifly_api::{EntityId, TrafficFilterSpec};
 
     #[test]
     fn build_filter_spec_accepts_single_filter_family() {
@@ -577,5 +595,31 @@ mod tests {
             Ok(_) => panic!("expected validation error, got success"),
             Err(other) => panic!("expected validation error, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn parse_reorder_zone_pair_requires_both_zones() {
+        let err = parse_reorder_zone_pair(Some("src"), None)
+            .expect_err("missing destination zone should fail");
+        match err {
+            CliError::Validation { field, .. } => assert_eq!(field, "zone-pair"),
+            other => panic!("expected validation error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_reorder_zone_pair_returns_entity_ids() {
+        let zone_pair = parse_reorder_zone_pair(
+            Some("550e8400-e29b-41d4-a716-446655440000"),
+            Some("550e8400-e29b-41d4-a716-446655440001"),
+        )
+        .expect("zone pair should parse");
+        assert_eq!(
+            zone_pair,
+            (
+                EntityId::from("550e8400-e29b-41d4-a716-446655440000"),
+                EntityId::from("550e8400-e29b-41d4-a716-446655440001"),
+            )
+        );
     }
 }

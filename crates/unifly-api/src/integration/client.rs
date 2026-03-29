@@ -667,21 +667,46 @@ impl IntegrationClient {
     pub async fn get_firewall_policy_ordering(
         &self,
         site_id: &Uuid,
+        source_zone_id: &Uuid,
+        destination_zone_id: &Uuid,
     ) -> Result<types::FirewallPolicyOrdering, Error> {
-        self.get(&format!("v1/sites/{site_id}/firewall/policies/ordering"))
-            .await
+        self.get_with_params(
+            &format!("v1/sites/{site_id}/firewall/policies/ordering"),
+            &[
+                ("sourceFirewallZoneId", source_zone_id.to_string()),
+                ("destinationFirewallZoneId", destination_zone_id.to_string()),
+            ],
+        )
+        .await
     }
 
     pub async fn set_firewall_policy_ordering(
         &self,
         site_id: &Uuid,
+        source_zone_id: &Uuid,
+        destination_zone_id: &Uuid,
         body: &types::FirewallPolicyOrdering,
     ) -> Result<types::FirewallPolicyOrdering, Error> {
-        self.put(
-            &format!("v1/sites/{site_id}/firewall/policies/ordering"),
-            body,
-        )
-        .await
+        let url = self.url(&format!("v1/sites/{site_id}/firewall/policies/ordering"));
+        debug!(
+            "PUT {url} params={:?}",
+            &[
+                ("sourceFirewallZoneId", source_zone_id.to_string()),
+                ("destinationFirewallZoneId", destination_zone_id.to_string(),),
+            ]
+        );
+
+        let resp = self
+            .http
+            .put(url)
+            .query(&[
+                ("sourceFirewallZoneId", source_zone_id.to_string()),
+                ("destinationFirewallZoneId", destination_zone_id.to_string()),
+            ])
+            .json(body)
+            .send()
+            .await?;
+        self.handle_response(resp).await
     }
 
     // ── Firewall Zones ───────────────────────────────────────────────

@@ -991,8 +991,44 @@ pub enum AclCommand {
         /// ACL rule ID (UUID)
         id: String,
 
+        /// Rule name
+        #[arg(long)]
+        name: Option<String>,
+
+        /// Rule type: ipv4 or mac
+        #[arg(long, value_enum)]
+        rule_type: Option<AclRuleType>,
+
+        /// Action: allow or block
+        #[arg(long, value_enum)]
+        action: Option<AclAction>,
+
+        /// Source zone ID (UUID)
+        #[arg(long)]
+        source_zone: Option<String>,
+
+        /// Destination zone ID (UUID)
+        #[arg(long)]
+        dest_zone: Option<String>,
+
+        /// Optional IP protocol filter (e.g. TCP, UDP, ICMP)
+        #[arg(long)]
+        protocol: Option<String>,
+
+        /// Optional source port/range (e.g. 80 or 1000-2000)
+        #[arg(long)]
+        source_port: Option<String>,
+
+        /// Optional destination port/range (e.g. 443 or 3000-4000)
+        #[arg(long)]
+        destination_port: Option<String>,
+
+        /// Enable or disable the rule
+        #[arg(long, action = clap::ArgAction::Set)]
+        enabled: Option<bool>,
+
         /// Load full payload from JSON file
-        #[arg(long, short = 'F')]
+        #[arg(long, short = 'F', conflicts_with_all = &["name", "rule_type", "action", "source_zone", "dest_zone", "protocol", "source_port", "destination_port", "enabled"])]
         from_file: Option<PathBuf>,
     },
 

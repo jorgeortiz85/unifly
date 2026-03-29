@@ -205,28 +205,54 @@ pub struct CreateAclRuleRequest {
     pub source_zone_id: EntityId,
     pub destination_zone_id: EntityId,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub protocol: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_port: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub destination_port: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_filter: Option<TrafficFilterSpec>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub destination_filter: Option<TrafficFilterSpec>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enforcing_device_filter: Option<Value>,
     pub enabled: bool,
 }
 
 fn default_acl_rule_type() -> String {
-    "IPV4".into()
+    "IP".into()
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct UpdateAclRuleRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub rule_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub action: Option<FirewallAction>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enabled: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_zone_id: Option<EntityId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub destination_zone_id: Option<EntityId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub protocol: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_port: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub destination_port: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_filter: Option<TrafficFilterSpec>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub destination_filter: Option<TrafficFilterSpec>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enforcing_device_filter: Option<Value>,
 }
 
 // ── DNS Policy ─────────────────────────────────────────────────────
