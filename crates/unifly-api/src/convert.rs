@@ -468,7 +468,10 @@ impl From<LegacyEvent> for Event {
             category: map_event_category(e.subsystem.as_ref()),
             severity: EventSeverity::Info,
             event_type: e.key.clone().unwrap_or_default(),
-            message: e.msg.unwrap_or_default(),
+            message: resolve_event_templates(
+                &e.msg.unwrap_or_default(),
+                &serde_json::Value::Object(e.extra),
+            ),
             device_mac: None,
             client_mac: None,
             site_id: e.site_id.map(EntityId::from),
@@ -563,7 +566,7 @@ impl From<UnifiEvent> for Event {
             category,
             severity,
             event_type: e.key.clone(),
-            message: e.message.unwrap_or_default(),
+            message: resolve_event_templates(&e.message.unwrap_or_default(), &e.extra),
             device_mac,
             client_mac,
             site_id,
@@ -576,6 +579,39 @@ impl From<UnifiEvent> for Event {
 // ━━ Integration API conversions ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 // ── Helpers ────────────────────────────────────────────────────────
+
+/// Resolve `{placeholder}` templates in event messages using extra fields.
+///
+/// The UniFi controller sometimes sends raw templates like
+/// `User[{user}] disconnected from "{ssid}"` instead of resolving them.
+/// We fill them in from the event's extra JSON fields.
+fn resolve_event_templates(msg: &str, extra: &serde_json::Value) -> String {
+    if !msg.contains('{') {
+        return msg.to_string();
+    }
+
+    let mut result = msg.to_string();
+    // Find all {key} placeholders and replace with extra field values
+    while let Some(start) = result.find('{') {
+        let Some(end) = result[start..].find('}') else {
+            break;
+        };
+        let key = &result[start + 1..start + end];
+        let replacement = extra
+            .get(key)
+            .and_then(|v| match v {
+                serde_json::Value::String(s) => Some(s.as_str()),
+                _ => None,
+            })
+            .unwrap_or(key);
+        result = format!(
+            "{}{replacement}{}",
+            &result[..start],
+            &result[start + end + 1..]
+        );
+    }
+    result
+}
 
 /// Parse an ISO-8601 string (Integration API format) to `DateTime<Utc>`.
 fn parse_iso(raw: &str) -> Option<DateTime<Utc>> {
