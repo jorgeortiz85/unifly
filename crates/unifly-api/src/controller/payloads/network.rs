@@ -50,7 +50,13 @@ fn wifi_payload_name(name: &str, ssid: &str) -> String {
 fn wifi_frequency_values(frequencies: &[f32]) -> Vec<serde_json::Value> {
     frequencies
         .iter()
-        .map(|frequency| serde_json::Value::from(f64::from(*frequency)))
+        .map(|frequency| {
+            // Parse through the string representation to avoid f32→f64
+            // precision artifacts (e.g. 2.4f32 → 2.4000000953674316f64).
+            let s = format!("{frequency}");
+            serde_json::Number::from_f64(s.parse::<f64>().unwrap_or(f64::from(*frequency)))
+                .map_or(serde_json::Value::Null, serde_json::Value::Number)
+        })
         .collect()
 }
 
@@ -241,5 +247,26 @@ mod tests {
         assert_eq!(frequencies[1], json!(5.0));
         assert_eq!(payload.body.get("bandSteeringEnabled"), Some(&json!(true)));
         assert_eq!(payload.body.get("bssTransitionEnabled"), Some(&json!(true)));
+    }
+
+    #[test]
+    fn wifi_frequency_values_avoid_f32_precision_artifacts() {
+        let payload = build_create_wifi_broadcast_payload(&CreateWifiBroadcastRequest {
+            name: "Test".into(),
+            ssid: "Test".into(),
+            security_mode: WifiSecurityMode::Wpa3Personal,
+            passphrase: Some("secret".into()),
+            enabled: true,
+            network_id: None,
+            hide_ssid: false,
+            broadcast_type: Some("STANDARD".into()),
+            frequencies_ghz: Some(vec![2.4, 5.0, 6.0]),
+            band_steering: false,
+            fast_roaming: false,
+        });
+
+        let json = serde_json::to_string(&payload).unwrap();
+        assert!(json.contains("2.4"), "expected 2.4 not f64 artifact");
+        assert!(!json.contains("2.400000"), "f32→f64 precision artifact");
     }
 }
