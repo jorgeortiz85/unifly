@@ -152,6 +152,7 @@ pub(super) async fn handle(
             enabled,
             description,
             logging,
+            allow_return_traffic,
             src_network,
             src_ip,
             src_port,
@@ -173,6 +174,7 @@ pub(super) async fn handle(
                     destination_zone_id: EntityId::from(dest_zone.unwrap_or_default()),
                     enabled,
                     logging_enabled: logging,
+                    allow_return_traffic,
                     description,
                     ip_version,
                     connection_states: states,
@@ -192,6 +194,7 @@ pub(super) async fn handle(
 
         FirewallPoliciesCommand::Update {
             id,
+            allow_return_traffic,
             from_file,
             src_network,
             src_ip,
@@ -203,6 +206,7 @@ pub(super) async fn handle(
             ip_version,
         } => {
             if from_file.is_none()
+                && allow_return_traffic.is_none()
                 && src_network.is_none()
                 && src_ip.is_none()
                 && src_port.is_none()
@@ -222,6 +226,7 @@ pub(super) async fn handle(
                 serde_json::from_value(util::read_json_file(path)?)?
             } else {
                 UpdateFirewallPolicyRequest {
+                    allow_return_traffic,
                     source_filter: build_filter_spec("src", src_network, src_ip, src_port)?,
                     destination_filter: build_filter_spec("dst", dst_network, dst_ip, dst_port)?,
                     connection_states: states,

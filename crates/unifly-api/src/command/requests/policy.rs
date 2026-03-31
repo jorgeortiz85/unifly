@@ -11,6 +11,8 @@ pub struct CreateFirewallPolicyRequest {
     pub destination_zone_id: EntityId,
     pub enabled: bool,
     pub logging_enabled: bool,
+    #[serde(default = "default_true")]
+    pub allow_return_traffic: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -23,12 +25,18 @@ pub struct CreateFirewallPolicyRequest {
     pub destination_filter: Option<TrafficFilterSpec>,
 }
 
+fn default_true() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct UpdateFirewallPolicyRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub action: Option<FirewallAction>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub allow_return_traffic: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enabled: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]

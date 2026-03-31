@@ -70,6 +70,10 @@ pub enum FirewallPoliciesCommand {
         #[arg(long)]
         logging: bool,
 
+        /// Allow return traffic (default: true)
+        #[arg(long, default_value = "true", action = clap::ArgAction::Set)]
+        allow_return_traffic: bool,
+
         /// Source network IDs or names (comma-separated)
         #[arg(long, value_delimiter = ',')]
         src_network: Option<Vec<String>>,
@@ -111,6 +115,10 @@ pub enum FirewallPoliciesCommand {
     Update {
         /// Firewall policy ID (UUID)
         id: String,
+
+        /// Allow return traffic
+        #[arg(long, action = clap::ArgAction::Set)]
+        allow_return_traffic: Option<bool>,
 
         /// Source network IDs or names (comma-separated)
         #[arg(long, value_delimiter = ',')]

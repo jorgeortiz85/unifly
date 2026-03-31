@@ -28,7 +28,7 @@ pub(super) async fn route(ctx: &CommandContext, cmd: Command) -> Result<CommandR
                 name: req.name,
                 description: req.description,
                 enabled: req.enabled,
-                action: serde_json::json!({ "type": action_str }),
+                action: serde_json::json!({ "type": action_str, "allowReturnTraffic": req.allow_return_traffic }),
                 source,
                 destination,
                 ip_protocol_scope: serde_json::json!({ "ipVersion": ip_version }),
@@ -69,13 +69,33 @@ pub(super) async fn route(ctx: &CommandContext, cmd: Command) -> Result<CommandR
                 serde_json::to_value(&existing.destination).unwrap_or_default()
             };
 
-            let action = if let Some(action) = update.action {
-                let action_type = match action {
-                    FirewallAction::Allow => "ALLOW",
-                    FirewallAction::Block => "DROP",
-                    FirewallAction::Reject => "REJECT",
-                };
-                serde_json::json!({ "type": action_type })
+            let action = if update.action.is_some() || update.allow_return_traffic.is_some() {
+                let action_type = update.action.map_or_else(
+                    || {
+                        existing
+                            .action
+                            .get("type")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("ALLOW")
+                            .to_owned()
+                    },
+                    |a| {
+                        match a {
+                            FirewallAction::Allow => "ALLOW",
+                            FirewallAction::Block => "DROP",
+                            FirewallAction::Reject => "REJECT",
+                        }
+                        .to_owned()
+                    },
+                );
+                let allow_return = update.allow_return_traffic.unwrap_or_else(|| {
+                    existing
+                        .action
+                        .get("allowReturnTraffic")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(true)
+                });
+                serde_json::json!({ "type": action_type, "allowReturnTraffic": allow_return })
             } else {
                 existing.action
             };
