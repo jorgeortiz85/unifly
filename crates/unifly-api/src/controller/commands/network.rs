@@ -101,7 +101,12 @@ pub(super) async fn route(
             let body = crate::integration_types::NetworkCreateUpdate {
                 name,
                 enabled,
-                management: "USER_DEFINED".into(),
+                management: match management {
+                    NetworkManagement::Gateway => "GATEWAY",
+                    NetworkManagement::Switch => "SWITCH",
+                    NetworkManagement::Unmanaged => "UNMANAGED",
+                }
+                .into(),
                 vlan_id: vlan_id.map_or(1, i32::from),
                 dhcp_guarding: None,
                 extra,

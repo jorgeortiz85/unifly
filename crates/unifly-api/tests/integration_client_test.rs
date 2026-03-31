@@ -117,7 +117,7 @@ async fn test_create_network() {
         "id": net_id,
         "name": "IoT VLAN",
         "enabled": true,
-        "management": "USER_DEFINED",
+        "management": "GATEWAY",
         "vlanId": 30,
         "default": false,
         "metadata": {},
@@ -133,7 +133,7 @@ async fn test_create_network() {
     let req = NetworkCreateUpdate {
         name: "IoT VLAN".into(),
         enabled: true,
-        management: "USER_DEFINED".into(),
+        management: "GATEWAY".into(),
         vlan_id: 30,
         dhcp_guarding: None,
         extra: HashMap::new(),
@@ -524,7 +524,7 @@ async fn test_error_422_validation() {
     let req = NetworkCreateUpdate {
         name: "Bad VLAN".into(),
         enabled: true,
-        management: "USER_DEFINED".into(),
+        management: "GATEWAY".into(),
         vlan_id: 9999,
         dhcp_guarding: None,
         extra: HashMap::new(),
