@@ -55,9 +55,12 @@ pub(in super::super) fn build_endpoint_json(
                     .map(|p| {
                         if p.contains('-') {
                             let parts: Vec<&str> = p.splitn(2, '-').collect();
-                            serde_json::json!({ "type": "PORT_RANGE", "startPort": parts[0], "endPort": parts.get(1).unwrap_or(&"") })
+                            let start: u16 = parts[0].parse().unwrap_or(0);
+                            let end: u16 = parts.get(1).unwrap_or(&"0").parse().unwrap_or(0);
+                            serde_json::json!({ "type": "PORT_RANGE", "startPort": start, "endPort": end })
                         } else {
-                            serde_json::json!({ "type": "PORT_NUMBER", "value": p })
+                            let port: u16 = p.parse().unwrap_or(0);
+                            serde_json::json!({ "type": "PORT_NUMBER", "value": port })
                         }
                     })
                     .collect();
