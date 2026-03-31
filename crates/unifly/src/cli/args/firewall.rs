@@ -194,6 +194,10 @@ pub enum FirewallPoliciesCommand {
         /// Set ordering from comma-separated policy IDs
         #[arg(long, value_delimiter = ',')]
         set: Option<Vec<String>>,
+
+        /// Place policies after system-defined rules (use with --set)
+        #[arg(long)]
+        after_system: bool,
     },
 }
 

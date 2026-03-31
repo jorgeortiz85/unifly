@@ -304,6 +304,7 @@ pub(super) async fn handle(
             dest_zone,
             get,
             set,
+            after_system,
         } => {
             let zone_pair =
                 parse_reorder_zone_pair(Some(source_zone.as_str()), Some(dest_zone.as_str()))?;
@@ -314,6 +315,7 @@ pub(super) async fn handle(
                     .execute(CoreCommand::ReorderFirewallPolicies {
                         zone_pair,
                         ordered_ids,
+                        after_system,
                     })
                     .await?;
                 if !global.quiet {

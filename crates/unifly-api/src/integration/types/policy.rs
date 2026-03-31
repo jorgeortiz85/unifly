@@ -357,6 +357,12 @@ pub struct FirewallPolicyPatch {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct FirewallPolicyOrderingEnvelope {
+    pub ordered_firewall_policy_ids: FirewallPolicyOrdering,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FirewallPolicyOrdering {
     pub before_system_defined: Vec<Uuid>,
     pub after_system_defined: Vec<Uuid>,

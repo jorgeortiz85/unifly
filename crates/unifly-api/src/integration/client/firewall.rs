@@ -78,14 +78,16 @@ impl IntegrationClient {
         source_zone_id: &Uuid,
         destination_zone_id: &Uuid,
     ) -> Result<types::FirewallPolicyOrdering, Error> {
-        self.get_with_params(
-            &format!("v1/sites/{site_id}/firewall/policies/ordering"),
-            &[
-                ("sourceFirewallZoneId", source_zone_id.to_string()),
-                ("destinationFirewallZoneId", destination_zone_id.to_string()),
-            ],
-        )
-        .await
+        let envelope: types::FirewallPolicyOrderingEnvelope = self
+            .get_with_params(
+                &format!("v1/sites/{site_id}/firewall/policies/ordering"),
+                &[
+                    ("sourceFirewallZoneId", source_zone_id.to_string()),
+                    ("destinationFirewallZoneId", destination_zone_id.to_string()),
+                ],
+            )
+            .await?;
+        Ok(envelope.ordered_firewall_policy_ids)
     }
 
     pub async fn set_firewall_policy_ordering(
@@ -104,6 +106,9 @@ impl IntegrationClient {
             ]
         );
 
+        let envelope = types::FirewallPolicyOrderingEnvelope {
+            ordered_firewall_policy_ids: body.clone(),
+        };
         let resp = self
             .http
             .put(url)
@@ -111,10 +116,11 @@ impl IntegrationClient {
                 ("sourceFirewallZoneId", source_zone_id.to_string()),
                 ("destinationFirewallZoneId", destination_zone_id.to_string()),
             ])
-            .json(body)
+            .json(&envelope)
             .send()
             .await?;
-        self.handle_response(resp).await
+        let result: types::FirewallPolicyOrderingEnvelope = self.handle_response(resp).await?;
+        Ok(result.ordered_firewall_policy_ids)
     }
 
     // ── Firewall Zones ───────────────────────────────────────────────

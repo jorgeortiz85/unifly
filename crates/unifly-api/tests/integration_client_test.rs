@@ -177,8 +177,10 @@ async fn test_get_firewall_policy_ordering_uses_zone_pair_query_params() {
     let destination_zone_id = Uuid::new_v4();
     let policy_id = Uuid::new_v4();
     let body = json!({
-        "beforeSystemDefined": [policy_id],
-        "afterSystemDefined": [],
+        "orderedFirewallPolicyIds": {
+            "beforeSystemDefined": [policy_id],
+            "afterSystemDefined": [],
+        }
     });
 
     Mock::given(method("GET"))
@@ -215,8 +217,10 @@ async fn test_set_firewall_policy_ordering_uses_zone_pair_query_params() {
     let destination_zone_id = Uuid::new_v4();
     let policy_id = Uuid::new_v4();
     let body = json!({
-        "beforeSystemDefined": [policy_id],
-        "afterSystemDefined": [],
+        "orderedFirewallPolicyIds": {
+            "beforeSystemDefined": [policy_id],
+            "afterSystemDefined": [],
+        }
     });
 
     Mock::given(method("PUT"))

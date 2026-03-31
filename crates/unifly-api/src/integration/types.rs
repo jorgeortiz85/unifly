@@ -23,6 +23,7 @@ pub use policy::{
     AclRuleCreateUpdate, AclRuleOrdering, AclRuleResponse, ApplicationCategoryFilter,
     ApplicationFilter, DestTrafficFilter, DnsPolicyCreateUpdate, DnsPolicyResponse, DomainFilter,
     FirewallPolicyCreateUpdate, FirewallPolicyDestination, FirewallPolicyOrdering,
+    FirewallPolicyOrderingEnvelope,
     FirewallPolicyPatch, FirewallPolicyResponse, FirewallPolicySource, FirewallZoneCreateUpdate,
     FirewallZoneResponse, IpAddressFilter, IpAddressItem, MacAddressFilter, NetworkFilter,
     PortFilter, PortItem, RegionFilter, SourceTrafficFilter, TrafficMatchingListCreateUpdate,

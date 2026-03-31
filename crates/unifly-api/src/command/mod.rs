@@ -129,6 +129,7 @@ pub enum Command {
     ReorderFirewallPolicies {
         zone_pair: (EntityId, EntityId),
         ordered_ids: Vec<EntityId>,
+        after_system: bool,
     },
     CreateFirewallZone(CreateFirewallZoneRequest),
     UpdateFirewallZone {
