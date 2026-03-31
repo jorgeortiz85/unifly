@@ -100,6 +100,11 @@ fn build_controller_direct(global: &GlobalOpts) -> Option<Controller> {
 
     let site = global.site.clone().unwrap_or_else(|| "default".into());
 
+    let totp_token = global
+        .totp
+        .as_ref()
+        .map(|t| secrecy::SecretString::from(t.clone()));
+
     let controller_config = ControllerConfig {
         url,
         auth,
@@ -109,6 +114,9 @@ fn build_controller_direct(global: &GlobalOpts) -> Option<Controller> {
         refresh_interval_secs: 10,
         websocket_enabled: true,
         polling_interval_secs: 10,
+        totp_token,
+        profile_name: global.profile.clone(),
+        no_session_cache: global.no_cache,
     };
 
     Some(Controller::new(controller_config))

@@ -129,7 +129,35 @@ impl LegacyClient {
         cookies.to_str().ok().map(String::from)
     }
 
+    // ── Cookie injection (for MFA flow) ───────────────────────────────
+
+    /// Inject a `Set-Cookie` header value into the client's cookie jar.
+    ///
+    /// Used by the MFA flow to inject the `UBIC_2FA` cookie before retrying
+    /// login with the TOTP token.
+    pub(crate) fn add_cookie(&self, set_cookie_value: &str, url: &Url) -> Result<(), Error> {
+        let jar = self
+            .cookie_jar
+            .as_ref()
+            .ok_or_else(|| Error::Authentication {
+                message: "no cookie jar available for MFA flow".into(),
+            })?;
+        let header_value: reqwest::header::HeaderValue =
+            set_cookie_value
+                .parse()
+                .map_err(|_| Error::Authentication {
+                    message: "failed to parse MFA cookie value".into(),
+                })?;
+        jar.set_cookies(&mut std::iter::once(&header_value), url);
+        Ok(())
+    }
+
     // ── CSRF token management ─────────────────────────────────────────
+
+    /// Read the current CSRF token value (for session caching).
+    pub(crate) fn csrf_token_value(&self) -> Option<String> {
+        self.csrf_token.read().expect("CSRF lock poisoned").clone()
+    }
 
     /// Store a CSRF token (captured from login response headers).
     pub(crate) fn set_csrf_token(&self, token: String) {

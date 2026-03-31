@@ -3,6 +3,11 @@
 // Cookie-based session login/logout and controller platform detection.
 // The login endpoint sets a session cookie in the client's jar;
 // subsequent requests use that cookie automatically.
+//
+// MFA flow: when the controller requires 2FA, login returns HTTP 499
+// with `{"errors":["ubic_2fa_token required"]}` and a `token` field
+// containing a Set-Cookie value for `UBIC_2FA`. We inject that cookie,
+// then retry the login POST with `ubic_2fa_token` in the body.
 
 use secrecy::{ExposeSecret, SecretString};
 use serde_json::json;
@@ -13,15 +18,26 @@ use crate::auth::ControllerPlatform;
 use crate::error::Error;
 use crate::legacy::client::LegacyClient;
 
+/// Response body from a 499 MFA challenge.
+#[derive(serde::Deserialize)]
+struct MfaChallengeResponse {
+    /// Set-Cookie value for `UBIC_2FA` (e.g. `UBIC_2FA=eyJ...`).
+    token: Option<String>,
+}
+
 impl LegacyClient {
     /// Authenticate with the controller using username/password.
     ///
-    /// On success the session cookie is stored in the client's cookie jar
-    /// and used for all subsequent requests. The login endpoint differs
-    /// by platform:
-    /// - UniFi OS: `POST /api/auth/login`
-    /// - Standalone: `POST /api/login`
-    pub async fn login(&self, username: &str, password: &SecretString) -> Result<(), Error> {
+    /// If the controller has MFA enabled it returns HTTP 499. When a
+    /// `totp_token` is provided, we complete the two-step challenge
+    /// automatically. Without one, `Error::TwoFactorRequired` is returned
+    /// so the caller can prompt the user.
+    pub async fn login(
+        &self,
+        username: &str,
+        password: &SecretString,
+        totp_token: Option<&SecretString>,
+    ) -> Result<(), Error> {
         let login_path = self
             .platform()
             .login_path()
@@ -43,7 +59,82 @@ impl LegacyClient {
 
         let resp = self
             .http()
-            .post(url)
+            .post(url.clone())
+            .json(&body)
+            .send()
+            .await
+            .map_err(Error::Transport)?;
+
+        let status = resp.status();
+
+        // HTTP 499 = MFA challenge from UniFi SSO
+        if status.as_u16() == 499 {
+            return self
+                .handle_mfa_challenge(resp, &url, username, password, totp_token)
+                .await;
+        }
+
+        if !status.is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(Error::Authentication {
+                message: format!("login failed (HTTP {status}): {body}"),
+            });
+        }
+
+        self.capture_csrf(&resp);
+        debug!("login successful");
+        Ok(())
+    }
+
+    /// Handle a 499 MFA challenge: inject the UBIC_2FA cookie and retry
+    /// with the TOTP token in the login body.
+    async fn handle_mfa_challenge(
+        &self,
+        resp: reqwest::Response,
+        login_url: &Url,
+        username: &str,
+        password: &SecretString,
+        totp_token: Option<&SecretString>,
+    ) -> Result<(), Error> {
+        let totp = totp_token.ok_or(Error::TwoFactorRequired)?;
+        let code = totp.expose_secret();
+
+        // Validate TOTP format before sending
+        if code.len() != 6 || !code.chars().all(|c| c.is_ascii_digit()) {
+            return Err(Error::Authentication {
+                message: "TOTP token must be exactly 6 digits".into(),
+            });
+        }
+
+        debug!("MFA challenge received — completing 2FA handshake");
+
+        // Extract the MFA cookie from the challenge response
+        let challenge: MfaChallengeResponse =
+            resp.json().await.map_err(|_| Error::Authentication {
+                message: "failed to parse MFA challenge response".into(),
+            })?;
+
+        if let Some(cookie_value) = challenge.token {
+            if !cookie_value.starts_with("UBIC_2FA=") {
+                return Err(Error::Authentication {
+                    message: format!(
+                        "unexpected MFA cookie format (expected UBIC_2FA=...): {cookie_value}"
+                    ),
+                });
+            }
+            self.add_cookie(&cookie_value, login_url)?;
+        }
+
+        // Retry login with TOTP token
+        let body = json!({
+            "username": username,
+            "password": password.expose_secret(),
+            "ubic_2fa_token": code,
+        });
+
+        let resp = self
+            .http()
+            .post(login_url.clone())
             .json(&body)
             .send()
             .await
@@ -53,12 +144,17 @@ impl LegacyClient {
         if !status.is_success() {
             let body = resp.text().await.unwrap_or_default();
             return Err(Error::Authentication {
-                message: format!("login failed (HTTP {status}): {body}"),
+                message: format!("MFA login failed (HTTP {status}): {body}"),
             });
         }
 
-        // Capture CSRF token from login response — required for all
-        // POST/PUT/DELETE requests through the UniFi OS proxy.
+        self.capture_csrf(&resp);
+        debug!("MFA login successful");
+        Ok(())
+    }
+
+    /// Extract and store CSRF token from a login response.
+    fn capture_csrf(&self, resp: &reqwest::Response) {
         if let Some(token) = resp
             .headers()
             .get("X-CSRF-Token")
@@ -67,9 +163,68 @@ impl LegacyClient {
         {
             self.set_csrf_token(token.to_owned());
         }
+    }
 
-        debug!("login successful");
+    /// Attempt to restore a session from cache, falling back to fresh login.
+    ///
+    /// If a cached session is available and the validation probe succeeds,
+    /// the cookie and CSRF token are restored without hitting the login
+    /// endpoint. Otherwise, performs a normal login and caches the result.
+    pub async fn login_with_cache(
+        &self,
+        username: &str,
+        password: &secrecy::SecretString,
+        totp_token: Option<&secrecy::SecretString>,
+        cache: &super::session_cache::SessionCache,
+    ) -> Result<(), Error> {
+        use super::session_cache::{EXPIRY_MARGIN_SECS, fallback_expiry, jwt_expiry};
+
+        // Try cached session first
+        if let Some((cookie, csrf)) = cache.load() {
+            self.add_cookie(&cookie, self.base_url())?;
+            if let Some(token) = csrf {
+                self.set_csrf_token(token);
+            }
+
+            if self.validate_session().await {
+                debug!("restored session from cache");
+                return Ok(());
+            }
+            debug!("cached session invalid, performing fresh login");
+        }
+
+        // Fresh login
+        self.login(username, password, totp_token).await?;
+
+        // Cache the new session
+        if let Some(cookie) = self.cookie_header() {
+            let csrf = self.csrf_token_value();
+            let expires_at = jwt_expiry(&cookie).map_or_else(fallback_expiry, |exp| {
+                exp.saturating_sub(EXPIRY_MARGIN_SECS)
+            });
+            cache.save(&cookie, csrf.as_deref(), expires_at);
+        }
+
         Ok(())
+    }
+
+    /// Validate the current session by probing a lightweight endpoint.
+    ///
+    /// Returns `true` if the session is still alive.
+    async fn validate_session(&self) -> bool {
+        let prefix = self.platform().legacy_prefix().unwrap_or("");
+        let base = self.base_url().as_str().trim_end_matches('/');
+        let prefix = prefix.trim_end_matches('/');
+        let probe_url = format!("{base}{prefix}/api/s/{}/self", self.site());
+
+        let Ok(url) = url::Url::parse(&probe_url) else {
+            return false;
+        };
+
+        match self.http().get(url).send().await {
+            Ok(resp) => resp.status().is_success(),
+            Err(_) => false,
+        }
     }
 
     /// End the current session.

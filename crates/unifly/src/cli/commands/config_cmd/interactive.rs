@@ -203,6 +203,7 @@ pub(super) fn run_init() -> Result<(), CliError> {
         api_key_env: None,
         username,
         password,
+        totp_env: None,
         ca_cert: None,
         insecure: None,
         timeout: None,

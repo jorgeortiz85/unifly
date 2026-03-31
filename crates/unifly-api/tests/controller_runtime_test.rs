@@ -36,6 +36,9 @@ fn base_config(
         refresh_interval_secs: 0,
         websocket_enabled,
         polling_interval_secs: 1,
+        totp_token: None,
+        profile_name: None,
+        no_session_cache: true,
     }
 }
 

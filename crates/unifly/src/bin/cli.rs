@@ -124,6 +124,11 @@ fn build_controller_config(global: &GlobalOpts) -> Result<unifly_api::Controller
         unifly_api::TlsVerification::SystemDefaults
     };
 
+    let totp_token = global
+        .totp
+        .as_ref()
+        .map(|t| secrecy::SecretString::from(t.clone()));
+
     Ok(unifly_api::ControllerConfig {
         url,
         auth,
@@ -133,6 +138,9 @@ fn build_controller_config(global: &GlobalOpts) -> Result<unifly_api::Controller
         refresh_interval_secs: 0,
         websocket_enabled: false,
         polling_interval_secs: 30,
+        totp_token,
+        profile_name: None, // ad-hoc flags — no profile, no caching
+        no_session_cache: global.no_cache,
     })
 }
 

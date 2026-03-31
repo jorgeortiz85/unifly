@@ -6,7 +6,7 @@ use url::Url;
 use wiremock::matchers::{method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use unifly_api::{ControllerPlatform, Error, LegacyClient};
+use unifly_api::{ControllerPlatform, Error, LegacyClient, TransportConfig};
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
@@ -19,6 +19,21 @@ async fn setup() -> (MockServer, LegacyClient) {
         "default".into(),
         ControllerPlatform::ClassicController,
     );
+    (server, client)
+}
+
+/// Setup with a cookie jar — required for MFA tests (cookie injection).
+async fn setup_with_jar() -> (MockServer, LegacyClient) {
+    let server = MockServer::start().await;
+    let base_url = Url::parse(&server.uri()).unwrap();
+    let transport = TransportConfig::default().with_cookie_jar();
+    let client = LegacyClient::new(
+        base_url,
+        "default".into(),
+        ControllerPlatform::ClassicController,
+        &transport,
+    )
+    .unwrap();
     (server, client)
 }
 
@@ -39,7 +54,7 @@ async fn test_login_success() {
         .await;
 
     let secret: secrecy::SecretString = "test-password".to_string().into();
-    client.login("admin", &secret).await.unwrap();
+    client.login("admin", &secret, None).await.unwrap();
 }
 
 #[tokio::test]
@@ -53,7 +68,7 @@ async fn test_login_failure() {
         .await;
 
     let secret: secrecy::SecretString = "wrong-password".to_string().into();
-    let result = client.login("admin", &secret).await;
+    let result = client.login("admin", &secret, None).await;
 
     assert!(
         matches!(result, Err(Error::Authentication { .. })),
@@ -210,4 +225,84 @@ async fn test_legacy_api_error() {
         }
         other => panic!("expected LegacyApi error, got: {other:?}"),
     }
+}
+
+// ── MFA/TOTP tests ─────────────────────────────────────────────────
+
+#[tokio::test]
+async fn test_mfa_challenge_without_totp_returns_two_factor_required() {
+    let (server, client) = setup_with_jar().await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/login"))
+        .respond_with(ResponseTemplate::new(499).set_body_json(json!({
+            "errors": ["ubic_2fa_token required"],
+            "token": "UBIC_2FA=eyJhbGciOiJIUzI1NiJ9"
+        })))
+        .mount(&server)
+        .await;
+
+    let secret: secrecy::SecretString = "password".to_string().into();
+    let result = client.login("admin", &secret, None).await;
+
+    assert!(
+        matches!(result, Err(Error::TwoFactorRequired)),
+        "expected TwoFactorRequired, got: {result:?}"
+    );
+}
+
+#[tokio::test]
+async fn test_mfa_login_with_valid_totp_succeeds() {
+    let (server, client) = setup_with_jar().await;
+
+    // Use body matching to distinguish the two login attempts:
+    // - First POST has no ubic_2fa_token → 499 challenge
+    // - Second POST has ubic_2fa_token → 200 success
+    //
+    // wiremock matches most-recently-mounted first, so mount
+    // the success (TOTP) mock first, then the challenge mock.
+    Mock::given(method("POST"))
+        .and(path("/api/login"))
+        .and(wiremock::matchers::body_string_contains("ubic_2fa_token"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({})))
+        .named("mfa-complete")
+        .mount(&server)
+        .await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/login"))
+        .respond_with(ResponseTemplate::new(499).set_body_json(json!({
+            "errors": ["ubic_2fa_token required"],
+            "token": "UBIC_2FA=eyJhbGciOiJIUzI1NiJ9"
+        })))
+        .named("mfa-challenge")
+        .mount(&server)
+        .await;
+
+    let secret: secrecy::SecretString = "password".to_string().into();
+    let totp: secrecy::SecretString = "123456".to_string().into();
+    client.login("admin", &secret, Some(&totp)).await.unwrap();
+}
+
+#[tokio::test]
+async fn test_mfa_rejects_invalid_totp_format() {
+    let (server, client) = setup_with_jar().await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/login"))
+        .respond_with(ResponseTemplate::new(499).set_body_json(json!({
+            "errors": ["ubic_2fa_token required"],
+            "token": "UBIC_2FA=eyJhbGciOiJIUzI1NiJ9"
+        })))
+        .mount(&server)
+        .await;
+
+    let secret: secrecy::SecretString = "password".to_string().into();
+    let bad_totp: secrecy::SecretString = "not6digits".to_string().into();
+    let result = client.login("admin", &secret, Some(&bad_totp)).await;
+
+    assert!(
+        matches!(result, Err(Error::Authentication { .. })),
+        "expected Authentication error for bad TOTP, got: {result:?}"
+    );
 }

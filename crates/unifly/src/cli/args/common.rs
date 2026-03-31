@@ -2,6 +2,7 @@ use clap::{Args, ValueEnum};
 
 /// Controller URL, site, auth, and output options shared by all commands.
 #[derive(Debug, Args)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct GlobalOpts {
     /// Controller profile to use
     #[arg(long, short = 'p', env = "UNIFI_PROFILE", global = true)]
@@ -44,6 +45,14 @@ pub struct GlobalOpts {
     /// Skip confirmation prompts
     #[arg(long, short = 'y', global = true)]
     pub yes: bool,
+
+    /// TOTP token for MFA-enabled controllers (prefer UNIFI_TOTP env var)
+    #[arg(long, env = "UNIFI_TOTP", global = true, hide = true, hide_env = true)]
+    pub totp: Option<String>,
+
+    /// Disable session caching (forces fresh login)
+    #[arg(long, global = true)]
+    pub no_cache: bool,
 
     /// Accept self-signed TLS certificates
     #[arg(long, short = 'k', env = "UNIFI_INSECURE", global = true)]

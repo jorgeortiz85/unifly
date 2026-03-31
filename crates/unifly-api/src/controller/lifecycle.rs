@@ -67,7 +67,17 @@ impl Controller {
                     platform,
                     &transport,
                 )?;
-                client.login(username, password).await?;
+
+                let cache = build_session_cache(config);
+                if let Some(ref cache) = cache {
+                    client
+                        .login_with_cache(username, password, config.totp_token.as_ref(), cache)
+                        .await?;
+                } else {
+                    client
+                        .login(username, password, config.totp_token.as_ref())
+                        .await?;
+                }
                 debug!("session authentication successful");
 
                 *self.inner.legacy_client.lock().await = Some(Arc::new(client));
@@ -104,19 +114,36 @@ impl Controller {
                     platform,
                     &transport,
                 ) {
-                    Ok(client) => match client.login(username, password).await {
-                        Ok(()) => {
-                            debug!("legacy session authentication successful (hybrid)");
-                            *self.inner.legacy_client.lock().await = Some(Arc::new(client));
+                    Ok(client) => {
+                        let cache = build_session_cache(config);
+                        let login_result = if let Some(ref cache) = cache {
+                            client
+                                .login_with_cache(
+                                    username,
+                                    password,
+                                    config.totp_token.as_ref(),
+                                    cache,
+                                )
+                                .await
+                        } else {
+                            client
+                                .login(username, password, config.totp_token.as_ref())
+                                .await
+                        };
+                        match login_result {
+                            Ok(()) => {
+                                debug!("legacy session authentication successful (hybrid)");
+                                *self.inner.legacy_client.lock().await = Some(Arc::new(client));
+                            }
+                            Err(e) => {
+                                let msg = format!(
+                                    "Legacy login failed: {e} — events, health stats, and client traffic will be unavailable"
+                                );
+                                warn!("{msg}");
+                                self.inner.warnings.lock().await.push(msg);
+                            }
                         }
-                        Err(e) => {
-                            let msg = format!(
-                                "Legacy login failed: {e} — events, health stats, and client traffic will be unavailable"
-                            );
-                            warn!("{msg}");
-                            self.inner.warnings.lock().await.push(msg);
-                        }
-                    },
+                    }
                     Err(e) => {
                         let msg = format!("Legacy client setup failed: {e}");
                         warn!("{msg}");
@@ -302,10 +329,16 @@ impl Controller {
 
         let legacy = self.inner.legacy_client.lock().await.clone();
 
-        if matches!(
-            self.inner.config.auth,
-            AuthCredentials::Credentials { .. } | AuthCredentials::Hybrid { .. }
-        ) && let Some(client) = legacy
+        // Skip logout when session caching is active — we want the
+        // session cookie to survive for the next CLI invocation.
+        let cache_active = build_session_cache(&self.inner.config).is_some();
+
+        if !cache_active
+            && matches!(
+                self.inner.config.auth,
+                AuthCredentials::Credentials { .. } | AuthCredentials::Hybrid { .. }
+            )
+            && let Some(client) = legacy
             && let Err(error) = client.logout().await
         {
             warn!(error = %error, "logout failed (non-fatal)");
@@ -327,4 +360,15 @@ impl Controller {
             .send(ConnectionState::Disconnected);
         debug!("disconnected");
     }
+}
+
+/// Build a `SessionCache` if caching is enabled for this config.
+fn build_session_cache(
+    config: &crate::config::ControllerConfig,
+) -> Option<crate::legacy::session_cache::SessionCache> {
+    if config.no_session_cache {
+        return None;
+    }
+    let name = config.profile_name.as_deref()?;
+    crate::legacy::session_cache::SessionCache::new(name, config.url.as_str())
 }

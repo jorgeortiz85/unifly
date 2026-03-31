@@ -10,6 +10,7 @@ pub mod clients;
 pub mod devices;
 pub mod events;
 pub mod models;
+pub mod session_cache;
 pub mod sites;
 pub mod stats;
 pub mod system;

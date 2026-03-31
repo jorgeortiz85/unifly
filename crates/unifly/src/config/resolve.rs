@@ -10,7 +10,7 @@ use unifly_api::{AuthCredentials, ControllerConfig, TlsVerification};
 
 use crate::cli::args::GlobalOpts;
 use crate::cli::error::CliError;
-use crate::config::{self, Config, Profile};
+use crate::config::{self, Config, Profile, resolve_totp_token};
 
 // ── Re-exports for convenience ──────────────────────────────────
 
@@ -84,6 +84,9 @@ pub fn resolve_profile(
     // 5. Timeout
     let timeout = Duration::from_secs(global.timeout);
 
+    // 6. TOTP (flag > env var from profile's totp_env)
+    let totp_token = resolve_totp_with_flag(profile, global);
+
     Ok(ControllerConfig {
         url,
         auth,
@@ -93,7 +96,18 @@ pub fn resolve_profile(
         refresh_interval_secs: 0,
         websocket_enabled: false,
         polling_interval_secs: 30,
+        totp_token,
+        profile_name: Some(profile_name.to_owned()),
+        no_session_cache: global.no_cache,
     })
+}
+
+/// Resolve TOTP token: CLI flag takes priority, then profile's `totp_env`.
+fn resolve_totp_with_flag(profile: &Profile, global: &GlobalOpts) -> Option<SecretString> {
+    if let Some(ref totp) = global.totp {
+        return Some(SecretString::from(totp.clone()));
+    }
+    resolve_totp_token(profile)
 }
 
 /// Resolve API key with CLI flag override, then fall through to shared resolution.

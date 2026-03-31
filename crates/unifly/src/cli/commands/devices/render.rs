@@ -218,6 +218,8 @@ mod tests {
             controller: None,
             site: None,
             api_key: None,
+            totp: None,
+            no_cache: false,
             output: OutputFormat::Plain,
             color: ColorMode::Never,
             verbose: 0,
