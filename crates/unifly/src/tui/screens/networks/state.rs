@@ -117,6 +117,7 @@ impl NetworkEditState {
             mdns_forwarding_enabled: Some(self.mdns_forwarding_enabled),
             ipv6_enabled: Some(self.ipv6_enabled),
             subnet: None,
+            dhcp: None,
         }
     }
 }

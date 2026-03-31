@@ -60,6 +60,10 @@ pub enum NetworksCommand {
         #[arg(long)]
         dhcp_lease: Option<u32>,
 
+        /// DNS server override (can be repeated)
+        #[arg(long = "dns")]
+        dns_servers: Option<Vec<String>>,
+
         /// Firewall zone ID to assign
         #[arg(long)]
         zone: Option<String>,

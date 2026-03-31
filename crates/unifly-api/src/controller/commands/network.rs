@@ -31,6 +31,7 @@ pub(super) async fn route(
                 dhcp_range_start,
                 dhcp_range_stop,
                 dhcp_lease_time,
+                dns_servers,
                 firewall_zone_id,
                 isolation_enabled,
                 internet_access_enabled,
@@ -98,6 +99,13 @@ pub(super) async fn route(
                         );
                     }
 
+                    if let Some(ref servers) = dns_servers {
+                        dhcp_cfg.insert(
+                            "dnsServerIpAddressesOverride".into(),
+                            serde_json::json!(servers),
+                        );
+                    }
+
                     extra.insert(
                         "ipv4Configuration".into(),
                         serde_json::json!({
@@ -147,6 +155,16 @@ pub(super) async fn route(
                         .or_insert_with(|| serde_json::json!({ "type": "PREFIX_DELEGATION" }));
                 } else {
                     extra.remove("ipv6Configuration");
+                }
+            }
+            if let Some(ref dhcp_update) = update.dhcp {
+                if let Some(ref servers) = dhcp_update.dns_servers {
+                    if let Some(ipv4_cfg) = extra.get_mut("ipv4Configuration") {
+                        if let Some(dhcp_cfg) = ipv4_cfg.get_mut("dhcpConfiguration") {
+                            dhcp_cfg["dnsServerIpAddressesOverride"] =
+                                serde_json::json!(servers);
+                        }
+                    }
                 }
             }
             let body = crate::integration_types::NetworkCreateUpdate {

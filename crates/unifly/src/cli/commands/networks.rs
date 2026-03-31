@@ -149,6 +149,7 @@ pub async fn handle(
             dhcp_start,
             dhcp_stop,
             dhcp_lease,
+            dns_servers,
             zone,
             isolated,
             internet,
@@ -167,6 +168,7 @@ pub async fn handle(
                     dhcp_range_start: dhcp_start,
                     dhcp_range_stop: dhcp_stop,
                     dhcp_lease_time: dhcp_lease,
+                    dns_servers,
                     firewall_zone_id: zone,
                     isolation_enabled: isolated,
                     internet_access_enabled: internet,
@@ -206,6 +208,7 @@ pub async fn handle(
                     internet_access_enabled: None,
                     mdns_forwarding_enabled: None,
                     ipv6_enabled: None,
+                    dhcp: None,
                 }
             };
 

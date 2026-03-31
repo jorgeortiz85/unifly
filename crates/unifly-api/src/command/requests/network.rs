@@ -23,9 +23,18 @@ pub struct CreateNetworkRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dhcp_lease_time: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub dns_servers: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub firewall_zone_id: Option<String>,
     pub isolation_enabled: bool,
     pub internet_access_enabled: bool,
+}
+
+/// Optional DHCP overrides for network updates (from JSON files).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct DhcpUpdate {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dns_servers: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -49,6 +58,8 @@ pub struct UpdateNetworkRequest {
     pub mdns_forwarding_enabled: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ipv6_enabled: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dhcp: Option<DhcpUpdate>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
