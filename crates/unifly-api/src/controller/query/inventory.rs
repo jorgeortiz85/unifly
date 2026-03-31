@@ -1,8 +1,20 @@
 use crate::core_error::CoreError;
+use crate::model::{EntityId, WifiBroadcast};
 
-use super::super::Controller;
+use super::super::{Controller, integration_site_context, require_uuid};
 
 impl Controller {
+    pub async fn get_wifi_broadcast_detail(
+        &self,
+        id: &EntityId,
+    ) -> Result<WifiBroadcast, CoreError> {
+        let (client, site_id) =
+            integration_site_context(self, "get_wifi_broadcast_detail").await?;
+        let uuid = require_uuid(id)?;
+        let detail = client.get_wifi_broadcast(&site_id, &uuid).await?;
+        Ok(WifiBroadcast::from(detail))
+    }
+
     pub async fn list_pending_devices(&self) -> Result<Vec<serde_json::Value>, CoreError> {
         let integration = self.inner.integration_client.lock().await.clone();
         let site_id = *self.inner.site_id.lock().await;

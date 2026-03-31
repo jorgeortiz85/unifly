@@ -1161,6 +1161,24 @@ impl From<integration_types::WifiBroadcastResponse> for WifiBroadcast {
     }
 }
 
+impl From<integration_types::WifiBroadcastDetailsResponse> for WifiBroadcast {
+    fn from(w: integration_types::WifiBroadcastDetailsResponse) -> Self {
+        // Re-use the overview conversion — both types have identical fields.
+        let overview = integration_types::WifiBroadcastResponse {
+            id: w.id,
+            name: w.name,
+            broadcast_type: w.broadcast_type,
+            enabled: w.enabled,
+            security_configuration: w.security_configuration,
+            metadata: w.metadata,
+            network: w.network,
+            broadcasting_device_filter: w.broadcasting_device_filter,
+            extra: w.extra,
+        };
+        Self::from(overview)
+    }
+}
+
 // ── Firewall Policy ──────────────────────────────────────────────
 
 impl From<integration_types::FirewallPolicyResponse> for FirewallPolicy {

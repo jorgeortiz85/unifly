@@ -120,15 +120,15 @@ pub async fn handle(
         }
 
         WifiCommand::Get { id } => {
-            let snap = controller.wifi_broadcasts_snapshot();
-            let found = snap.iter().find(|w| w.id.to_string() == id);
-            match found {
-                Some(w) => {
+            let entity_id = unifly_api::EntityId::from(id.clone());
+            match controller.get_wifi_broadcast_detail(&entity_id).await {
+                Ok(w) => {
+                    let w = std::sync::Arc::new(w);
                     let out =
-                        output::render_single(&global.output, w, detail, |w| w.id.to_string());
+                        output::render_single(&global.output, &w, detail, |w| w.id.to_string());
                     output::print_output(&out, global.quiet);
                 }
-                None => {
+                Err(_) => {
                     return Err(CliError::NotFound {
                         resource_type: "wifi".into(),
                         identifier: id,
