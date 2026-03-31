@@ -1122,7 +1122,8 @@ impl From<integration_types::WifiBroadcastResponse> for WifiBroadcast {
 
         let security = w
             .security_configuration
-            .get("mode")
+            .get("type")
+            .or_else(|| w.security_configuration.get("mode"))
             .and_then(|v| v.as_str())
             .map_or(WifiSecurityMode::Open, |mode| match mode {
                 "WPA2_PERSONAL" => WifiSecurityMode::Wpa2Personal,
