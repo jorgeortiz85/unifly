@@ -172,7 +172,7 @@ Best of both worlds: API key for Integration API CRUD, username/password for Leg
 | `acl` | | Manage ACL rules |
 | `admin` | | Administrator management |
 | `alarms` | | Manage alarms |
-| `clients` | `cl` | Manage connected clients |
+| `clients` | `cl` | Manage clients and DHCP reservations |
 | `completions` | | Generate shell completions |
 | `config` | | Manage CLI configuration |
 | `countries` | | List available country codes |

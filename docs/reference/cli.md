@@ -47,6 +47,7 @@ unifly devices adopt <MAC>            # Adopt a pending device
 ```bash
 unifly clients list                   # Connected clients
 unifly clients get <MAC>              # Client details
+unifly clients reservations           # All DHCP reservations
 unifly clients block <MAC>            # Block a client
 unifly clients unblock <MAC>          # Unblock a client
 unifly clients kick <MAC>             # Force reconnection

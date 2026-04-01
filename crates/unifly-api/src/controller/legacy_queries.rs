@@ -112,6 +112,14 @@ impl Controller {
             .collect())
     }
 
+    pub async fn list_users(
+        &self,
+    ) -> Result<Vec<crate::legacy::models::LegacyUserEntry>, CoreError> {
+        let guard = self.inner.legacy_client.lock().await;
+        let legacy = require_legacy(guard.as_ref())?;
+        Ok(legacy.list_users().await?)
+    }
+
     pub async fn list_alarms(&self) -> Result<Vec<Alarm>, CoreError> {
         let guard = self.inner.legacy_client.lock().await;
         let legacy = require_legacy(guard.as_ref())?;

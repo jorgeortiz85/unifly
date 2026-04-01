@@ -8,7 +8,7 @@ use crate::cli::commands::util;
 use crate::cli::error::CliError;
 use crate::cli::output;
 
-use super::render::{client_row, detail};
+use super::render::{Reservation, client_row, detail, reservation_row};
 use super::resolve::resolve_network;
 
 fn find_client(controller: &Controller, needle: &str) -> Option<Arc<Client>> {
@@ -178,6 +178,27 @@ pub(super) async fn handle(
             if !global.quiet {
                 eprintln!("Client forgotten");
             }
+            Ok(())
+        }
+
+        ClientsCommand::Reservations(list) => {
+            let users = controller.list_users().await?;
+            let reservations: Vec<Reservation> = users
+                .iter()
+                .filter(|u| u.use_fixedip.unwrap_or(false))
+                .map(Reservation::from)
+                .collect();
+            let snapshot =
+                util::apply_list_args(reservations.into_iter(), &list, |res, filter| {
+                    util::matches_json_filter(res, filter)
+                });
+            let out = output::render_list(
+                &global.output,
+                &snapshot,
+                |res| reservation_row(res, &painter),
+                |res| res.mac.clone(),
+            );
+            output::print_output(&out, global.quiet);
             Ok(())
         }
 

@@ -276,8 +276,9 @@ unifly clients set-ip 00:11:22:33:44:55 --ip 10.4.22.11 --network IoT
 # Remove a reservation
 unifly clients remove-ip <mac>
 
-# View reservation status in client list
-unifly clients list -o json | jq '.[] | select(.use_fixedip)'
+# List all reservations (including offline clients)
+unifly clients reservations
+unifly clients res -o json
 ```
 
 ### Device Operations

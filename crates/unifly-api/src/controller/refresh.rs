@@ -250,12 +250,34 @@ impl Controller {
                         .iter()
                         .map(|user| (user.mac.to_lowercase(), user))
                         .collect();
+                let mut merged_users = 0u32;
                 for client in &mut clients {
-                    if let Some(user) = users_by_mac.get(&client.mac.as_str().to_lowercase()) {
+                    // Try MAC first, then fall back to matching the legacy
+                    // client entry (already joined by IP) whose MAC maps to
+                    // a user record. The Integration API may return UUIDs
+                    // instead of real MACs when access.macAddress is absent.
+                    let user = users_by_mac
+                        .get(&client.mac.as_str().to_lowercase())
+                        .or_else(|| {
+                            let ip_str = client.ip.map(|ip| ip.to_string())?;
+                            let legacy_client = legacy_clients
+                                .iter()
+                                .find(|lc| lc.ip.as_deref() == Some(ip_str.as_str()))?;
+                            users_by_mac.get(&legacy_client.mac.to_lowercase())
+                        });
+                    if let Some(user) = user {
                         client.use_fixedip = user.use_fixedip.unwrap_or(false);
                         client.fixed_ip = user.fixed_ip.as_deref().and_then(|ip| ip.parse().ok());
+                        if client.use_fixedip {
+                            merged_users += 1;
+                        }
                     }
                 }
+                debug!(
+                    users_available = users_by_mac.len(),
+                    merged_users,
+                    "user DHCP reservation merge"
+                );
             }
 
             if !legacy_devices.is_empty() {

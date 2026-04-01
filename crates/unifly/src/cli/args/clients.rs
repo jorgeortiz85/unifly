@@ -79,6 +79,10 @@ pub enum ClientsCommand {
         mac: String,
     },
 
+    /// List all DHCP reservations (legacy API)
+    #[command(alias = "res")]
+    Reservations(ListArgs),
+
     /// Set a fixed IP (DHCP reservation) for a client (legacy API)
     #[command(alias = "reserve")]
     SetIp {

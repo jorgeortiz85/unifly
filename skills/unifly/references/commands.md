@@ -213,6 +213,19 @@ Remove a client from the controller's history entirely (Legacy API).
 unifly clients forget "aa:bb:cc:dd:ee:ff"
 ```
 
+### `unifly clients reservations`
+
+List all DHCP reservations (fixed IP assignments), including offline clients.
+Fetches from the legacy `/rest/user` endpoint.
+
+Aliases: `res`
+
+```bash
+unifly clients reservations
+unifly clients reservations -o json
+unifly clients res --filter "name=Printer"
+```
+
 ### `unifly clients set-ip <mac> --ip <ipv4> [--network <name|id>]`
 
 Set a DHCP reservation (fixed IP) for a client. Auto-detects the network
