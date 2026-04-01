@@ -185,7 +185,8 @@ mod tests {
                 client_type: "WIRELESS".to_owned(),
                 ip_address: Some("192.168.1.10".to_owned()),
                 connected_at: None,
-                access: json!({ "macAddress": mac }),
+                mac_address: Some(mac.to_owned()),
+                access: json!({ "type": "DEFAULT" }),
             }
             .into(),
         )

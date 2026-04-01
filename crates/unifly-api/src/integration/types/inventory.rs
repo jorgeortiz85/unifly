@@ -69,6 +69,7 @@ pub struct ClientResponse {
     pub client_type: String,
     pub ip_address: Option<String>,
     pub connected_at: Option<String>,
+    pub mac_address: Option<String>,
     pub access: Value,
 }
 
@@ -82,6 +83,7 @@ pub struct ClientDetailsResponse {
     pub client_type: String,
     pub ip_address: Option<String>,
     pub connected_at: Option<String>,
+    pub mac_address: Option<String>,
     pub access: Value,
     #[serde(flatten)]
     pub extra: HashMap<String, Value>,
