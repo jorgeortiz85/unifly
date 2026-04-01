@@ -231,7 +231,7 @@ async fn legacy_mode_rejects_integration_only_surfaces_clearly() {
 }
 
 #[tokio::test]
-async fn api_key_mode_does_not_assume_legacy_access() {
+async fn api_key_mode_has_legacy_and_integration_access() {
     let server = MockServer::start().await;
     mock_api_key_connect(&server, API_KEY_SITE_ID).await;
 
@@ -244,21 +244,8 @@ async fn api_key_mode_does_not_assume_legacy_access() {
 
     controller.connect().await.unwrap();
 
-    assert!(!controller.has_legacy_access().await);
+    assert!(controller.has_legacy_access().await);
     assert!(controller.has_integration_access().await);
-    assert!(controller.take_warnings().await.is_empty());
-
-    let err = controller.list_admins().await.unwrap_err();
-    match err {
-        CoreError::Unsupported {
-            operation,
-            required,
-        } => {
-            assert_eq!(operation, "Legacy API operation");
-            assert_eq!(required, "Legacy API credentials");
-        }
-        other => panic!("expected Unsupported error, got {other:?}"),
-    }
 
     controller.disconnect().await;
 }

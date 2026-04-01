@@ -5,6 +5,9 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, warn};
 
+use reqwest::header::{HeaderMap, HeaderValue};
+use secrecy::ExposeSecret;
+
 use crate::config::AuthCredentials;
 use crate::core_error::CoreError;
 use crate::websocket::{ReconnectConfig, WebSocketHandle};
@@ -55,6 +58,26 @@ impl Controller {
 
                 *self.inner.integration_client.lock().await = Some(Arc::new(integration));
                 *self.inner.site_id.lock().await = Some(site_id);
+
+                // Also create a legacy client using the same API key.
+                // UniFi OS accepts X-API-KEY on legacy endpoints, which
+                // gives us access to /rest/user (DHCP reservations),
+                // /stat/sta (client stats), events, and health data.
+                let mut headers = HeaderMap::new();
+                let mut key_value = HeaderValue::from_str(api_key.expose_secret())
+                    .map_err(|e| CoreError::from(crate::error::Error::Authentication {
+                        message: format!("invalid API key header value: {e}"),
+                    }))?;
+                key_value.set_sensitive(true);
+                headers.insert("X-API-KEY", key_value);
+                let legacy_http = transport.build_client_with_headers(headers)?;
+                let legacy = LegacyClient::with_client(
+                    legacy_http,
+                    config.url.clone(),
+                    config.site.clone(),
+                    platform,
+                );
+                *self.inner.legacy_client.lock().await = Some(Arc::new(legacy));
             }
             AuthCredentials::Credentials { username, password } => {
                 // Legacy-only auth
