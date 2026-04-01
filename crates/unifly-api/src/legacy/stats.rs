@@ -137,9 +137,14 @@ impl LegacyClient {
         self.post(url, &body).await
     }
 
-    /// Fetch site-wide DPI (Deep Packet Inspection) statistics.
+    /// Fetch DPI (Deep Packet Inspection) statistics.
     ///
-    /// `POST /api/s/{site}/stat/sitedpi` with `{"type": "by_app"}` body.
+    /// Tries multiple legacy DPI endpoints for compatibility across firmware
+    /// versions:
+    /// 1. `stat/stadpi` with MAC filter — when `macs` is provided
+    /// 2. `stat/sitedpi` with type filter — site-level aggregated stats
+    /// 3. `stat/dpi` (unfiltered GET) — fallback for firmware that only
+    ///    populates this endpoint
     ///
     /// The `group_by` parameter selects the DPI grouping: `"by_app"` or `"by_cat"`.
     /// Returns empty data if DPI tracking is not enabled on the controller.
@@ -148,12 +153,47 @@ impl LegacyClient {
         group_by: &str,
         macs: Option<&[String]>,
     ) -> Result<Vec<serde_json::Value>, Error> {
+        // Per-station endpoint when filtering by MAC addresses.
+        if let Some(m) = macs {
+            let url = self.site_url("stat/stadpi");
+            debug!(group_by, "fetching station DPI stats (filtered)");
+            let body = json!({"type": group_by, "macs": m});
+            return self.post(url, &body).await;
+        }
+
+        // Try v2 flow statistics endpoint first (Network Application 9+).
+        let v2_url = self.site_url_v2(
+            "traffic-flow-latest-statistics?period=DAY&top=30",
+        );
+        debug!("fetching v2 traffic flow statistics");
+        match self.get_raw(v2_url).await {
+            Ok(v2_data) => {
+                if v2_data
+                    .get("top_all_traffic_by_application")
+                    .and_then(|a| a.as_array())
+                    .is_some_and(|a| !a.is_empty())
+                {
+                    debug!("v2 traffic flow stats received");
+                    return Ok(vec![v2_data]);
+                }
+                debug!("v2 response had no DPI app data, trying legacy");
+            }
+            Err(e) => {
+                debug!("v2 traffic flow stats unavailable, trying legacy: {e}");
+            }
+        }
+
+        // Legacy: site-level filtered endpoint.
         let url = self.site_url("stat/sitedpi");
         debug!(group_by, "fetching site DPI stats");
-        let mut body = json!({"type": group_by});
-        if let Some(m) = macs {
-            body["macs"] = json!(m);
+        let result: Vec<serde_json::Value> = self.post(url, &json!({"type": group_by})).await?;
+        if !result.is_empty() && result.iter().any(|v| v.get(group_by).is_some()) {
+            return Ok(result);
         }
-        self.post(url, &body).await
+
+        // Legacy fallback: unfiltered DPI endpoint.
+        let url = self.site_url("stat/dpi");
+        debug!("falling back to unfiltered DPI stats");
+        self.get(url).await
     }
 }

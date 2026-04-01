@@ -155,7 +155,7 @@ fn dpi_category_name(id: u64) -> &'static str {
     }
 }
 
-/// Parse Legacy `stat/sitedpi` `by_app` response into `(name, total_bytes)` tuples.
+/// Parse Legacy `stat/stadpi` `by_app` response into `(name, total_bytes)` tuples.
 fn parse_legacy_dpi_apps(raw: &[serde_json::Value]) -> Vec<(String, u64)> {
     let mut apps: Vec<(String, u64)> = Vec::new();
     for entry in raw {
@@ -191,7 +191,7 @@ fn parse_legacy_dpi_apps(raw: &[serde_json::Value]) -> Vec<(String, u64)> {
     apps
 }
 
-/// Parse Legacy `stat/sitedpi` `by_cat` response into `(name, total_bytes)` tuples.
+/// Parse Legacy `stat/stadpi` `by_cat` response into `(name, total_bytes)` tuples.
 fn parse_legacy_dpi_categories(raw: &[serde_json::Value]) -> Vec<(String, u64)> {
     let mut categories: Vec<(String, u64)> = Vec::new();
     for entry in raw {

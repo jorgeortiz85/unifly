@@ -214,6 +214,18 @@ impl LegacyClient {
         Url::parse(&full).expect("invalid site URL")
     }
 
+    /// Build a v2 site-scoped URL: `{base}{prefix}/v2/api/site/{site}/{path}`
+    ///
+    /// Used by newer endpoints (Network Application 9+) that use the v2 path
+    /// format, e.g. traffic-flow-latest-statistics.
+    pub(crate) fn site_url_v2(&self, path: &str) -> Url {
+        let prefix = self.platform.legacy_prefix().unwrap_or("");
+        let base = self.base_url.as_str().trim_end_matches('/');
+        let prefix = prefix.trim_end_matches('/');
+        let full = format!("{base}{prefix}/v2/api/site/{}/{path}", self.site);
+        Url::parse(&full).expect("invalid v2 site URL")
+    }
+
     // ── Request helpers ──────────────────────────────────────────────
 
     /// Send a GET request and unwrap the legacy envelope.
@@ -223,6 +235,35 @@ impl LegacyClient {
         let resp = self.http.get(url).send().await.map_err(Error::Transport)?;
 
         self.parse_envelope(resp).await
+    }
+
+    /// Send a GET request and return the raw JSON response (no envelope unwrapping).
+    ///
+    /// Used for v2 API endpoints that return plain JSON instead of the
+    /// legacy `{ meta, data }` envelope.
+    pub(crate) async fn get_raw(&self, url: Url) -> Result<serde_json::Value, Error> {
+        debug!("GET (raw) {}", url);
+
+        let resp = self.http.get(url).send().await.map_err(Error::Transport)?;
+        let status = resp.status();
+
+        if status == reqwest::StatusCode::UNAUTHORIZED {
+            return Err(Error::Authentication {
+                message: "session expired or invalid credentials".into(),
+            });
+        }
+        if !status.is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(Error::LegacyApi {
+                message: format!("HTTP {status}: {}", &body[..body.len().min(200)]),
+            });
+        }
+
+        let body = resp.text().await.map_err(Error::Transport)?;
+        serde_json::from_str(&body).map_err(|e| Error::Deserialization {
+            message: format!("{e}"),
+            body,
+        })
     }
 
     /// Send a POST request with JSON body and unwrap the legacy envelope.
