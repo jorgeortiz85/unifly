@@ -1,1231 +1,478 @@
 # unifly Command Reference
 
-Complete reference for all unifly CLI commands, flags, and arguments.
+This file is a **gotchas-focused** reference. Every command accepts
+`--help` at runtime with exhaustive flag listings; consult this file for
+non-obvious flags, dual-API boundaries, correct argument forms, and the
+cross-cutting patterns listed at the end.
 
-## Devices
+**API legend:** **I** = Integration API required. **L** = Legacy API
+required (username + password). **H** = Works in any mode, but enriched
+by Hybrid. Consult `concepts.md` for the full gate matrix.
 
-### `unifly devices list`
+## Global Flags
 
-List all adopted devices.
-
-```bash
-unifly devices list [--limit N] [--offset N] [--all] [--filter EXPR] [-o FORMAT]
+```
+-p, --profile <NAME>    Profile to use
+-c, --controller <URL>  Override controller URL
+-s, --site <SITE>       Target site (name or UUID)
+-o, --output <FORMAT>   table | json | json-compact | yaml | plain
+-k, --insecure          Accept self-signed TLS
+-v, -vv, -vvv           Verbose logging
+-q, --quiet             Suppress non-error output
+-y, --yes               Skip confirmation prompts
+    --timeout <SECS>    Request timeout (default 30)
+    --color <MODE>      auto | always | never
+    --no-cache          Force fresh login (bypass session cache)
+    --api-key <KEY>     One-shot Integration API key override
 ```
 
-### `unifly devices get <id|mac>`
+All also accept the matching `UNIFI_*` environment variable (see
+concepts.md).
 
-Get detailed information about a specific device.
-
-```bash
-unifly devices get "aa:bb:cc:dd:ee:ff" -o json
-unifly devices get "device-uuid" -o json
-```
-
-### `unifly devices adopt <mac>`
-
-Adopt a device pending adoption.
+## Devices `[H for list/get, L for commands]`
 
 ```bash
-unifly devices adopt "aa:bb:cc:dd:ee:ff" [--ignore-limit]
+unifly devices list [--all] [-o json]
+unifly devices get <id|mac> [-o json]
+unifly devices adopt <mac> [--ignore-limit]
+unifly devices remove <id|mac>
+unifly devices restart <id|mac>
+unifly devices locate <mac> [--on true|false]
+unifly devices port-cycle <id|mac> <port_idx>
+unifly devices stats <id|mac>
+unifly devices pending
+unifly devices upgrade <mac> [--url <firmware-url>]
+unifly devices provision <mac>
+unifly devices speedtest
+unifly devices tags [subcommands]
 ```
 
-Flags:
+**Gotchas:**
 
-- `--ignore-limit` — Adopt even if device limit is reached
+- `locate --on` is explicit boolean, not a toggle. `--on true` lights,
+  `--on false` clears. Idempotent for automation.
+- `upgrade --url` allows side-loading custom firmware URLs.
+- `port-cycle` port index is zero-based.
+- All device _commands_ (adopt, remove, restart, locate, port-cycle,
+  upgrade, provision, speedtest) require Legacy API. Only `list`/`get` are
+  Hybrid-safe.
 
-### `unifly devices remove <id|mac>`
-
-Remove (unadopt) a device from the controller.
+## Clients `[H]`
 
 ```bash
-unifly devices remove "aa:bb:cc:dd:ee:ff"
+unifly clients list [--all] [--type wireless|wired|guest]
+unifly clients find <query>             # case-insensitive substring over IP, name, hostname, MAC
+unifly clients get <mac|id>
+unifly clients authorize <mac> [--minutes N] [--up-rate N] [--down-rate N]
+unifly clients unauthorize <mac>
+unifly clients block <mac>
+unifly clients unblock <mac>
+unifly clients kick <mac>                # force disconnect
+unifly clients forget <mac>              # remove from controller memory
+unifly clients reservations              # alias: res
+unifly clients set-ip <mac> --ip <ipv4> [--network <name|id>]
+unifly clients remove-ip <mac> [--network <name|id>]
 ```
 
-### `unifly devices restart <id|mac>`
+**Gotchas:**
 
-Reboot a device.
+- `find` is the recommended search verb instead of `list | jq` pipelines.
+  It matches substrings across IP, name, hostname, and MAC in a single
+  pass, case-insensitive.
+- `reservations` (alias `res`) lists **all** DHCP reservations including
+  offline clients. It goes through Legacy `/rest/user`.
+- `set-ip` auto-detects the target network from the IP subnet unless
+  `--network` is supplied explicitly.
+- `remove-ip` defaults to removing from all networks. Scope it with
+  `--network` if the MAC has reservations in multiple networks.
+- `list` wireless/bytes/hostname fields are only populated in Hybrid mode.
+
+## Networks `[I for CRUD]`
 
 ```bash
-unifly devices restart "aa:bb:cc:dd:ee:ff"
+unifly networks list
+unifly networks get <id|name>
+unifly networks create --name NAME --vlan N --management MODE \
+  --ipv4-host <CIDR> [--dhcp --dhcp-start IP --dhcp-stop IP] \
+  [--dns SERVER]... [-F payload.json]
+unifly networks update <id> [flags...]
+unifly networks delete <id>
+unifly networks refs <id>                # reverse references
 ```
 
-### `unifly devices locate <mac>`
+**Gotchas:**
 
-Toggle the locate LED on a device (blink to physically identify it).
+- VLAN range is **1-4009** (enforced).
+- `--management` accepts `gateway`, `switch`, or `vlan-only`.
+- `--dns` is **repeatable** for multiple per-network DNS servers.
+- `refs` is unique to networks: shows which WiFi SSIDs, firewall policies,
+  and zones reference a given network. Use before deleting to understand
+  blast radius.
+- `--from-file` / `-F` accepts a full JSON payload (see examples/).
+
+## WiFi `[I]`
 
 ```bash
-unifly devices locate "aa:bb:cc:dd:ee:ff"
+unifly wifi list
+unifly wifi get <id|name>
+unifly wifi create --name SSID --security MODE --passphrase PASS --network ID \
+  [--broadcast-type standard|iot-optimized] [--frequencies 2.4,5,6] [-F payload.json]
+unifly wifi update <id> [flags...]
+unifly wifi delete <id>
 ```
 
-### `unifly devices port-cycle <id|mac> <port_idx>`
-
-Power-cycle a PoE port on a switch. The port index is zero-based.
-
-```bash
-unifly devices port-cycle "aa:bb:cc:dd:ee:ff" 5
-```
-
-### `unifly devices stats <id|mac>`
-
-Get real-time statistics for a device (CPU, memory, throughput, clients).
-
-```bash
-unifly devices stats "aa:bb:cc:dd:ee:ff" -o json
-```
-
-### `unifly devices pending`
-
-List devices awaiting adoption.
-
-```bash
-unifly devices pending -o json
-```
-
-### `unifly devices upgrade <mac>`
-
-Upgrade device firmware. Optionally specify a custom firmware URL.
-
-```bash
-unifly devices upgrade "aa:bb:cc:dd:ee:ff"
-unifly devices upgrade "aa:bb:cc:dd:ee:ff" --url "https://fw.example.com/firmware.bin"
-```
-
-### `unifly devices provision <mac>`
-
-Force re-provision of device configuration.
-
-```bash
-unifly devices provision "aa:bb:cc:dd:ee:ff"
-```
-
-### `unifly devices speedtest`
-
-Run a WAN speed test on the gateway.
-
-```bash
-unifly devices speedtest -o json
-```
-
-### `unifly devices tags`
-
-List device tags.
-
-```bash
-unifly devices tags -o json
-```
-
----
-
-## Clients
-
-### `unifly clients list`
-
-List all connected clients.
-
-Aliases: `ls`
-
-```bash
-unifly clients list [--limit N] [--offset N] [--all] [--filter EXPR] [-o FORMAT]
-```
-
-### `unifly clients find <query>`
-
-Find clients by IP, name, hostname, or MAC address. Case-insensitive
-substring matching across all fields.
-
-Aliases: `search`
-
-```bash
-# Find by partial name
-unifly clients find "macbook"
-
-# Find by IP subnet
-unifly clients find "10.4.22"
-
-# Find by MAC prefix
-unifly clients find "aa:bb:cc"
-```
-
-### `unifly clients get <id|mac>`
-
-Get detailed information about a specific client.
-
-```bash
-unifly clients get "aa:bb:cc:dd:ee:ff" -o json
-```
-
-### `unifly clients authorize <client_id>`
-
-Grant guest network access to a client.
-
-```bash
-unifly clients authorize <client_id> \
-  --minutes MINUTES \
-  [--data-limit-mb N] \
-  [--tx-limit-kbps N] \
-  [--rx-limit-kbps N]
-```
-
-Flags:
-
-- `--minutes` — Access duration in minutes (required)
-- `--data-limit-mb` — Data transfer limit in MB
-- `--tx-limit-kbps` — Upload bandwidth limit
-- `--rx-limit-kbps` — Download bandwidth limit
-
-### `unifly clients unauthorize <client_id>`
-
-Revoke guest access for a client.
-
-```bash
-unifly clients unauthorize <client_id>
-```
-
-### `unifly clients block <mac>`
-
-Block a client from the network (Legacy API).
-
-```bash
-unifly clients block "aa:bb:cc:dd:ee:ff"
-```
-
-### `unifly clients unblock <mac>`
-
-Unblock a previously blocked client (Legacy API).
-
-```bash
-unifly clients unblock "aa:bb:cc:dd:ee:ff"
-```
-
-### `unifly clients kick <mac>`
-
-Disconnect a wireless client (Legacy API). The client may reconnect.
-
-```bash
-unifly clients kick "aa:bb:cc:dd:ee:ff"
-```
-
-### `unifly clients forget <mac>`
-
-Remove a client from the controller's history entirely (Legacy API).
-
-```bash
-unifly clients forget "aa:bb:cc:dd:ee:ff"
-```
-
-### `unifly clients reservations`
-
-List all DHCP reservations (fixed IP assignments), including offline clients.
-Fetches from the legacy `/rest/user` endpoint.
-
-Aliases: `res`
-
-```bash
-unifly clients reservations
-unifly clients reservations -o json
-unifly clients res --filter "name=Printer"
-```
-
-### `unifly clients set-ip <mac> --ip <ipv4> [--network <name|id>]`
-
-Set a DHCP reservation (fixed IP) for a client. Auto-detects the network
-from the IP subnet, or specify explicitly with `--network`.
-
-Aliases: `reserve`
-
-```bash
-# Auto-detect network from IP
-unifly clients set-ip "00:11:22:33:44:55" --ip 10.4.22.11
-
-# Explicit network
-unifly clients set-ip "00:11:22:33:44:55" --ip 10.4.22.11 --network IoT
-```
-
-### `unifly clients remove-ip <mac> [--network <name|id>]`
-
-Remove a DHCP reservation from a client. When `--network` is omitted, all
-reservations for that MAC are removed.
-
-Aliases: `unreserve`
-
-```bash
-unifly clients remove-ip "00:11:22:33:44:55"
-unifly clients remove-ip "00:11:22:33:44:55" --network IoT
-```
-
----
-
-## Networks
-
-### `unifly networks list`
-
-List all configured networks.
-
-```bash
-unifly networks list [--limit N] [--all] [-o FORMAT]
-```
-
-### `unifly networks get <id>`
-
-Get detailed network configuration including IPv4, DHCP, IPv6 settings.
-
-```bash
-unifly networks get "network-uuid" -o json
-```
-
-### `unifly networks create`
-
-Create a new network (VLAN).
-
-```bash
-unifly networks create \
-  --name "IoT" \
-  --vlan 30 \
-  --management gateway \
-  --ipv4-host 10.0.30.1/24 \
-  --dhcp --dhcp-start 10.0.30.100 --dhcp-stop 10.0.30.254 \
-  [--zone <zone-id>] \
-  [--isolated]
-```
-
-Flags:
-
-- `--name` — Network name (required)
-- `--vlan` — VLAN ID (1-4094)
-- `--management` — `gateway`, `switch`, or `unmanaged`
-- `--ipv4-host` — Gateway IP with CIDR prefix (e.g., `10.0.30.1/24`)
-- `--dhcp` — Enable DHCP server
-- `--dhcp-start` — DHCP range start IP
-- `--dhcp-stop` — DHCP range end IP
-- `--dhcp-lease` — Lease time in seconds
-- `--zone` — Firewall zone to attach to
-- `--isolated` — Enable client isolation
-- `--internet` — Allow internet access (default: true)
-- `-F` / `--from-file` — Create from JSON file
-
-### `unifly networks update <id>`
-
-Update an existing network. Supports same flags as create plus `--from-file`.
-
-```bash
-unifly networks update "network-uuid" \
-  [--name "New Name"] \
-  [--enabled true|false] \
-  [--vlan N]
-unifly networks update "network-uuid" -F network.json
-```
-
-### `unifly networks delete <id>`
-
-Delete a network.
-
-```bash
-unifly networks delete "network-uuid"
-```
-
-### `unifly networks refs <id>`
-
-Show cross-references — what entities reference this network (WiFi SSIDs,
-firewall zones, port profiles, etc.).
-
-```bash
-unifly networks refs "network-uuid" -o json
-```
-
----
-
-## WiFi
-
-### `unifly wifi list`
-
-List all WiFi broadcasts (SSIDs).
-
-```bash
-unifly wifi list [-o FORMAT]
-```
-
-### `unifly wifi get <id>`
-
-Get SSID configuration details.
-
-```bash
-unifly wifi get "wifi-uuid" -o json
-```
-
-### `unifly wifi create`
-
-Create a new WiFi broadcast.
-
-```bash
-unifly wifi create \
-  --name "Guest WiFi" \
-  --broadcast-type standard \
-  --security wpa2-personal \
-  --passphrase "SecurePass123!" \
-  --network "network-uuid" \
-  [--frequencies 2.4,5] \
-  [--band-steering] \
-  [--fast-roaming]
-```
-
-Flags:
-
-- `--name` — SSID name (required)
-- `--broadcast-type` — `standard` or `iot-optimized` (default: standard)
-- `--security` — `open`, `wpa2-personal`, `wpa3-personal`, `wpa2-wpa3-personal`, `wpa2-enterprise`, `wpa3-enterprise`
-- `--passphrase` — WiFi password (required for personal security)
-- `--network` — Associated network UUID or name
-- `--frequencies` — Comma-separated radio bands (e.g., `2.4,5`)
-- `--hidden` — Hide SSID from broadcast
-- `--band-steering` — Enable band steering (boolean flag)
-- `--fast-roaming` — Enable 802.11r fast roaming (boolean flag)
-- `-F` / `--from-file` — Create from JSON file
-
-### `unifly wifi update <id>`
-
-Update an existing SSID.
-
-```bash
-unifly wifi update "wifi-uuid" \
-  [--name "New SSID"] \
-  [--passphrase "NewPass456!"] \
-  [--enabled true|false]
-unifly wifi update "wifi-uuid" -F wifi.json
-```
-
-### `unifly wifi delete <id>`
-
-Delete a WiFi broadcast.
-
-```bash
-unifly wifi delete "wifi-uuid"
-```
-
----
-
-## Firewall
+**Gotchas:**
+
+- `--security` values: `open`, `wpa2-personal`, `wpa3-personal`,
+  `wpa2-wpa3-personal`, `wpa2-enterprise`, `wpa3-enterprise`.
+- `--broadcast-type iot-optimized` enables IoT optimizations (2.4 GHz-only
+  limits, lower beacon power).
+- `--frequencies` is comma-separated: `2.4`, `5`, `6`. All three are valid
+  on WiFi 6E and WiFi 7 APs.
+- `--from-file` accepts full payloads for complex SSID configurations
+  (enterprise RADIUS, MAC filters, VLAN tagging).
+
+## Firewall `[I]`
 
 ### Policies
 
-#### `unifly firewall policies list`
-
-List all firewall policies.
-
 ```bash
-unifly firewall policies list [-o FORMAT]
+unifly firewall policies list
+unifly firewall policies get <id>
+unifly firewall policies create --name NAME --action allow|block|reject \
+  --source-zone ZID --dest-zone ZID \
+  [--src-ip IP,CIDR,RANGE] [--dst-ip ...] [--src-port N,N] [--dst-port ...] \
+  [--src-network ID] [--dst-network ID] \
+  [--states NEW,ESTABLISHED] [--ip-version IPV4_ONLY|IPV6_ONLY|BOTH] \
+  [--description TEXT] [--logging] [-F payload.json]
+unifly firewall policies update <id> [flags...]
+unifly firewall policies patch <id> [--enabled true|false] [--logging true|false]
+unifly firewall policies delete <id>
+unifly firewall policies reorder --source-zone ZID --dest-zone ZID (--get | --set "id1,id2,id3") [--after-system]
 ```
 
-#### `unifly firewall policies get <id>`
+**Gotchas:**
 
-Get firewall policy details.
-
-```bash
-unifly firewall policies get "policy-uuid" -o json
-```
-
-#### `unifly firewall policies create`
-
-Create a new firewall policy with optional traffic filters.
-
-```bash
-unifly firewall policies create \
-  --name "Block IoT to LAN" \
-  --action allow|block|reject \
-  --source-zone <zone-uuid> \
-  --dest-zone <zone-uuid> \
-  [--src-network <network-id,...>] \
-  [--src-ip <ip,cidr,range,...>] \
-  [--src-port <port,range,...>] \
-  [--dst-network <network-id,...>] \
-  [--dst-ip <ip,cidr,range,...>] \
-  [--dst-port <port,range,...>] \
-  [--states NEW,ESTABLISHED,RELATED,INVALID] \
-  [--ip-version IPV4_ONLY|IPV6_ONLY|IPV4_AND_IPV6] \
-  [--logging] \
-  [--from-file policy.json]
-```
-
-**Traffic filter flags:**
-- `--src-network` / `--dst-network` — Filter by network IDs (comma-separated UUIDs)
-- `--src-ip` / `--dst-ip` — Filter by IP addresses, CIDRs, or ranges (e.g. `10.0.0.1,10.0.0.0/24,10.0.0.1-10.0.0.100`)
-- `--src-port` / `--dst-port` — Filter by ports or port ranges (e.g. `80,443,8000-9000`)
-
-Priority: if multiple filter types specified, network > ip > port (first wins).
-
-#### `unifly firewall policies update <id>`
-
-Update a firewall policy. Supports the same traffic filter flags as create.
-Preserves existing fields not specified in the update.
-
-```bash
-# Update destination to specific IPs
-unifly firewall policies update "policy-uuid" \
-  --dst-ip 10.4.20.21,10.4.20.20
-
-# Update via JSON file
-unifly firewall policies update "policy-uuid" -F policy.json
-```
-
-#### `unifly firewall policies patch <id>`
-
-Quick toggle for logging and enabled state.
-
-```bash
-unifly firewall policies patch "policy-uuid" --logging false
-unifly firewall policies patch "policy-uuid" --enabled false
-```
-
-#### `unifly firewall policies delete <id>`
-
-Delete a firewall policy.
-
-```bash
-unifly firewall policies delete "policy-uuid"
-```
-
-#### `unifly firewall policies reorder`
-
-Get or set the evaluation order of firewall policies between zone pairs.
-
-```bash
-# Get current ordering
-unifly firewall policies reorder \
-  --source-zone "zone-uuid" --dest-zone "zone-uuid" --get
-
-# Set new ordering (first match wins)
-unifly firewall policies reorder \
-  --source-zone "zone-uuid" --dest-zone "zone-uuid" \
-  --set "id1,id2,id3"
-```
-
-Flags:
-
-- `--source-zone` — Source zone UUID (required)
-- `--dest-zone` — Destination zone UUID (required)
-- `--get` — Print current policy order (conflicts with `--set`)
-- `--set` — Comma-separated policy IDs in desired order (conflicts with `--get`)
+- `patch` is a fast partial-update for toggling `enabled`/`logging`. Use
+  it instead of `update` when only changing those fields (cheaper, no
+  round-trip fetch).
+- `--src-ip`/`--dst-ip` accept a mix of IPs, CIDRs, and ranges
+  (`10.0.0.1-10.0.0.100`), comma-separated.
+- `reorder --get` prints the current order. `reorder --set` writes a new
+  order. Round-trip pattern: get, edit, set.
+- `reorder --after-system` places user policies after system-defined rules.
+- `--logging` is a boolean; both bare form (`--logging`) and explicit
+  (`--logging true`) work.
+- `--description` exists on `create` and `update`.
 
 ### Zones
 
-#### `unifly firewall zones list`
-
-List all firewall zones.
-
 ```bash
-unifly firewall zones list [-o FORMAT]
+unifly firewall zones list
+unifly firewall zones get <id>
+unifly firewall zones create --name NAME [--networks ID,ID,...] [-F payload.json]
+unifly firewall zones update <id> [flags...]
+unifly firewall zones delete <id>
 ```
 
-#### `unifly firewall zones get <id>`
+**Gotchas:**
 
-Get zone details including attached networks.
+- `--networks` accepts comma-separated network IDs or names.
+- `--from-file` is now supported on zones (recent addition).
+
+## NAT `[I]`
 
 ```bash
-unifly firewall zones get "zone-uuid" -o json
+unifly nat policies list
+unifly nat policies get <id>
+unifly nat policies create --name NAME --nat-type masquerade|source|destination \
+  [--src-address CIDR] [--dst-address CIDR] \
+  [--src-port N] [--dst-port N] \
+  [--translated-address IP] [--translated-port N] \
+  [--protocol tcp|udp|all] [-F payload.json]
+unifly nat policies delete <id>
 ```
 
-#### `unifly firewall zones create`
+**Gotchas:**
 
-Create a custom firewall zone.
+- **There is no `update` subcommand for NAT policies.** Delete and
+  recreate to modify.
+- `masquerade` is source NAT using the outgoing interface address (most
+  common for Internet-bound traffic).
+- `destination` is how port forwarding works on UniFi: specify
+  `--dst-port` (the external port), `--translated-address` (internal IP),
+  and `--translated-port` (internal port).
+- `--from-file` accepts full payloads.
+
+## ACL `[I]`
 
 ```bash
-unifly firewall zones create \
-  --name "IoT Zone" \
-  --networks "net-uuid-1,net-uuid-2"
+unifly acl list                    # alias: ls
+unifly acl get <id>
+unifly acl create [flags...] [-F payload.json]
+unifly acl update <id> [flags...] [-F payload.json]
+unifly acl delete <id>
+unifly acl reorder [--get | --set "id1,id2,id3"]
 ```
 
-#### `unifly firewall zones update <id>`
+Similar reorder semantics to firewall policies.
 
-Update a zone.
+## DNS `[I]`
 
 ```bash
-unifly firewall zones update "zone-uuid" \
-  [--name "Renamed Zone"] \
-  [--networks "net-uuid-1,net-uuid-2"]
+unifly dns list
+unifly dns get <id>
+unifly dns create --domain NAME --record-type A|AAAA|CNAME|MX|TXT|SRV|Forward \
+  --value VALUE [--ttl SECS] [-F payload.json]
+unifly dns update <id> [flags...]
+unifly dns delete <id>
 ```
 
-#### `unifly firewall zones delete <id>`
+**Gotchas:**
 
-Delete a zone.
+- `--ttl` range is `0-86400` (enforced).
+- `Forward` record type sets up DNS forwarding for a domain.
+
+## Traffic Lists `[I]`
 
 ```bash
-unifly firewall zones delete "zone-uuid"
+unifly traffic-lists list
+unifly traffic-lists get <id>
+unifly traffic-lists create --name NAME --list-type ports|ipv4|ipv6 --values "80,443" [-F payload.json]
+unifly traffic-lists update <id> [flags...]
+unifly traffic-lists delete <id>
 ```
 
----
+**Gotchas:**
 
-## ACL (Access Control Lists)
+- `--list-type` is required. `ports`, `ipv4`, or `ipv6`.
+- Referenced by firewall policies, NAT policies, and ACLs. Ideal for
+  avoiding rule duplication.
 
-### `unifly acl list`
-
-List ACL rules.
+## Hotspot `[I]`
 
 ```bash
-unifly acl list [-o FORMAT]
+unifly hotspot list
+unifly hotspot get <id>
+unifly hotspot create --name NAME --count N --minutes N [--quota MB] [--up-rate KBPS] [--down-rate KBPS]
+unifly hotspot delete <id>
+unifly hotspot purge --filter "EXPR"
 ```
 
-### `unifly acl get <id>`
+**Gotchas:**
 
-Get ACL rule details.
+- `create --count N` generates N voucher codes in one call. Each code
+  inherits the other flags (duration, quota, rate limits).
+- `purge --filter` accepts the Integration filter DSL and is unifly's
+  only bulk-delete-by-expression operation. Examples:
+  `status.eq('UNUSED')`, `name.contains('Conference')`,
+  `created_at.lt('2024-01-01')`. Use carefully; it deletes matching
+  vouchers immediately.
+
+## Events `[L]`
 
 ```bash
-unifly acl get "acl-uuid" -o json
+unifly events list [--within HOURS] [--all]
+unifly events watch [--types CAT1,CAT2] [-o json]
 ```
 
-### `unifly acl create`
+**Gotchas:**
 
-Create an ACL rule.
+- `watch --types` filter values are **EventCategory** enum names,
+  case-insensitive: `Device`, `Client`, `Network`, `System`, `Admin`,
+  `Firewall`, `Vpn`, `Unknown`. Comma-separated. **`EVT_*` glob patterns
+  do not work**, despite what older documentation may suggest.
+- `watch` streams from WebSocket. It runs until Ctrl-C. Use `-o json` and
+  pipe into `jq -c` for line-delimited JSON for downstream processing.
+- `list --within HOURS` limits to the last N hours.
+
+## Stats `[L]`
 
 ```bash
-unifly acl create \
-  --rule-type ipv4|mac \
-  --action allow|block \
-  [additional flags per type]
+unifly stats site [--interval 5minute|hourly|daily|monthly] [--start ISO] [--end ISO]
+unifly stats device <mac> [--interval ...] [--attrs attr1,attr2]
+unifly stats client <mac> [--interval ...]
+unifly stats gateway [--interval ...]
+unifly stats dpi [--group-by by-app|by-cat] [--macs MAC1,MAC2]
 ```
 
-### `unifly acl update <id>`
+**Gotchas:**
 
-Update an ACL rule.
+- `--start`/`--end` are ISO 8601 timestamps (`2024-01-01T00:00:00Z`).
+- `--attrs` limits the metrics returned; smaller payloads, faster queries.
+- `stats dpi` requires `--group-by`. `by-app` buckets by application,
+  `by-cat` buckets by category.
+- Legacy API only; all commands fail without credentials.
+
+## DPI `[I for apps/categories, L for status/enable/disable]`
 
 ```bash
-unifly acl update "acl-uuid" [flags]
+unifly dpi apps
+unifly dpi categories
+unifly dpi status
+unifly dpi enable
+unifly dpi disable
 ```
 
-### `unifly acl delete <id>`
+**Gotchas:**
 
-Delete an ACL rule.
+- `apps` and `categories` are Integration API reference lookups.
+- `status`, `enable`, `disable` are Legacy API lifecycle controls for the
+  DPI subsystem itself. Use these to toggle DPI on/off without touching
+  the web UI.
 
-```bash
-unifly acl delete "acl-uuid"
-```
-
-### `unifly acl reorder`
-
-Get or set ACL rule evaluation order.
+## System `[L]`
 
 ```bash
-# Get current ordering
-unifly acl reorder --get
-
-# Set new ordering
-unifly acl reorder --set "id1,id2,id3"
-```
-
----
-
-## DNS
-
-### `unifly dns list`
-
-List local DNS policies/records.
-
-```bash
-unifly dns list [-o FORMAT]
-```
-
-### `unifly dns get <id>`
-
-Get DNS record details.
-
-```bash
-unifly dns get "dns-uuid" -o json
-```
-
-### `unifly dns create`
-
-Create a DNS record.
-
-```bash
-unifly dns create \
-  --record-type A|AAAA|CNAME|MX|TXT|SRV|Forward \
-  --domain "app.local" \
-  --value "10.0.1.50" \
-  [--ttl 3600] \
-  [--priority 10]
-```
-
-Supported record types:
-
-| Type    | Description    | Value Format                  |
-| ------- | -------------- | ----------------------------- |
-| A       | IPv4 address   | `10.0.1.50`                   |
-| AAAA    | IPv6 address   | `fd00::1`                     |
-| CNAME   | Canonical name | `other.local`                 |
-| MX      | Mail exchange  | `mail.example.com`            |
-| TXT     | Text record    | `"v=spf1 ..."`                |
-| SRV     | Service record | `target:port:weight:priority` |
-| Forward | DNS forwarding | `8.8.8.8`                     |
-
-### `unifly dns update <id>`
-
-Update a DNS record via JSON file.
-
-```bash
-unifly dns update "dns-uuid" -F dns-record.json
-```
-
-### `unifly dns delete <id>`
-
-Delete a DNS record.
-
-```bash
-unifly dns delete "dns-uuid"
-```
-
----
-
-## Traffic Lists
-
-### `unifly traffic-lists list`
-
-List traffic matching lists.
-
-```bash
-unifly traffic-lists list [-o FORMAT]
-```
-
-### `unifly traffic-lists create`
-
-Create a traffic matching list with port, IPv4, or IPv6 items.
-
-```bash
-unifly traffic-lists create \
-  --name "Blocked Ports" \
-  --list-type ports|ipv4|ipv6 \
-  --items "80,443,8080"
-```
-
-### `unifly traffic-lists update <id>`
-
-Update a traffic list.
-
-```bash
-unifly traffic-lists update "list-uuid" [--name "..."] [--items "..."]
-```
-
-### `unifly traffic-lists delete <id>`
-
-Delete a traffic list.
-
-```bash
-unifly traffic-lists delete "list-uuid"
-```
-
----
-
-## Hotspot (Vouchers)
-
-### `unifly hotspot list`
-
-List guest vouchers.
-
-```bash
-unifly hotspot list [-o FORMAT]
-```
-
-### `unifly hotspot get <id>`
-
-Get details for a specific voucher.
-
-```bash
-unifly hotspot get "voucher-uuid" -o json
-```
-
-### `unifly hotspot create`
-
-Generate guest vouchers.
-
-```bash
-unifly hotspot create \
-  --name "Conference" \
-  --count 10 \
-  --minutes 1440 \
-  [--guest-limit 1] \
-  [--data-limit-mb 500] \
-  [--tx-limit-kbps 5000] \
-  [--rx-limit-kbps 10000]
-```
-
-Flags:
-
-- `--name` — Voucher batch name (required)
-- `--count` — Number of vouchers to generate (default: 1)
-- `--minutes` — Duration in minutes (required, 1440 = 24 hours)
-- `--guest-limit` — Max concurrent guests per voucher
-- `--data-limit-mb` — Data cap in MB
-- `--tx-limit-kbps` — Upload bandwidth cap
-- `--rx-limit-kbps` — Download bandwidth cap
-
-### `unifly hotspot delete <id>`
-
-Delete a single voucher.
-
-```bash
-unifly hotspot delete "voucher-uuid"
-```
-
-### `unifly hotspot purge`
-
-Bulk delete vouchers matching a filter.
-
-```bash
-unifly hotspot purge --filter "status.eq('UNUSED')"
-```
-
----
-
-## VPN
-
-### `unifly vpn servers`
-
-List VPN server configurations.
-
-```bash
-unifly vpn servers [-o FORMAT]
-```
-
-### `unifly vpn tunnels`
-
-List site-to-site VPN tunnels.
-
-```bash
-unifly vpn tunnels [-o FORMAT]
-```
-
----
-
-## Sites
-
-### `unifly sites list`
-
-List sites on the controller.
-
-```bash
-unifly sites list [-o FORMAT]
-```
-
-### `unifly sites create`
-
-Create a new site (Legacy API).
-
-```bash
-unifly sites create --name "Branch Office"
-```
-
-### `unifly sites delete`
-
-Delete a site (Legacy API).
-
-```bash
-unifly sites delete --name "Branch Office"
-```
-
----
-
-## Events
-
-### `unifly events list`
-
-List recent events.
-
-```bash
-unifly events list [--within 24] [-o FORMAT]
-```
-
-- `--within` — Lookback period in hours (default: 24)
-
-### `unifly events watch`
-
-Stream real-time events via WebSocket.
-
-```bash
-unifly events watch [--types "EVT_SW_*"]
-```
-
-- `--types` — Filter by event type pattern (comma-separated glob matching)
-
----
-
-## Alarms
-
-### `unifly alarms list`
-
-List alarms.
-
-```bash
-unifly alarms list [--unarchived] [-o FORMAT]
-```
-
-- `--unarchived` — Show only active (unarchived) alarms
-
-### `unifly alarms archive <id>`
-
-Archive a single alarm.
-
-```bash
-unifly alarms archive "alarm-id"
-```
-
-### `unifly alarms archive-all`
-
-Archive all alarms.
-
-```bash
-unifly alarms archive-all
-```
-
----
-
-## Statistics
-
-### `unifly stats site`
-
-Site-level statistics.
-
-```bash
-unifly stats site \
-  [--interval 5m|hourly|daily|monthly] \
-  [--start "2024-01-01T00:00:00Z"] \
-  [--end "2024-01-31T23:59:59Z"] \
-  [--attrs "bytes,num_sta"] \
-  [-o FORMAT]
-```
-
-### `unifly stats device`
-
-Per-device statistics.
-
-```bash
-unifly stats device \
-  [--macs "aa:bb:cc:dd:ee:ff"] \
-  [--interval hourly] \
-  [--start "..."] [--end "..."] \
-  [-o FORMAT]
-```
-
-### `unifly stats client`
-
-Per-client statistics.
-
-```bash
-unifly stats client \
-  [--macs "aa:bb:cc:dd:ee:ff"] \
-  [--interval hourly] \
-  [-o FORMAT]
-```
-
-### `unifly stats gateway`
-
-Gateway statistics.
-
-```bash
-unifly stats gateway [--interval hourly] [-o FORMAT]
-```
-
-### `unifly stats dpi`
-
-Deep packet inspection traffic analysis.
-
-```bash
-unifly stats dpi \
-  [--group-by by-app|by-cat] \
-  [--macs "aa:bb:cc:dd:ee:ff"] \
-  [-o FORMAT]
-```
-
-Flags common to all stats commands:
-
-- `--interval` — Aggregation interval: `5m`, `hourly`, `daily`, `monthly`
-- `--start` — Start of time range (ISO 8601)
-- `--end` — End of time range (ISO 8601)
-- `--attrs` — Comma-separated attribute names to include
-- `--macs` — Filter by specific device/client MAC addresses
-
----
-
-## System
-
-### `unifly system info`
-
-Show application version information.
-
-```bash
-unifly system info [-o FORMAT]
-```
-
-### `unifly system health`
-
-Show site health summary.
-
-```bash
-unifly system health [-o FORMAT]
-```
-
-### `unifly system sysinfo`
-
-Show controller system information.
-
-```bash
-unifly system sysinfo [-o FORMAT]
-```
-
-### `unifly system backup create`
-
-Create a controller backup.
-
-```bash
+unifly system info
+unifly system health
+unifly system sysinfo
 unifly system backup create
-```
-
-### `unifly system backup list`
-
-List available backups.
-
-```bash
-unifly system backup list [-o FORMAT]
-```
-
-### `unifly system backup download <filename>`
-
-Download a backup file.
-
-```bash
-unifly system backup download "autobackup_2024-01-15.unf"
-```
-
-### `unifly system backup delete <filename>`
-
-Delete a backup.
-
-```bash
-unifly system backup delete "autobackup_2024-01-15.unf"
-```
-
-### `unifly system reboot`
-
-Reboot the controller (UDM only).
-
-```bash
+unifly system backup list
+unifly system backup download <filename> [--path DIR]
+unifly system backup delete <filename>
 unifly system reboot
-```
-
-### `unifly system poweroff`
-
-Power off the controller (UDM only).
-
-```bash
 unifly system poweroff
 ```
 
----
+**Gotchas:**
 
-## Admin
+- `backup download --path DIR` writes to a specific directory instead of
+  cwd.
+- `backup delete` is scoped to a specific backup file.
+- `reboot` and `poweroff` are destructive. Always summarize to the user
+  before running even with `--yes`.
 
-### `unifly admin list`
-
-List site administrators.
-
-```bash
-unifly admin list [-o FORMAT]
-```
-
-### `unifly admin invite`
-
-Invite a new administrator.
+## Admin `[L]`
 
 ```bash
-unifly admin invite \
-  --name "Jane Admin" \
-  --email "jane@example.com" \
-  --role admin|readonly|viewer
+unifly admin list
+unifly admin invite --email EMAIL --role ROLE
+unifly admin revoke <admin_id>
+unifly admin update <admin_id> [--role ROLE]
 ```
 
-### `unifly admin revoke`
+**Gotchas:**
 
-Remove administrator access.
+- `revoke` and `update` take a **positional `<admin_id>`**, not
+  `--email`. Pre-fetch the ID via `admin list -o json` before revoking.
+
+## Sites `[L]`
 
 ```bash
-unifly admin revoke --email "jane@example.com"
+unifly sites list
+unifly sites create --name NAME --description TEXT
+unifly sites delete <name>
 ```
 
-### `unifly admin update`
+Site `create --description` is **required**.
 
-Change an administrator's role.
+## Alarms `[L]`
 
 ```bash
-unifly admin update --email "jane@example.com" --role readonly
+unifly alarms list [--unarchived]
+unifly alarms archive <id>
+unifly alarms archive-all
 ```
 
----
-
-## DPI
-
-### `unifly dpi apps`
-
-List DPI applications.
+## API (raw passthrough) `[any mode]`
 
 ```bash
-unifly dpi apps [-o FORMAT]
+unifly api <path> [-m get|post] [-d '<json-body>']
 ```
 
-### `unifly dpi categories`
+**Gotchas:**
 
-List DPI categories.
+- Routes through the Legacy client, so CSRF tokens and session caching
+  are handled automatically.
+- Paths are relative to the controller base URL. Examples:
+  - Legacy v1: `api/s/default/stat/device`
+  - Legacy v2: `v2/api/site/default/traffic-flow-latest-statistics`
+  - Integration v1: `integration/v1/sites/default/clients`
+  - Commands: `cmd/stamgr`, `cmd/devmgr`
+- `-d '<json>'` is the POST body. Pair with `-m post`.
+- Essential when unifly does not wrap a specific endpoint yet.
+
+## Topology, TUI, Completions, Config, Countries
+
+- `unifly topology` — Pretty-print the gateway > switch > AP > client tree
+  (Hybrid recommended for complete uplink data).
+- `unifly tui [--theme NAME] [--log-file PATH]` — Launches the Ratatui
+  dashboard. `UNIFLY_THEME` env var also sets the theme.
+- `unifly completions bash|zsh|fish|powershell|elvish` — Emit completion
+  script to stdout.
+- `unifly config init | show | set | profiles | use | set-password` —
+  Profile management. `set-password` stores in OS keyring.
+- `unifly countries` — List country codes for WiFi regulatory settings.
+
+## Cross-Cutting Patterns
+
+### `--from-file` / `-F` (universal create/update)
+
+Accepted by: `networks`, `wifi`, `firewall policies`, `firewall zones`,
+`nat policies`, `acl`, `dns`, `traffic-lists`, `hotspot`. The flag
+mutually excludes inline flags on the same field. Prefer `--from-file`
+for anything beyond a handful of flags.
 
 ```bash
-unifly dpi categories [-o FORMAT]
+unifly networks create -F network.json
+unifly firewall policies create -F policy.json
 ```
 
----
+See `examples/` for payload templates.
 
-## RADIUS
+### Integration Filter DSL
 
-### `unifly radius profiles`
+`--filter` on list commands and `hotspot purge --filter` accepts a small
+expression language:
 
-List RADIUS profiles.
+```
+field.eq('value')
+field.neq('value')
+field.contains('substring')
+field.startswith('prefix')
+field.endswith('suffix')
+field.gt(123), field.lt(123), field.gte, field.lte
+field.in(['a', 'b', 'c'])
+```
+
+Combine with `&&` and `||`:
 
 ```bash
-unifly radius profiles [-o FORMAT]
+unifly devices list --filter "state.eq('ONLINE') && model.startswith('U6')"
 ```
 
----
+Only Integration API commands respect `--filter`. Legacy commands filter
+client-side via `jq` after fetching.
 
-## WANs
+### Default List Limit Is 25
 
-### `unifly wans list`
+All `list` commands default to `--limit 25` and print a truncation hint
+when results hit the ceiling. For enumeration use `--all` (auto-paginate)
+or `--limit 200` (or higher) explicitly. **Agents running enumeration
+queries should always pass one of these flags to avoid silent truncation.**
 
-List WAN interfaces.
+### Output Modes for Pipelines
 
-```bash
-unifly wans list [-o FORMAT]
-```
+- `-o json` — Structured output, the default for agent use
+- `-o json-compact` — Single-line JSON per record, great for line-oriented
+  processing
+- `-o plain` — Emits IDs one per line; ideal for `xargs`:
+  ```bash
+  unifly clients list -o plain | xargs -n1 unifly clients block
+  ```
+- `-o table` — Human display only, not for parsing
 
----
+### Dry-Run-Like Patterns
 
-## Topology
+unifly does not have an explicit `--dry-run` flag. The idiomatic patterns
+are:
 
-### `unifly topology`
-
-Display a network topology tree showing the device hierarchy and connected
-clients. The tree starts at the gateway and branches through switches and
-access points, with clients grouped under their uplink device.
-
-Aliases: `topo`
-
-```bash
-unifly topology
-```
-
-Output includes:
-- Gateway at root with model and IP
-- Infrastructure devices (switches, APs) grouped by type
-- Clients listed under their uplink device
-- VLAN/network labels per client
-- Signal strength for wireless clients
-- Color-coded by device type and connection state
-
-No subcommands or flags beyond the standard global flags.
-
----
-
-## TUI
-
-### `unifly tui`
-
-Launch the real-time terminal dashboard.
-
-```bash
-unifly tui
-unifly tui -p office
-```
-
-The same global flags apply, including `--insecure`, `--timeout`, `--output`,
-and `--profile`.
-
----
-
-## Countries
-
-### `unifly countries`
-
-List available country/region codes. Useful when configuring WiFi radio
-settings that require a regulatory country code.
-
-```bash
-unifly countries
-unifly countries -o json
-```
-
-Output: two-column table of Code and Name.
-
----
-
-## Config
-
-### `unifly config init`
-
-Interactive setup wizard for first-time configuration.
-
-```bash
-unifly config init
-```
-
-### `unifly config show`
-
-Display the resolved configuration.
-
-```bash
-unifly config show
-```
-
-### `unifly config set <key> <value>`
-
-Set a configuration value on the active profile. You can also target a named
-profile explicitly with `profiles.<name>.<key>`.
-
-```bash
-unifly -p home config set controller "https://192.168.1.1"
-unifly -p home config set auth_mode "hybrid"
-unifly -p home config set api_key "your-api-key"
-unifly config set profiles.home.controller "https://192.168.1.1"
-```
-
-Valid keys: `controller`, `site`, `auth_mode`, `api_key`, `api_key_env`,
-`username`, `insecure`, `timeout`, `ca_cert`.
-
-### `unifly config profiles`
-
-List configured profiles.
-
-```bash
-unifly config profiles
-```
-
-### `unifly config use <name>`
-
-Set the default profile.
-
-```bash
-unifly config use home
-```
-
-### `unifly config set-password <profile>`
-
-Store a password in the OS keyring.
-
-```bash
-unifly config set-password --profile home
-```
-
----
-
-## Completions
-
-Generate shell completions.
-
-```bash
-unifly completions bash > ~/.bash_completion.d/unifly
-unifly completions zsh > ~/.zfunc/_unifly
-unifly completions fish > ~/.config/fish/completions/unifly.fish
-```
-
-Supported shells: `bash`, `zsh`, `fish`, `powershell`, `elvish`.
+1. **Read before write.** `get` the entity, show it to the user, then
+   `update`.
+2. **Use `reorder --get`** for firewall/ACL ordering changes before
+   `reorder --set`.
+3. **Use `networks refs <id>`** before deleting a network to see what
+   depends on it.
+4. **Hand off to the TUI** for visual verification on the `Firewall`,
+   `Networks`, or `Devices` screens.
