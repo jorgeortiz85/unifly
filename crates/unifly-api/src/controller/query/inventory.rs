@@ -8,8 +8,7 @@ impl Controller {
         &self,
         id: &EntityId,
     ) -> Result<WifiBroadcast, CoreError> {
-        let (client, site_id) =
-            integration_site_context(self, "get_wifi_broadcast_detail").await?;
+        let (client, site_id) = integration_site_context(self, "get_wifi_broadcast_detail").await?;
         let uuid = require_uuid(id)?;
         let detail = client.get_wifi_broadcast(&site_id, &uuid).await?;
         Ok(WifiBroadcast::from(detail))

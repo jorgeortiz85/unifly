@@ -70,12 +70,9 @@ fn nat_detail(policy: &Arc<NatPolicy>) -> String {
             policy
                 .interface_id
                 .as_ref()
-                .map_or("-".into(), |id| id.to_string())
+                .map_or("-".into(), ToString::to_string)
         ),
-        format!(
-            "Protocol:    {}",
-            policy.protocol.as_deref().unwrap_or("-")
-        ),
+        format!("Protocol:    {}", policy.protocol.as_deref().unwrap_or("-")),
     ];
 
     if policy.src_address.is_some() || policy.src_port.is_some() {
@@ -120,7 +117,9 @@ pub async fn handle(
     let painter = output::Painter::new(global);
 
     match args.command {
-        NatCommand::Policies(args) => handle_policies(controller, args.command, global, &painter).await,
+        NatCommand::Policies(args) => {
+            handle_policies(controller, args.command, global, &painter).await
+        }
     }
 }
 
@@ -151,10 +150,9 @@ async fn handle_policies(
             let found = snapshot.iter().find(|p| p.id.to_string() == id);
             match found {
                 Some(policy) => {
-                    let out =
-                        output::render_single(&global.output, policy, nat_detail, |p| {
-                            p.id.to_string()
-                        });
+                    let out = output::render_single(&global.output, policy, nat_detail, |p| {
+                        p.id.to_string()
+                    });
                     output::print_output(&out, global.quiet);
                 }
                 None => {

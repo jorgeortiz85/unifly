@@ -157,15 +157,12 @@ pub(super) async fn route(
                     extra.remove("ipv6Configuration");
                 }
             }
-            if let Some(ref dhcp_update) = update.dhcp {
-                if let Some(ref servers) = dhcp_update.dns_servers {
-                    if let Some(ipv4_cfg) = extra.get_mut("ipv4Configuration") {
-                        if let Some(dhcp_cfg) = ipv4_cfg.get_mut("dhcpConfiguration") {
-                            dhcp_cfg["dnsServerIpAddressesOverride"] =
-                                serde_json::json!(servers);
-                        }
-                    }
-                }
+            if let Some(ref dhcp_update) = update.dhcp
+                && let Some(ref servers) = dhcp_update.dns_servers
+                && let Some(ipv4_cfg) = extra.get_mut("ipv4Configuration")
+                && let Some(dhcp_cfg) = ipv4_cfg.get_mut("dhcpConfiguration")
+            {
+                dhcp_cfg["dnsServerIpAddressesOverride"] = serde_json::json!(servers);
             }
             let body = crate::integration_types::NetworkCreateUpdate {
                 name: update.name.unwrap_or(existing.name),

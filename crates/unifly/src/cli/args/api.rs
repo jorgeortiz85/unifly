@@ -1,4 +1,10 @@
-use clap::Args;
+use clap::{Args, ValueEnum};
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum ApiMethod {
+    Get,
+    Post,
+}
 
 #[derive(Debug, Args)]
 pub struct ApiArgs {
@@ -10,8 +16,8 @@ pub struct ApiArgs {
     pub path: String,
 
     /// HTTP method (GET or POST)
-    #[arg(long, short, default_value = "GET")]
-    pub method: String,
+    #[arg(long, short, value_enum, default_value_t = ApiMethod::Get)]
+    pub method: ApiMethod,
 
     /// JSON request body (for POST/PUT)
     #[arg(long, short)]

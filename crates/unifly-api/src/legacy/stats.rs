@@ -162,9 +162,7 @@ impl LegacyClient {
         }
 
         // Try v2 flow statistics endpoint first (Network Application 9+).
-        let v2_url = self.site_url_v2(
-            "traffic-flow-latest-statistics?period=DAY&top=30",
-        );
+        let v2_url = self.site_url_v2("traffic-flow-latest-statistics?period=DAY&top=30");
         debug!("fetching v2 traffic flow statistics");
         match self.get_raw(v2_url).await {
             Ok(v2_data) => {

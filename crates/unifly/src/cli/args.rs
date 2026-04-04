@@ -5,14 +5,14 @@
 
 use clap::{Parser, Subcommand};
 
-#[path = "args/api.rs"]
-mod api;
 #[path = "args/acl.rs"]
 mod acl;
 #[path = "args/admin.rs"]
 mod admin;
 #[path = "args/alarms.rs"]
 mod alarms;
+#[path = "args/api.rs"]
+mod api;
 #[path = "args/clients.rs"]
 mod clients;
 #[path = "args/common.rs"]
@@ -52,10 +52,10 @@ mod wans;
 #[path = "args/wifi.rs"]
 mod wifi;
 
-pub use api::*;
 pub use acl::*;
 pub use admin::*;
 pub use alarms::*;
+pub use api::*;
 pub use clients::*;
 pub use common::*;
 pub use config::*;

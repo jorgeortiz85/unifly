@@ -183,11 +183,9 @@ pub(super) async fn route(ctx: &CommandContext, cmd: Command) -> Result<CommandR
         }
         Command::RemoveClientFixedIp { mac, network_id } => {
             let legacy = require_legacy(legacy)?;
+            let network_id = network_id.as_ref().map(ToString::to_string);
             legacy
-                .remove_client_fixed_ip(
-                    mac.as_str(),
-                    network_id.as_ref().map(|id| id.to_string()).as_deref(),
-                )
+                .remove_client_fixed_ip(mac.as_str(), network_id.as_deref())
                 .await?;
             Ok(CommandResult::Ok)
         }

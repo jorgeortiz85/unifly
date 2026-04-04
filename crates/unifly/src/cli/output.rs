@@ -272,9 +272,8 @@ fn quote_yaml_colons(yaml: &str) -> String {
         // (unquoted) string containing at least one colon.
         if let Some(colon_pos) = line.find(": ") {
             let value = &line[colon_pos + 2..];
-            let needs_quoting = value.contains(':')
-                && !value.starts_with('\'')
-                && !value.starts_with('"');
+            let needs_quoting =
+                value.contains(':') && !value.starts_with('\'') && !value.starts_with('"');
             if needs_quoting {
                 out.push_str(&line[..colon_pos + 2]);
                 out.push('\'');

@@ -64,10 +64,12 @@ impl Controller {
                 // gives us access to /rest/user (DHCP reservations),
                 // /stat/sta (client stats), events, and health data.
                 let mut headers = HeaderMap::new();
-                let mut key_value = HeaderValue::from_str(api_key.expose_secret())
-                    .map_err(|e| CoreError::from(crate::error::Error::Authentication {
-                        message: format!("invalid API key header value: {e}"),
-                    }))?;
+                let mut key_value =
+                    HeaderValue::from_str(api_key.expose_secret()).map_err(|e| {
+                        CoreError::from(crate::error::Error::Authentication {
+                            message: format!("invalid API key header value: {e}"),
+                        })
+                    })?;
                 key_value.set_sensitive(true);
                 headers.insert("X-API-KEY", key_value);
                 let legacy_http = transport.build_client_with_headers(headers)?;

@@ -107,11 +107,7 @@ impl LegacyClient {
     /// Update a site setting.
     ///
     /// `PUT /api/s/{site}/set/setting/{key}` with an arbitrary JSON body.
-    pub async fn set_site_setting(
-        &self,
-        key: &str,
-        body: &serde_json::Value,
-    ) -> Result<(), Error> {
+    pub async fn set_site_setting(&self, key: &str, body: &serde_json::Value) -> Result<(), Error> {
         let url = self.site_url(&format!("set/setting/{key}"));
         debug!(key, "updating site setting");
         let _: Vec<serde_json::Value> = self.put(url, body).await?;

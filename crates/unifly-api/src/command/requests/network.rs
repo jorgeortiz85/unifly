@@ -85,7 +85,11 @@ pub struct CreateWifiBroadcastRequest {
     #[serde(default)]
     #[serde(alias = "bandSteeringEnabled")]
     pub band_steering: bool,
-    #[serde(default, alias = "bssTransitionEnabled", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        alias = "bssTransitionEnabled",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub fast_roaming: Option<bool>,
 }
 

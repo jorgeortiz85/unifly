@@ -23,12 +23,11 @@ pub use policy::{
     AclRuleCreateUpdate, AclRuleOrdering, AclRuleResponse, ApplicationCategoryFilter,
     ApplicationFilter, DestTrafficFilter, DnsPolicyCreateUpdate, DnsPolicyResponse, DomainFilter,
     FirewallPolicyCreateUpdate, FirewallPolicyDestination, FirewallPolicyOrdering,
-    FirewallPolicyOrderingEnvelope,
-    FirewallPolicyPatch, FirewallPolicyResponse, FirewallPolicySource, FirewallZoneCreateUpdate,
-    FirewallZoneResponse, IpAddressFilter, IpAddressItem, MacAddressFilter, NatPolicyCreateUpdate,
-    NatPolicyResponse, NetworkFilter, PortFilter, PortItem, RegionFilter, SourceTrafficFilter,
-    TrafficMatchingListCreateUpdate, TrafficMatchingListResponse, VoucherCreateRequest,
-    VoucherDeletionResults, VoucherResponse,
+    FirewallPolicyOrderingEnvelope, FirewallPolicyPatch, FirewallPolicyResponse,
+    FirewallPolicySource, FirewallZoneCreateUpdate, FirewallZoneResponse, IpAddressFilter,
+    IpAddressItem, MacAddressFilter, NatPolicyCreateUpdate, NatPolicyResponse, NetworkFilter,
+    PortFilter, PortItem, RegionFilter, SourceTrafficFilter, TrafficMatchingListCreateUpdate,
+    TrafficMatchingListResponse, VoucherCreateRequest, VoucherDeletionResults, VoucherResponse,
 };
 pub use reference::{
     CountryResponse, DpiApplicationResponse, DpiCategoryResponse, RadiusProfileResponse,

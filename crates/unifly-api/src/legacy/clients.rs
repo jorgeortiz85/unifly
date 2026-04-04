@@ -230,9 +230,7 @@ impl LegacyClient {
             .iter()
             .filter(|u| {
                 u.mac.to_lowercase() == normalized_mac
-                    && network_id.map_or(true, |nid| {
-                        u.network_id.as_deref() == Some(nid)
-                    })
+                    && network_id.is_none_or(|nid| u.network_id.as_deref() == Some(nid))
             })
             .collect();
 

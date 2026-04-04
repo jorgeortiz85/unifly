@@ -333,6 +333,37 @@ fn test_network_refs_command_parses() {
 }
 
 #[test]
+fn test_api_command_parses_with_valid_method() {
+    unifly_cmd()
+        .args(["api", "api/s/default/stat/health", "--method", "post"])
+        .assert()
+        .failure()
+        .stderr(
+            predicate::str::contains("config")
+                .or(predicate::str::contains("Configuration"))
+                .or(predicate::str::contains("controller"))
+                .or(predicate::str::contains("profile")),
+        );
+}
+
+#[test]
+fn test_api_command_rejects_invalid_method() {
+    let output = unifly_cmd()
+        .args(["api", "api/s/default/stat/health", "--method", "patch"])
+        .output()
+        .unwrap();
+    assert!(
+        !output.status.success(),
+        "Expected invalid API method to fail parsing"
+    );
+    let text = combined_output(&output);
+    assert!(
+        text.contains("invalid value") || text.contains("possible values"),
+        "Expected invalid method parse error:\n{text}"
+    );
+}
+
+#[test]
 fn test_devices_pending_list_flags_parse() {
     unifly_cmd()
         .args([

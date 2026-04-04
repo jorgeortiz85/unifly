@@ -288,8 +288,7 @@ impl Controller {
                 }
                 debug!(
                     users_available = users_by_mac.len(),
-                    merged_users,
-                    "user DHCP reservation merge"
+                    merged_users, "user DHCP reservation merge"
                 );
             }
 

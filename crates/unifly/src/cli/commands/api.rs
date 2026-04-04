@@ -2,7 +2,7 @@
 
 use unifly_api::Controller;
 
-use crate::cli::args::{ApiArgs, GlobalOpts, OutputFormat};
+use crate::cli::args::{ApiArgs, ApiMethod, GlobalOpts, OutputFormat};
 use crate::cli::error::CliError;
 use crate::cli::output;
 
@@ -21,12 +21,12 @@ pub async fn handle(
             reason: format!("invalid JSON: {e}"),
         })?;
 
-    let result = match args.method.to_uppercase().as_str() {
-        "POST" => {
+    let result = match args.method {
+        ApiMethod::Post => {
             let payload = body.unwrap_or(serde_json::json!({}));
             controller.raw_post(&args.path, &payload).await?
         }
-        _ => controller.raw_get(&args.path).await?,
+        ApiMethod::Get => controller.raw_get(&args.path).await?,
     };
 
     let out = match &global.output {

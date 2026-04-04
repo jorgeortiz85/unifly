@@ -18,12 +18,15 @@ pub(super) async fn route(ctx: &CommandContext, cmd: Command) -> Result<CommandR
                 _ => "DNAT",
             };
 
-            let protocol = req.protocol.as_deref().map(|p| match p.to_lowercase().as_str() {
-                "tcp" => "tcp",
-                "udp" => "udp",
-                "tcp_udp" | "tcp_and_udp" => "tcp_udp",
-                _ => "all",
-            });
+            let protocol = req
+                .protocol
+                .as_deref()
+                .map(|p| match p.to_lowercase().as_str() {
+                    "tcp" => "tcp",
+                    "udp" => "udp",
+                    "tcp_udp" | "tcp_and_udp" => "tcp_udp",
+                    _ => "all",
+                });
 
             // Build v2 API body matching the controller's expected format
             let mut body = json!({
@@ -66,10 +69,12 @@ pub(super) async fn route(ctx: &CommandContext, cmd: Command) -> Result<CommandR
             }
 
             // Source filter
-            body["source_filter"] = build_filter(&req.src_address, &req.src_port);
+            body["source_filter"] =
+                build_filter(req.src_address.as_deref(), req.src_port.as_deref());
 
             // Destination filter
-            body["destination_filter"] = build_filter(&req.dst_address, &req.dst_port);
+            body["destination_filter"] =
+                build_filter(req.dst_address.as_deref(), req.dst_port.as_deref());
 
             legacy.create_nat_rule(&body).await?;
             Ok(CommandResult::Ok)
@@ -84,7 +89,7 @@ pub(super) async fn route(ctx: &CommandContext, cmd: Command) -> Result<CommandR
 }
 
 /// Build a v2 NAT filter object (source_filter or destination_filter).
-fn build_filter(address: &Option<String>, port: &Option<String>) -> serde_json::Value {
+fn build_filter(address: Option<&str>, port: Option<&str>) -> serde_json::Value {
     match (address, port) {
         (Some(addr), Some(p)) => json!({
             "filter_type": "ADDRESS_AND_PORT",

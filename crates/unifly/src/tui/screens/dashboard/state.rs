@@ -245,8 +245,12 @@ mod tests {
     fn bandwidth_scaling_uses_recent_visible_samples() {
         let mut screen = DashboardScreen::new();
         for idx in 1..=4 {
-            screen.bandwidth_tx.push((idx as f64, (idx * 1000) as f64));
-            screen.bandwidth_rx.push((idx as f64, (idx * 500) as f64));
+            screen
+                .bandwidth_tx
+                .push((f64::from(idx), f64::from(idx * 1000)));
+            screen
+                .bandwidth_rx
+                .push((f64::from(idx), f64::from(idx * 500)));
         }
 
         let reference = screen.bandwidth_scale_reference();

@@ -100,10 +100,7 @@ pub(in super::super) fn build_create_wifi_broadcast_payload(
     let mut body = serde_json::Map::new();
     let mode_name = wifi_security_mode_name(req.security_mode);
     let mut security_configuration = serde_json::Map::new();
-    security_configuration.insert(
-        "type".into(),
-        serde_json::Value::String(mode_name.into()),
-    );
+    security_configuration.insert("type".into(), serde_json::Value::String(mode_name.into()));
     if let Some(passphrase) = req.passphrase.clone() {
         security_configuration.insert("passphrase".into(), serde_json::Value::String(passphrase));
     }
@@ -123,12 +120,12 @@ pub(in super::super) fn build_create_wifi_broadcast_payload(
     }
     // WPA modes accept fastRoamingEnabled inside securityConfiguration,
     // but IoT_OPTIMIZED forbids it — only include when explicitly set.
-    if let Some(fast_roaming) = req.fast_roaming {
-        if !matches!(req.security_mode, WifiSecurityMode::Open) {
-            security_configuration
-                .entry("fastRoamingEnabled")
-                .or_insert(serde_json::Value::Bool(fast_roaming));
-        }
+    if let Some(fast_roaming) = req.fast_roaming
+        && !matches!(req.security_mode, WifiSecurityMode::Open)
+    {
+        security_configuration
+            .entry("fastRoamingEnabled")
+            .or_insert(serde_json::Value::Bool(fast_roaming));
     }
     body.insert(
         "securityConfiguration".into(),
@@ -145,13 +142,13 @@ pub(in super::super) fn build_create_wifi_broadcast_payload(
     if req.band_steering {
         body.insert("bandSteeringEnabled".into(), serde_json::Value::Bool(true));
     }
-    if let Some(fast_roaming) = req.fast_roaming {
-        if broadcast_type == "STANDARD" {
-            body.insert(
-                "bssTransitionEnabled".into(),
-                serde_json::Value::Bool(fast_roaming),
-            );
-        }
+    if let Some(fast_roaming) = req.fast_roaming
+        && broadcast_type == "STANDARD"
+    {
+        body.insert(
+            "bssTransitionEnabled".into(),
+            serde_json::Value::Bool(fast_roaming),
+        );
     }
     if let Some(frequencies) = req.frequencies_ghz.as_ref() {
         body.insert(
@@ -294,7 +291,7 @@ mod tests {
             fast_roaming: None,
         });
 
-        let json = serde_json::to_string(&payload).unwrap();
+        let json = serde_json::to_string(&payload).expect("wifi payload should serialize");
         assert!(json.contains("2.4"), "expected 2.4 not f64 artifact");
         assert!(!json.contains("2.400000"), "f32→f64 precision artifact");
     }

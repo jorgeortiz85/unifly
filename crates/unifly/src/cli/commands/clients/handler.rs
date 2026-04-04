@@ -188,10 +188,9 @@ pub(super) async fn handle(
                 .filter(|u| u.use_fixedip.unwrap_or(false))
                 .map(Reservation::from)
                 .collect();
-            let snapshot =
-                util::apply_list_args(reservations.into_iter(), &list, |res, filter| {
-                    util::matches_json_filter(res, filter)
-                });
+            let snapshot = util::apply_list_args(reservations.into_iter(), &list, |res, filter| {
+                util::matches_json_filter(res, filter)
+            });
             let out = output::render_list(
                 &global.output,
                 &snapshot,
@@ -225,7 +224,10 @@ pub(super) async fn handle(
         }
 
         ClientsCommand::RemoveIp { mac, network } => {
-            let network_id = network.as_deref().map(|n| resolve_network_by_name(controller, n)).transpose()?;
+            let network_id = network
+                .as_deref()
+                .map(|n| resolve_network_by_name(controller, n))
+                .transpose()?;
             let mac_addr = MacAddress::new(&mac);
             controller
                 .execute(CoreCommand::RemoveClientFixedIp {

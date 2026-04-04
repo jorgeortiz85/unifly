@@ -45,6 +45,7 @@ fn zone_detail(zone: &Arc<FirewallZone>) -> String {
     )
 }
 
+#[allow(clippy::too_many_lines)]
 pub(super) async fn handle(
     controller: &Controller,
     cmd: FirewallZonesCommand,

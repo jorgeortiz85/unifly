@@ -92,7 +92,7 @@ pub(super) async fn route(ctx: &CommandContext, cmd: Command) -> Result<CommandR
                     existing
                         .action
                         .get("allowReturnTraffic")
-                        .and_then(|v| v.as_bool())
+                        .and_then(serde_json::Value::as_bool)
                         .unwrap_or(true)
                 });
                 serde_json::json!({ "type": action_type, "allowReturnTraffic": allow_return })

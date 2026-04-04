@@ -169,11 +169,7 @@ impl IntegrationClient {
         .await
     }
 
-    pub async fn delete_nat_policy(
-        &self,
-        site_id: &Uuid,
-        policy_id: &Uuid,
-    ) -> Result<(), Error> {
+    pub async fn delete_nat_policy(&self, site_id: &Uuid, policy_id: &Uuid) -> Result<(), Error> {
         self.delete(&format!("v1/sites/{site_id}/firewall/nat/{policy_id}"))
             .await
     }

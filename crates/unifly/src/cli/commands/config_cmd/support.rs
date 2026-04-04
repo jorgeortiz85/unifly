@@ -138,19 +138,22 @@ mod tests {
 
     #[test]
     fn resolve_set_target_supports_profile_dot_path() {
-        let target = resolve_set_target("profiles.home.controller", "default").unwrap();
+        let target = resolve_set_target("profiles.home.controller", "default")
+            .expect("profile dot path should resolve");
         assert_eq!(target, ("home".into(), "controller".into()));
     }
 
     #[test]
     fn resolve_set_target_uses_active_profile_for_bare_key() {
-        let target = resolve_set_target("controller", "home").unwrap();
+        let target =
+            resolve_set_target("controller", "home").expect("bare key should use active profile");
         assert_eq!(target, ("home".into(), "controller".into()));
     }
 
     #[test]
     fn resolve_set_target_rejects_incomplete_profile_path() {
-        let error = resolve_set_target("profiles.home", "default").unwrap_err();
+        let error = resolve_set_target("profiles.home", "default")
+            .expect_err("incomplete profile path should fail");
         let message = error.to_string();
         assert!(message.contains("profiles.<name>.<key>"));
         assert!(message.contains("profiles.home"));

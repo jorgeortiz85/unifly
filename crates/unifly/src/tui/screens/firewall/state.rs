@@ -144,7 +144,7 @@ mod tests {
                 "logging_enabled": false,
                 "origin": null
             }))
-            .unwrap(),
+            .expect("policy fixture should deserialize"),
         )
     }
 
@@ -156,7 +156,7 @@ mod tests {
                 "network_ids": [],
                 "origin": null
             }))
-            .unwrap(),
+            .expect("zone fixture should deserialize"),
         )
     }
 
@@ -172,7 +172,7 @@ mod tests {
                 "destination_summary": "dst",
                 "origin": null
             }))
-            .unwrap(),
+            .expect("acl fixture should deserialize"),
         )
     }
 

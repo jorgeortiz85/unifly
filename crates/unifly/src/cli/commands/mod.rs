@@ -1,9 +1,9 @@
 //! Command dispatch: bridges CLI args -> core Commands -> output formatting.
 
-pub mod api;
 pub mod acl;
 pub mod admin;
 pub mod alarms;
+pub mod api;
 pub mod clients;
 pub mod config_cmd;
 pub mod countries;

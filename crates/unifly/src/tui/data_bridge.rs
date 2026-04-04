@@ -65,9 +65,7 @@ pub async fn spawn_data_bridge(
     ));
     let _ = action_tx.send(Action::FirewallZonesUpdated(fw_zones.current().clone()));
     let _ = action_tx.send(Action::AclRulesUpdated(acl_rules.current().clone()));
-    let _ = action_tx.send(Action::NatPoliciesUpdated(
-        nat_policies.current().clone(),
-    ));
+    let _ = action_tx.send(Action::NatPoliciesUpdated(nat_policies.current().clone()));
     let _ = action_tx.send(Action::WifiBroadcastsUpdated(wifi.current().clone()));
 
     // Push initial events from the DataStore snapshot (the broadcast channel

@@ -1595,10 +1595,7 @@ impl From<integration_types::NatPolicyResponse> for NatPolicy {
             dst_port,
             translated_address: r.translated_address,
             translated_port: r.translated_port,
-            origin: r
-                .metadata
-                .as_ref()
-                .and_then(origin_from_metadata),
+            origin: r.metadata.as_ref().and_then(origin_from_metadata),
             data_source: DataSource::IntegrationApi,
         }
     }
@@ -1614,20 +1611,18 @@ pub fn nat_policy_from_v2(v: &serde_json::Value) -> Option<NatPolicy> {
         _ => NatType::Destination,
     };
 
-    let filter_addr =
-        |filter: Option<&serde_json::Value>| -> Option<String> {
-            filter
-                .and_then(|f| f.get("address"))
-                .and_then(|v| v.as_str())
-                .map(ToOwned::to_owned)
-        };
-    let filter_port =
-        |filter: Option<&serde_json::Value>| -> Option<String> {
-            filter
-                .and_then(|f| f.get("port"))
-                .and_then(|v| v.as_str())
-                .map(ToOwned::to_owned)
-        };
+    let filter_addr = |filter: Option<&serde_json::Value>| -> Option<String> {
+        filter
+            .and_then(|f| f.get("address"))
+            .and_then(|v| v.as_str())
+            .map(ToOwned::to_owned)
+    };
+    let filter_port = |filter: Option<&serde_json::Value>| -> Option<String> {
+        filter
+            .and_then(|f| f.get("port"))
+            .and_then(|v| v.as_str())
+            .map(ToOwned::to_owned)
+    };
 
     let src_filter = v.get("source_filter");
     let dst_filter = v.get("destination_filter");
@@ -1640,7 +1635,10 @@ pub fn nat_policy_from_v2(v: &serde_json::Value) -> Option<NatPolicy> {
             .unwrap_or("")
             .to_owned(),
         description: None,
-        enabled: v.get("enabled").and_then(|v| v.as_bool()).unwrap_or(false),
+        enabled: v
+            .get("enabled")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false),
         nat_type,
         interface_id: v
             .get("in_interface")
