@@ -18,24 +18,24 @@ impl Controller {
             .await?;
         Ok(raw
             .into_iter()
-            .map(|server| VpnServer {
-                id: parse_integration_entity_id(&server.fields),
-                name: server
-                    .fields
-                    .get("name")
-                    .and_then(|value| value.as_str())
-                    .map(String::from),
-                server_type: server
-                    .fields
-                    .get("type")
-                    .or_else(|| server.fields.get("serverType"))
-                    .and_then(|value| value.as_str())
-                    .unwrap_or("UNKNOWN")
-                    .to_owned(),
-                enabled: server
-                    .fields
-                    .get("enabled")
-                    .and_then(serde_json::Value::as_bool),
+            .map(|server| {
+                let fields = &server.fields;
+                VpnServer {
+                    id: parse_integration_entity_id(fields),
+                    name: field_string(fields, &["name"]),
+                    server_type: field_string(fields, &["type", "serverType"])
+                        .unwrap_or_else(|| "UNKNOWN".into()),
+                    enabled: field_bool(fields, &["enabled"]),
+                    subnet: field_string(fields, &["subnet", "addressRange"]),
+                    port: field_u16(fields, &["port"]),
+                    wan_ip: field_string(fields, &["wanIp", "wanIP", "wanAddress"]),
+                    connected_clients: field_u32(
+                        fields,
+                        &["connectedClients", "connectedClientCount", "numClients"],
+                    ),
+                    protocol: field_string(fields, &["protocol", "transportProtocol"]),
+                    extra: collect_extra(fields),
+                }
             })
             .collect())
     }
@@ -49,24 +49,30 @@ impl Controller {
             .await?;
         Ok(raw
             .into_iter()
-            .map(|tunnel| VpnTunnel {
-                id: parse_integration_entity_id(&tunnel.fields),
-                name: tunnel
-                    .fields
-                    .get("name")
-                    .and_then(|value| value.as_str())
-                    .map(String::from),
-                tunnel_type: tunnel
-                    .fields
-                    .get("type")
-                    .or_else(|| tunnel.fields.get("tunnelType"))
-                    .and_then(|value| value.as_str())
-                    .unwrap_or("UNKNOWN")
-                    .to_owned(),
-                enabled: tunnel
-                    .fields
-                    .get("enabled")
-                    .and_then(serde_json::Value::as_bool),
+            .map(|tunnel| {
+                let fields = &tunnel.fields;
+                let local_subnets = field_string_list(fields, &["localNetworks", "localSubnets"]);
+                let remote_subnets =
+                    field_string_list(fields, &["remoteNetworks", "remoteSubnets"]);
+                VpnTunnel {
+                    id: parse_integration_entity_id(fields),
+                    name: field_string(fields, &["name"]),
+                    tunnel_type: field_string(fields, &["type", "tunnelType"])
+                        .unwrap_or_else(|| "UNKNOWN".into()),
+                    enabled: field_bool(fields, &["enabled"]),
+                    peer_address: field_string(
+                        fields,
+                        &["peerIp", "peerAddress", "remoteAddress", "remoteHost"],
+                    ),
+                    local_subnets,
+                    remote_subnets,
+                    has_psk: fields
+                        .get("psk")
+                        .or_else(|| fields.get("preSharedKey"))
+                        .is_some_and(|value| !value.is_null()),
+                    ike_version: field_string(fields, &["ikeVersion", "ike"]),
+                    extra: collect_extra(fields),
+                }
             })
             .collect())
     }
@@ -262,6 +268,81 @@ fn parse_integration_entity_id(
         .and_then(|value| value.as_str())
         .and_then(|value| uuid::Uuid::parse_str(value).ok())
         .map_or_else(|| EntityId::Legacy("unknown".into()), EntityId::Uuid)
+}
+
+fn field_string(
+    fields: &std::collections::HashMap<String, serde_json::Value>,
+    keys: &[&str],
+) -> Option<String> {
+    keys.iter().find_map(|key| {
+        fields.get(*key).and_then(|value| match value {
+            serde_json::Value::String(value) => Some(value.clone()),
+            serde_json::Value::Number(value) => Some(value.to_string()),
+            _ => None,
+        })
+    })
+}
+
+fn field_bool(
+    fields: &std::collections::HashMap<String, serde_json::Value>,
+    keys: &[&str],
+) -> Option<bool> {
+    keys.iter()
+        .find_map(|key| fields.get(*key).and_then(serde_json::Value::as_bool))
+}
+
+fn field_u16(
+    fields: &std::collections::HashMap<String, serde_json::Value>,
+    keys: &[&str],
+) -> Option<u16> {
+    keys.iter().find_map(|key| {
+        fields
+            .get(*key)
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|value| u16::try_from(value).ok())
+    })
+}
+
+fn field_u32(
+    fields: &std::collections::HashMap<String, serde_json::Value>,
+    keys: &[&str],
+) -> Option<u32> {
+    keys.iter().find_map(|key| {
+        fields
+            .get(*key)
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|value| u32::try_from(value).ok())
+    })
+}
+
+fn field_string_list(
+    fields: &std::collections::HashMap<String, serde_json::Value>,
+    keys: &[&str],
+) -> Vec<String> {
+    keys.iter()
+        .filter_map(|key| fields.get(*key))
+        .flat_map(|value| match value {
+            serde_json::Value::String(value) => vec![value.clone()],
+            serde_json::Value::Array(values) => values
+                .iter()
+                .filter_map(|value| match value {
+                    serde_json::Value::String(value) => Some(value.clone()),
+                    serde_json::Value::Number(value) => Some(value.to_string()),
+                    _ => None,
+                })
+                .collect(),
+            _ => Vec::new(),
+        })
+        .collect()
+}
+
+fn collect_extra(
+    fields: &std::collections::HashMap<String, serde_json::Value>,
+) -> serde_json::Map<String, serde_json::Value> {
+    fields
+        .iter()
+        .map(|(key, value)| (key.clone(), value.clone()))
+        .collect()
 }
 
 #[cfg(test)]

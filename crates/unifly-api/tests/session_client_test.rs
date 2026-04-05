@@ -348,6 +348,39 @@ async fn test_get_client_wifi_experience() {
     assert_eq!(data["nearest_neighbors"].as_array().unwrap().len(), 1);
 }
 
+#[tokio::test]
+async fn test_list_ipsec_sa() {
+    let (server, client) = setup().await;
+
+    let envelope = json!({
+        "meta": { "rc": "ok" },
+        "data": [{
+            "name": "Office-to-DC",
+            "remote_ip": "203.0.113.50",
+            "local_ip": "10.4.21.1",
+            "state": "ESTABLISHED",
+            "tx_bytes": 1_048_576,
+            "rx_bytes": 2_097_152,
+            "uptime": 86_400,
+            "ike_version": "2"
+        }]
+    });
+
+    Mock::given(method("GET"))
+        .and(path(site_path("stat/ipsec-sa")))
+        .respond_with(ResponseTemplate::new(200).set_body_json(&envelope))
+        .mount(&server)
+        .await;
+
+    let sas = client.list_ipsec_sa().await.unwrap();
+
+    assert_eq!(sas.len(), 1);
+    assert_eq!(sas[0].name.as_deref(), Some("Office-to-DC"));
+    assert_eq!(sas[0].state.as_deref(), Some("ESTABLISHED"));
+    assert_eq!(sas[0].tx_bytes, Some(1_048_576));
+    assert_eq!(sas[0].uptime, Some(86_400));
+}
+
 // ── Error tests ─────────────────────────────────────────────────────
 
 #[tokio::test]

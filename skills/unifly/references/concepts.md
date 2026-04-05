@@ -402,8 +402,10 @@ Common failures and how to diagnose them:
 - **Local controllers only.** The Site Manager cloud API (`api.ui.com/v1/`)
   is not yet implemented. Do not attempt to use unifly against cloud-only
   controllers.
-- **VPN mutations are not yet supported.** `unifly vpn servers` and
-  `unifly vpn tunnels` are read-only.
+- **VPN mutations and peer management are not yet supported.** `unifly vpn
+  servers`, `unifly vpn servers get`, `unifly vpn tunnels`,
+  `unifly vpn tunnels get`, `unifly vpn status`, and `unifly vpn health`
+  are all read-only.
 - **Port forwarding** lives under `nat policies` with destination NAT, not
   a dedicated command.
 - **No `nat policies update`.** Delete and recreate to modify a NAT policy.

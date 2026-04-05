@@ -371,6 +371,32 @@ unifly system poweroff
 - `reboot` and `poweroff` are destructive. Always summarize to the user
   before running even with `--yes`.
 
+## VPN `[I for servers/tunnels, L for status/health]`
+
+```bash
+unifly vpn servers [--all] [--limit N]
+unifly vpn servers get <id>
+unifly vpn tunnels [--all] [--limit N]
+unifly vpn tunnels get <id>
+unifly vpn status
+unifly vpn health
+```
+
+**Gotchas:**
+
+- `servers` and `tunnels` remain read-only. The new `get` variants expose
+  richer detail, but they do not mutate controller config.
+- `status` uses `GET /api/s/{site}/stat/ipsec-sa` and only shows live IPsec
+  security associations. WireGuard and OpenVPN state do not appear there.
+- An empty `status` result means no IPsec tunnels are currently negotiated,
+  not that VPN is unconfigured.
+- `health` filters the VPN subsystem out of the broader `stat/health`
+  snapshot. If the site does not expose a VPN subsystem, the command returns
+  a not-found style error instead of fabricating empty data.
+- The Integration API's VPN list schema is still sparse in the published
+  OpenAPI document. unifly parses common fields defensively and preserves the
+  full raw payload in structured output.
+
 ## Admin `[L]`
 
 ```bash

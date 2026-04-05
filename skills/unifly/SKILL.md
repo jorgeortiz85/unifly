@@ -97,7 +97,7 @@ All commands follow `unifly [global-flags] <command> <action> [args]`.
 | `sites`         |            | list, create, delete                                                                                           |
 | `admin`         |            | list, invite, revoke, update                                                                                   |
 | `wans`          |            | list                                                                                                           |
-| `vpn`           |            | servers, tunnels                                                                                               |
+| `vpn`           |            | servers {list, get}, tunnels {list, get}, status, health                                                      |
 | `radius`        |            | profiles                                                                                                       |
 | `countries`     |            | _(no subcommands)_                                                                                             |
 | `api`           |            | Raw API passthrough (GET/POST any path)                                                                        |

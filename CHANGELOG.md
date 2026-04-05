@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`vpn servers get <id>`** and **`vpn tunnels get <id>`** for full VPN
+  detail views with subnet, port, peer address, IKE version, and raw fields
+- **`vpn status`** for live IPsec security association status from the
+  Session API `stat/ipsec-sa` endpoint
+- **`vpn health`** for the VPN subsystem slice of `stat/health`
 - **`wifi neighbors`** to list neighboring and rogue APs seen by your access
   points, including signal, channel, SSID, and observer AP MAC
 - **`wifi channels`** to show per-radio regulatory channel availability from
@@ -21,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Enriched `vpn servers` and `vpn tunnels` list output with subnet, port,
+  protocol, peer, and IKE visibility where the controller returns those
+  fields
 - **Renamed "legacy" nomenclature to "session" throughout.** The UniFi
   `/api/*` and `/v2/api/*` HTTP surface is not deprecated — Ubiquiti ships new
   functionality there regularly, and with the API-key discovery it is no

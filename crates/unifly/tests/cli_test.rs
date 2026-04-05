@@ -88,6 +88,20 @@ fn test_help_flag() {
 }
 
 #[test]
+fn test_vpn_help_mentions_status_and_health() {
+    unifly_cmd()
+        .args(["vpn", "--help"])
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::contains("servers")
+                .and(predicate::str::contains("tunnels"))
+                .and(predicate::str::contains("status"))
+                .and(predicate::str::contains("health")),
+        );
+}
+
+#[test]
 fn test_version_flag() {
     unifly_cmd()
         .arg("--version")
@@ -165,6 +179,25 @@ fn test_devices_list_no_controller() {
                 .or(predicate::str::contains("controller"))
                 .or(predicate::str::contains("profile")),
         );
+}
+
+#[test]
+fn test_vpn_servers_get_parses_before_config_check() {
+    let output = unifly_cmd()
+        .args([
+            "vpn",
+            "servers",
+            "get",
+            "11111111-1111-1111-1111-111111111111",
+        ])
+        .output()
+        .unwrap();
+    let text = combined_output(&output);
+
+    assert!(
+        !text.contains("unexpected argument"),
+        "expected clap to accept `vpn servers get <id>`:\n{text}"
+    );
 }
 
 #[test]

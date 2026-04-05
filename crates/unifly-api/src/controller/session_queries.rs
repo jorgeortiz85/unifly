@@ -1,5 +1,5 @@
 use crate::core_error::CoreError;
-use crate::model::{Admin, Alarm, EntityId, HealthSummary, SysInfo, SystemInfo};
+use crate::model::{Admin, Alarm, EntityId, HealthSummary, IpsecSa, SysInfo, SystemInfo};
 use crate::session::models::{ChannelAvailability, RogueAp};
 
 use super::Controller;
@@ -251,6 +251,20 @@ impl Controller {
         let session = require_session(guard.as_ref())?;
         let raw = session.get_health().await?;
         Ok(convert_health_summaries(raw))
+    }
+
+    pub async fn list_ipsec_sa(&self) -> Result<Vec<IpsecSa>, CoreError> {
+        let guard = self.inner.session_client.lock().await;
+        let session = require_session(guard.as_ref())?;
+        Ok(session.list_ipsec_sa().await?)
+    }
+
+    pub async fn get_vpn_health(&self) -> Result<Option<HealthSummary>, CoreError> {
+        Ok(self
+            .get_site_health()
+            .await?
+            .into_iter()
+            .find(|summary| summary.subsystem.eq_ignore_ascii_case("vpn")))
     }
 
     pub async fn get_sysinfo(&self) -> Result<SysInfo, CoreError> {
