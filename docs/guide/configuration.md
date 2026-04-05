@@ -95,6 +95,22 @@ timeout = 45
 Use `api_key_env` instead of `api_key` to avoid putting secrets in the config file. The API key is read from the named environment variable at runtime.
 :::
 
+### Setting Values via CLI
+
+`unifly config set <key> <value>` supports these keys:
+
+`controller`, `site`, `auth_mode`, `api_key`, `api_key_env`, `username`, `insecure`, `timeout`, `ca_cert`
+
+```bash
+unifly config set auth_mode hybrid
+unifly config set insecure true
+unifly config set timeout 60
+```
+
+::: tip
+`totp_env` and `password` must be set directly in `config.toml` or via the setup wizard. They are not yet supported by `config set`.
+:::
+
 ## Environment Variables
 
 All settings can be overridden via environment variables. Useful for CI/CD, scripting, and ephemeral environments.
@@ -190,3 +206,10 @@ Unifly caches Legacy API sessions across commands for speed. If you rotate a pas
 ```bash
 unifly --no-cache devices list    # Force a fresh login
 ```
+
+## Next Steps
+
+- [Authentication](/guide/authentication): understand API key vs password vs hybrid
+- [CLI Commands](/reference/cli): full command reference
+- [TUI Dashboard](/reference/tui): screen-by-screen guide
+- [Troubleshooting](/troubleshooting): common config and auth issues

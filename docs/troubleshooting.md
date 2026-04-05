@@ -146,11 +146,15 @@ unifly clients list --limit 200
 
 ### "Where are the TUI logs?"
 
-Logs go to a file in your system temp directory (stderr is captured by the alternate screen):
+Logs go to a single file in your system temp directory (stderr is captured by the alternate screen):
 
 ```bash
-# On macOS/Linux
-ls /tmp/unifly-*.log
+# Default path (varies by OS)
+# Linux:  /tmp/unifly-tui.log
+# macOS:  $TMPDIR/unifly-tui.log  (e.g., /var/folders/.../unifly-tui.log)
+
+# Find it programmatically
+python3 -c "import tempfile; print(tempfile.gettempdir() + '/unifly-tui.log')"
 
 # With verbose logging
 unifly tui -v      # INFO level
@@ -180,12 +184,32 @@ UNIFI_TOTP=123456 unifly devices list
 # Or with 1Password CLI
 UNIFI_TOTP=$(op read "op://Vault/UniFi/one-time password") unifly devices list
 
-# Configure in profile for automatic resolution
-unifly config set totp_env UNIFI_TOTP
+# Configure in your config.toml profile for automatic resolution:
+# [profiles.home]
+# totp_env = "UNIFI_TOTP"
 ```
+
+::: tip
+`totp_env` must be set directly in `config.toml`. It is not yet supported by `unifly config set`.
+:::
+
+## Common Gotchas
+
+- **`events watch --types`** takes category names (`Device`, `Client`, `Network`), not `EVT_*` glob patterns
+- **`nat policies`** has no `update` subcommand. Delete and recreate to modify a NAT rule
+- **`firewall policies patch`** is the fast path for toggling `enabled`/`logging`. Use it instead of `update` when only those fields change
+- **`networks refs <id>`** checks what depends on a network before you delete it. No equivalent exists for other entities yet
+- **`admin revoke`** takes a positional admin ID, not a `--email` flag
+- **Controller reconnect** is currently broken in the TUI. If the connection drops, restart the TUI
 
 ## Still Stuck?
 
 - Run with max verbosity: `unifly -vvv <command>` to see full request/response details
 - Check [GitHub Issues](https://github.com/hyperb1iss/unifly/issues) for known problems
 - Open a new issue with your unifly version, controller model/firmware, and the verbose output
+
+## Next Steps
+
+- [Configuration](/guide/configuration): check your profile settings
+- [Authentication](/guide/authentication): review which auth mode you need
+- [CLI Commands](/reference/cli): full command reference

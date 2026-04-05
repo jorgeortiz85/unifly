@@ -25,7 +25,7 @@ features:
     details: Devices, clients, networks, WiFi, firewall, NAT, DNS, DPI, topology, raw API passthrough, and more.
   - icon: "\uD83D\uDD12"
     title: Secure Credentials
-    details: OS keyring storage for API keys and passwords. Nothing written to disk in plaintext.
+    details: OS keyring by default for API keys and passwords. Plaintext config available as an opt-in fallback.
   - icon: "\uD83C\uDF10"
     title: Multi-Profile
     details: Named profiles for multiple controllers with instant switching. Great for managing home, office, and remote sites.

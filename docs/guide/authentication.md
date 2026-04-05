@@ -65,8 +65,8 @@ unifly config init                     # Select "Hybrid" during setup
 
 | Capability | API Used |
 |---|---|
-| Networks, WiFi, Firewall, DNS, ACL | Integration API |
-| NAT policies | Legacy v2 API |
+| Networks, WiFi, Firewall, DNS, ACL, Traffic Lists | Integration API |
+| NAT policies | Legacy v2 API (requires credentials) |
 | Events, Stats, DPI | Legacy API |
 | Device commands (restart, adopt) | Legacy API |
 | Client/device field enrichment | Both (merged by IP/MAC) |
@@ -85,7 +85,7 @@ All credentials are stored in your OS keyring:
 | Linux | Secret Service (GNOME Keyring, KWallet) |
 | Windows | Windows Credential Manager |
 
-Nothing is ever written to disk in plaintext. The `config.toml` file only stores non-sensitive settings like controller URLs and site names.
+The `config.toml` file stores non-sensitive settings like controller URLs and site names. The setup wizard offers keyring storage by default, but also provides a plaintext config fallback for environments where the keyring isn't available (headless servers, WSL, CI).
 
 To update a stored password:
 
@@ -126,6 +126,17 @@ If your controller requires two-factor authentication:
 UNIFI_TOTP=$(op read "op://Personal/UniFi/one-time password") \
   unifly devices list
 
-# Or configure in your profile
-unifly config set totp_env UNIFI_TOTP
+# Or set totp_env in your config.toml profile:
+# [profiles.home]
+# totp_env = "UNIFI_TOTP"
 ```
+
+::: tip
+The `totp_env` setting must be edited directly in `config.toml`. It is not yet supported by `unifly config set`.
+:::
+
+## Next Steps
+
+- [Configuration](/guide/configuration): full profile reference, environment variables, and precedence rules
+- [CLI Commands](/reference/cli): what you can do with each auth mode
+- [Troubleshooting](/troubleshooting): common auth errors and fixes

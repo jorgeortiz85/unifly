@@ -81,3 +81,11 @@ unifly completions powershell | Out-String | Invoke-Expression
 ```bash
 unifly --version
 ```
+
+## Next Steps
+
+You're installed! Now configure your first controller profile:
+
+- [Quick Start](/guide/quick-start): run `unifly config init` and explore your network
+- [Authentication](/guide/authentication): choose the right auth mode
+- [Troubleshooting](/troubleshooting): if something goes wrong

@@ -9,9 +9,9 @@ The official REST API introduced in UniFi Network 7.x+.
 | Aspect | Details |
 |---|---|
 | **Auth** | API key via `X-API-KEY` header |
-| **Base URL** | `https://<controller>/proxy/network/integration/v1/` |
+| **Base URL** | `https://<controller>/proxy/network/integration/v1/` (UniFi OS) or `/integration/v1/` (Classic) |
 | **Format** | JSON with typed responses |
-| **Methods** | Full CRUD plus action endpoints (GET, POST, PUT, DELETE) |
+| **Methods** | Full CRUD plus action endpoints (GET, POST, PUT, PATCH, DELETE) |
 
 ### Covered Resources
 
@@ -32,7 +32,7 @@ The original UniFi controller API, session-based with cookie authentication.
 | Aspect | Details |
 |---|---|
 | **Auth** | Cookie session + CSRF token |
-| **Base URL** | `https://<controller>/proxy/network/` |
+| **Base URL** | `https://<controller>/proxy/network/` (UniFi OS) or root path (Classic) |
 | **Format** | JSON envelope: `{ "meta": {...}, "data": [...] }` |
 | **CSRF** | Required on all POST/PUT/DELETE via `X-CSRF-Token` header |
 

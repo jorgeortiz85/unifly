@@ -19,9 +19,8 @@ The wizard walks you through:
 1. **Controller URL**: your controller's address (e.g., `https://192.168.1.1`)
 2. **Authentication**: API key, username/password, or hybrid mode
 3. **Site selection**: choose which site to manage
-4. **TLS settings**: accept self-signed certificates if needed
 
-Credentials are stored in your OS keyring. Never written to disk in plaintext.
+Credentials are stored in your OS keyring by default. A plaintext config fallback is available if the keyring isn't accessible.
 
 ## First Commands
 
@@ -91,6 +90,12 @@ graph LR
 ```
 
 Navigate screens with number keys `1`-`8`. Press `,` for settings, `?` for help, `q` to quit.
+
+::: tip Heads Up
+- `events watch` requires Legacy or Hybrid auth (won't work with API key alone)
+- List commands default to 25 rows. Pass `--all` or `--limit 200` for full results
+- Some TUI panels show placeholders in API-key-only mode. Use Hybrid for the full experience
+:::
 
 ## Multiple Controllers
 

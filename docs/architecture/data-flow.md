@@ -19,10 +19,10 @@ sequenceDiagram
     Controller->>LegacyAPI: Fetch events, health
     LegacyAPI-->>DataStore: Store events, health summaries
     Controller->>WebSocket: Connect event stream
-    Controller->>Controller: Spawn refresh task (30s)
+    Controller->>Controller: Spawn refresh task (10s)
     Controller->>Controller: Spawn command processor
 
-    loop Every 30 seconds
+    loop Every 10 seconds (TUI default)
         Controller->>IntegrationAPI: Refresh entities
         IntegrationAPI-->>DataStore: Update collections
         DataStore-->>User: Notify via watch channels

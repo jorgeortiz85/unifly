@@ -70,3 +70,21 @@ unifly config init
 ```
 
 The skill teaches the agent to use `unifly` CLI commands. It does not connect to your controller directly.
+
+## Example Prompts
+
+Once the skill is installed, try these with your coding agent:
+
+- *"Set up an IoT VLAN on 10.0.30.0/24 with a dedicated WiFi SSID and firewall isolation from the trusted network"*
+- *"Audit my firewall rules for any allow-all policies or missing zone isolation"*
+- *"Find the client named 'ring-doorbell' and show me its connection details"*
+- *"Show me the network topology and identify any devices that are offline"*
+- *"Stream events for the next few minutes and flag anything unusual"*
+
+The agent will use `unifly` commands with `-o json` output, parse the results, and orchestrate multi-step workflows automatically.
+
+## Next Steps
+
+- [Quick Start](/guide/quick-start): make sure unifly is configured before using the skill
+- [Authentication](/guide/authentication): the agent needs Hybrid mode for full access
+- [CLI Commands](/reference/cli): the commands the agent will use under the hood

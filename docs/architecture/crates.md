@@ -24,7 +24,7 @@ Key design decisions:
 - **Controller**: Lifecycle management (connect, authenticate, fetch, disconnect)
 - **DataStore**: `DashMap`-based entity storage with `tokio::watch` channels
 - **Entity models**: Strongly-typed Rust structs for all 20+ UniFi resource types
-- **Background tasks**: Periodic refresh (30s) and command processing
+- **Background tasks**: Periodic refresh (10s in TUI, configurable) and command processing
 - **Data merging**: Integration API + Legacy API data combined per entity
 
 Provides two connection modes:

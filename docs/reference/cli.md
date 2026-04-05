@@ -111,7 +111,7 @@ NAT types: `masquerade`, `source`, `destination`. Create from CLI flags or a JSO
 
 ```bash
 unifly events list                        # Recent events
-unifly events list --hours 4              # Events from last 4 hours
+unifly events list --within 4             # Events from last 4 hours
 unifly events watch                       # Live event feed
 unifly events watch --types Device        # Filter by category
 unifly events watch --types Device,Client # Multiple categories
@@ -134,9 +134,7 @@ unifly stats dpi                      # DPI application breakdown
 unifly stats dpi --group-by by-cat    # Group by category instead of app
 ```
 
-Supported intervals: `5minute` (high resolution), `hourly`, `daily`, `monthly`.
-
-Intervals: `5m`, `hourly`, `daily`, `monthly`
+Supported intervals: `5m` (high resolution), `hourly` (default), `daily`, `monthly`.
 
 ```bash
 unifly stats gateway --interval hourly

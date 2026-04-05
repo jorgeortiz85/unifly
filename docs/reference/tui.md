@@ -41,7 +41,7 @@ The dashboard packs eight live panels into a dense, information-rich overview:
 | **Networks** | VLANs sorted by ID with IPv6 prefix delegation and SLAAC mode |
 | **WiFi / APs** | Client count and WiFi experience percentage per access point |
 | **Top Clients** | Proportional traffic bars with fractional block characters |
-| **Recent Events** | Two-column compact event display, color-coded by severity |
+| **Recent Events** | Compact event display, color-coded by severity |
 
 ## Key Bindings
 
@@ -95,7 +95,7 @@ Navigate detail tabs with `h`/`l`. Press `Esc` to close.
 
 ```mermaid
 graph LR
-    API["Integration + Legacy APIs"] -->|"Every 30s"| DS["DataStore"]
+    API["Integration + Legacy APIs"] -->|"Every 10s"| DS["DataStore"]
     WS["WebSocket"] -->|"Real-time push"| DS
     DS -->|"watch channels"| TUI["TUI Screens"]
 
@@ -103,8 +103,8 @@ graph LR
     style DS fill:#80ffea,color:#0a0a0f
 ```
 
-- **Devices and clients**: polled every 30 seconds from both APIs
-- **Health and system info**: polled every 30 seconds
+- **Devices and clients**: polled every 10 seconds from both APIs
+- **Health and system info**: polled every 10 seconds
 - **Events**: pushed via WebSocket in real-time (no polling delay)
 - **Bandwidth**: sampled from device stats on each refresh cycle
 
@@ -128,4 +128,14 @@ When data is unavailable (e.g., API-key-only mode without Legacy access), panels
 
 ## Theme
 
-The TUI uses the [Opaline](https://crates.io/crates/opaline) theme engine with the SilkCircuit color palette. Press `,` to open Settings and use the theme selector to preview and switch themes. Theme changes take effect immediately and persist across sessions via the `UNIFLY_THEME` environment variable.
+The TUI uses the [Opaline](https://crates.io/crates/opaline) theme engine with the SilkCircuit color palette. Press `,` to open Settings and use the theme selector to preview and switch themes. Theme changes take effect immediately and persist to `defaults.theme` in your config file. You can also set the initial theme via the `UNIFLY_THEME` environment variable at launch.
+
+::: warning Known Limitation
+Controller reconnect after a network interruption is currently broken. If the connection drops, restart the TUI to reconnect.
+:::
+
+## Next Steps
+
+- [CLI Commands](/reference/cli): the full command reference
+- [Authentication](/guide/authentication): understand what each auth mode enables in the TUI
+- [Troubleshooting](/troubleshooting): TUI logs, display issues, and common fixes
