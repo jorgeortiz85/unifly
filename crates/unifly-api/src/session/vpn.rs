@@ -8,6 +8,10 @@ impl SessionClient {
     pub async fn list_ipsec_sa(&self) -> Result<Vec<IpsecSa>, Error> {
         let url = self.site_url("stat/ipsec-sa");
         debug!("listing ipsec security associations");
-        self.get(url).await
+        match self.get(url).await {
+            Ok(sas) => Ok(sas),
+            Err(error) if error.is_not_found() => Ok(Vec::new()),
+            Err(error) => Err(error),
+        }
     }
 }

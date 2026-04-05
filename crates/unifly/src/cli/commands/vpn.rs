@@ -4,8 +4,8 @@ use tabled::Tabled;
 use unifly_api::{Controller, EntityId, HealthSummary, IpsecSa, VpnServer, VpnTunnel};
 
 use crate::cli::args::{
-    GlobalOpts, VpnArgs, VpnCommand, VpnServersArgs, VpnServersCommand, VpnTunnelsArgs,
-    VpnTunnelsCommand,
+    GlobalOpts, OutputFormat, VpnArgs, VpnCommand, VpnServersArgs, VpnServersCommand,
+    VpnTunnelsArgs, VpnTunnelsCommand,
 };
 use crate::cli::error::CliError;
 use crate::cli::output;
@@ -248,10 +248,12 @@ pub async fn handle(
         VpnCommand::Status => {
             let sas = controller.list_ipsec_sa().await?;
             if sas.is_empty() {
-                if !global.quiet && matches!(global.output, crate::cli::args::OutputFormat::Table) {
+                if !global.quiet && matches!(global.output, OutputFormat::Table) {
                     eprintln!("No active IPsec security associations");
                 }
-                return Ok(());
+                if matches!(global.output, OutputFormat::Table) {
+                    return Ok(());
+                }
             }
             let out = output::render_list(
                 &global.output,

@@ -105,6 +105,9 @@ impl Error {
         match self {
             Self::Transport(e) => e.status() == Some(reqwest::StatusCode::NOT_FOUND),
             Self::Integration { status: 404, .. } => true,
+            Self::SessionApi { message } => {
+                message.starts_with("HTTP 404") || message.contains("api.err.NotFound")
+            }
             _ => false,
         }
     }
@@ -115,5 +118,28 @@ impl Error {
             Self::Integration { code, .. } => code.as_deref(),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Error;
+
+    #[test]
+    fn session_api_http_404_counts_as_not_found() {
+        let error = Error::SessionApi {
+            message: "HTTP 404 Not Found: {\"meta\":{\"rc\":\"error\",\"msg\":\"api.err.NotFound\"},\"data\":[]}".into(),
+        };
+
+        assert!(error.is_not_found());
+    }
+
+    #[test]
+    fn session_api_not_found_code_counts_as_not_found() {
+        let error = Error::SessionApi {
+            message: "api.err.NotFound".into(),
+        };
+
+        assert!(error.is_not_found());
     }
 }

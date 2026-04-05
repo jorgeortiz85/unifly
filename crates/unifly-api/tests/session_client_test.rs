@@ -381,6 +381,24 @@ async fn test_list_ipsec_sa() {
     assert_eq!(sas[0].uptime, Some(86_400));
 }
 
+#[tokio::test]
+async fn test_list_ipsec_sa_404_returns_empty() {
+    let (server, client) = setup().await;
+
+    Mock::given(method("GET"))
+        .and(path(site_path("stat/ipsec-sa")))
+        .respond_with(ResponseTemplate::new(404).set_body_json(json!({
+            "meta": { "rc": "error", "msg": "api.err.NotFound" },
+            "data": []
+        })))
+        .mount(&server)
+        .await;
+
+    let sas = client.list_ipsec_sa().await.unwrap();
+
+    assert!(sas.is_empty());
+}
+
 // ── Error tests ─────────────────────────────────────────────────────
 
 #[tokio::test]
