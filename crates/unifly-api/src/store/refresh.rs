@@ -1,7 +1,7 @@
 // ── Full refresh application logic ──
 //
 // Applies bulk data snapshots from the Integration and Session API
-// into the DataStore. Integration data is primary; Legacy fills gaps.
+// into the DataStore. Integration data is primary; Session fills gaps.
 
 use std::collections::HashSet;
 

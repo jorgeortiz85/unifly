@@ -16,7 +16,7 @@ use url::Url;
 pub enum AuthCredentials {
     /// Integration API key (preferred).
     ApiKey(SecretString),
-    /// Legacy cookie-based auth.
+    /// Session cookie-based auth.
     Credentials {
         username: String,
         password: SecretString,

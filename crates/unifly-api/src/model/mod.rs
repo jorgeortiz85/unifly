@@ -1,7 +1,7 @@
 // ── Unified domain model ──
 //
 // Every type in this module is the canonical representation of a UniFi
-// entity. They merge data from both the Integration API and the Legacy
+// entity. They merge data from both the Integration API and the Session
 // API into a single clean interface that consumers (CLI/TUI) depend on.
 
 pub mod common;

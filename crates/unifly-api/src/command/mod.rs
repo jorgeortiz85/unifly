@@ -190,12 +190,12 @@ pub enum Command {
         filter: String,
     },
 
-    // ── Site settings (Legacy) ─────────────────────────────────────────
+    // ── Site settings (Session) ─────────────────────────────────────────
     SetDpiEnabled {
         enabled: bool,
     },
 
-    // ── System (Legacy) ──────────────────────────────────────────────
+    // ── System (Session) ──────────────────────────────────────────────
     ArchiveAlarm {
         id: EntityId,
     },

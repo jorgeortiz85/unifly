@@ -10,7 +10,7 @@ pub enum ApiMethod {
 pub struct ApiArgs {
     /// API path (appended to the controller's base URL + proxy prefix).
     ///
-    /// Legacy style:  api/s/{site}/stat/sitedpi
+    /// Session style:  api/s/{site}/stat/sitedpi
     /// V2 style:      v2/api/site/{site}/traffic-flow-latest-statistics
     /// Integration:   integration/v1/dpi/applications
     pub path: String,

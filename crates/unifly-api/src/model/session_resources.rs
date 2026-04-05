@@ -30,7 +30,7 @@ pub struct StatEntry {
     pub extra: serde_json::Value,
 }
 
-/// Controller system info (from `GET /v1/info` or Legacy `/api/s/{site}/stat/sysinfo`).
+/// Controller system info (from `GET /v1/info` or Session `/api/s/{site}/stat/sysinfo`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemInfo {
     pub controller_name: Option<String>,
@@ -42,7 +42,7 @@ pub struct SystemInfo {
     pub update_available: Option<bool>,
 }
 
-/// Health summary for a subsystem (from Legacy `stat/health`).
+/// Health summary for a subsystem (from Session `stat/health`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HealthSummary {
     /// Subsystem: "www", "wlan", "wan", "lan", "vpn"
@@ -59,7 +59,7 @@ pub struct HealthSummary {
     pub extra: serde_json::Value,
 }
 
-/// Low-level controller system info (from Legacy `stat/sysinfo`).
+/// Low-level controller system info (from Session `stat/sysinfo`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SysInfo {
     pub timezone: Option<String>,
@@ -71,7 +71,7 @@ pub struct SysInfo {
     pub extra: serde_json::Value,
 }
 
-/// Backup entry (from Legacy `cmd/backup`).
+/// Backup entry (from Session `cmd/backup`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Backup {
     pub filename: String,
@@ -80,7 +80,7 @@ pub struct Backup {
     pub version: Option<String>,
 }
 
-/// Admin user (from Legacy `cmd/sitemgr`).
+/// Admin user (from Session `cmd/sitemgr`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Admin {
     pub id: EntityId,
@@ -92,7 +92,7 @@ pub struct Admin {
     pub last_login: Option<DateTime<Utc>>,
 }
 
-/// Country entry (from Legacy `stat/ccode`).
+/// Country entry (from Session `stat/ccode`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Country {
     pub code: String,

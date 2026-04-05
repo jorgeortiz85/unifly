@@ -309,11 +309,11 @@ impl From<SessionDevice> for Device {
             state,
             firmware_version: d.version,
             firmware_updatable: d.upgradable.unwrap_or(false),
-            adopted_at: None, // Legacy API doesn't provide adoption timestamp
+            adopted_at: None, // Session API doesn't provide adoption timestamp
             provisioned_at: None,
             last_seen: epoch_to_datetime(d.last_seen),
             serial: d.serial,
-            supported: true, // Legacy API only returns adopted/supported devices
+            supported: true, // Session API only returns adopted/supported devices
             ports: Vec::new(),
             radios: Vec::new(),
             uplink_device_id: None,

@@ -1,6 +1,6 @@
 // Shared transport configuration for building reqwest::Client instances.
 //
-// Both Legacy and Integration clients share TLS, timeout, and cookie
+// Both Session and Integration clients share TLS, timeout, and cookie
 // settings through this module, avoiding duplicated builder logic.
 
 use std::path::PathBuf;

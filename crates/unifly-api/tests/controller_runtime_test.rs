@@ -612,7 +612,7 @@ async fn websocket_enabled_for_events_watch_path() {
     assert_eq!(path, "/wss/s/default/events");
     assert!(
         cookie.contains("unifly_session=session-cookie"),
-        "expected websocket cookie header to carry the session session, got: {cookie}"
+        "expected websocket cookie header to carry the session cookie, got: {cookie}"
     );
 
     controller.disconnect().await;

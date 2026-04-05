@@ -181,7 +181,7 @@ impl SessionClient {
             }
         }
 
-        // Legacy: site-level filtered endpoint.
+        // Session: site-level filtered endpoint.
         let url = self.site_url("stat/sitedpi");
         debug!(group_by, "fetching site DPI stats");
         let result: Vec<serde_json::Value> = self.post(url, &json!({"type": group_by})).await?;
@@ -189,7 +189,7 @@ impl SessionClient {
             return Ok(result);
         }
 
-        // Legacy fallback: unfiltered DPI endpoint.
+        // Session fallback: unfiltered DPI endpoint.
         let url = self.site_url("stat/dpi");
         debug!("falling back to unfiltered DPI stats");
         self.get(url).await

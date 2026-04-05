@@ -132,7 +132,7 @@ impl Controller {
 
                 // Session API client — attempt login but degrade gracefully
                 // if it fails. The Integration API is the primary surface;
-                // Legacy adds events, stats, and admin ops.
+                // Session adds events, stats, and admin ops.
                 match SessionClient::new(
                     config.url.clone(),
                     config.site.clone(),
@@ -157,12 +157,12 @@ impl Controller {
                         };
                         match login_result {
                             Ok(()) => {
-                                debug!("session session authentication successful (hybrid)");
+                                debug!("session authentication successful (hybrid)");
                                 *self.inner.session_client.lock().await = Some(Arc::new(client));
                             }
                             Err(e) => {
                                 let msg = format!(
-                                    "Legacy login failed: {e} — events, health stats, and client traffic will be unavailable"
+                                    "Session login failed: {e} — events, health stats, and client traffic will be unavailable"
                                 );
                                 warn!("{msg}");
                                 self.inner.warnings.lock().await.push(msg);
@@ -170,7 +170,7 @@ impl Controller {
                         }
                     }
                     Err(e) => {
-                        let msg = format!("Legacy client setup failed: {e}");
+                        let msg = format!("Session client setup failed: {e}");
                         warn!("{msg}");
                         self.inner.warnings.lock().await.push(msg);
                     }
@@ -197,7 +197,7 @@ impl Controller {
                 *self.inner.site_id.lock().await = Some(site_id);
 
                 let msg =
-                    "Cloud auth mode active: Legacy API and WebSocket features are unavailable"
+                    "Cloud auth mode active: Session API and WebSocket features are unavailable"
                         .to_string();
                 self.inner.warnings.lock().await.push(msg);
             }

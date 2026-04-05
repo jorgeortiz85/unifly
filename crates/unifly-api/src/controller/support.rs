@@ -142,7 +142,7 @@ pub(super) async fn resolve_site_id(
 /// Extract a `Uuid` from an `EntityId`, or return an error.
 pub(super) fn require_uuid(id: &EntityId) -> Result<uuid::Uuid, CoreError> {
     id.as_uuid().copied().ok_or_else(|| CoreError::Unsupported {
-        operation: "Integration API operation on session ID".into(),
+        operation: "Integration API operation on legacy ID".into(),
         required: "UUID-based entity ID".into(),
     })
 }
@@ -153,8 +153,8 @@ pub(super) fn require_session(
     session
         .map(Arc::as_ref)
         .ok_or_else(|| CoreError::Unsupported {
-            operation: "Legacy API operation".into(),
-            required: "Legacy API credentials".into(),
+            operation: "Session API operation".into(),
+            required: "Session API credentials (session or hybrid auth mode)".into(),
         })
 }
 

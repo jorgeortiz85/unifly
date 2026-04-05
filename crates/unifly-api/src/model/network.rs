@@ -14,7 +14,7 @@ pub enum NetworkManagement {
     Unmanaged,
 }
 
-/// Legacy network purpose (from Session API).
+/// Session network purpose (from Session API).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NetworkPurpose {
     Corporate,
