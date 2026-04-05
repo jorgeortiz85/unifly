@@ -84,12 +84,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### When to Use Which
 
-| Approach | Use Case |
-|---|---|
-| `IntegrationClient` | Direct REST calls, custom query patterns, Integration API only |
-| `LegacyClient` | Events, stats, device commands, Legacy API only |
-| `Controller` | Full lifecycle with both APIs, automatic refresh, reactive subscriptions |
-| `Controller::oneshot()` | Single CLI-style fetch with no background tasks |
+| Approach                | Use Case                                                                 |
+| ----------------------- | ------------------------------------------------------------------------ |
+| `IntegrationClient`     | Direct REST calls, custom query patterns, Integration API only           |
+| `LegacyClient`          | Events, stats, device commands, Legacy API only                          |
+| `Controller`            | Full lifecycle with both APIs, automatic refresh, reactive subscriptions |
+| `Controller::oneshot()` | Single CLI-style fetch with no background tasks                          |
 
 ## Architecture
 
@@ -112,20 +112,20 @@ graph TD
     DS --> ES["EntityStream&lt;T&gt;<br/><i>Reactive subscriptions</i>"]
 ```
 
-| Type | Purpose |
-|---|---|
-| `Controller` | Main entry point. Wraps `Arc<ControllerInner>` for cheap cloning across async tasks |
-| `DataStore` | Entity storage. `DashMap` + `watch` channels for lock-free reactive updates |
+| Type              | Purpose                                                                                                                                  |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `Controller`      | Main entry point. Wraps `Arc<ControllerInner>` for cheap cloning across async tasks                                                      |
+| `DataStore`       | Entity storage. `DashMap` + `watch` channels for lock-free reactive updates                                                              |
 | `EntityStream<T>` | Reactive subscription. `current()` for a snapshot, `changed()` to await the next update (returns `None` when the controller disconnects) |
-| `EntityId` | Dual-identity enum: `Uuid(Uuid)` for Integration API or `Legacy(String)` for Legacy API |
-| `AuthCredentials` | Auth mode: `ApiKey`, `Credentials`, `Hybrid`, or `Cloud` variants |
+| `EntityId`        | Dual-identity enum: `Uuid(Uuid)` for Integration API or `Legacy(String)` for Legacy API                                                  |
+| `AuthCredentials` | Auth mode: `ApiKey`, `Credentials`, `Hybrid`, or `Cloud` variants                                                                        |
 
 ## Connection Modes
 
-| Mode | Use Case | Background Tasks |
-|---|---|---|
+| Mode                    | Use Case                       | Background Tasks                                 |
+| ----------------------- | ------------------------------ | ------------------------------------------------ |
 | `Controller::connect()` | Long-lived apps (TUI, daemons) | Refresh loop (10s), WebSocket, command processor |
-| `Controller::oneshot()` | Fire-and-forget (CLI commands) | None. Single fetch, then done |
+| `Controller::oneshot()` | Fire-and-forget (CLI commands) | None. Single fetch, then done                    |
 
 ## Full Documentation
 

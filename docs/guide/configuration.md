@@ -4,11 +4,11 @@
 
 Configuration lives in your platform-standard config directory:
 
-| OS | Path |
-|---|---|
-| Linux | `~/.config/unifly/config.toml` |
-| macOS | `~/Library/Application Support/unifly/config.toml` |
-| Windows | `%APPDATA%\unifly\config.toml` |
+| OS      | Path                                               |
+| ------- | -------------------------------------------------- |
+| Linux   | `~/.config/unifly/config.toml`                     |
+| macOS   | `~/Library/Application Support/unifly/config.toml` |
+| Windows | `%APPDATA%\unifly\config.toml`                     |
 
 The easiest way to create your config is the interactive wizard:
 
@@ -78,18 +78,18 @@ timeout = 45
 
 ### Profile Settings Reference
 
-| Setting | Values | Description |
-|---|---|---|
-| `controller` | URL | Controller address (include port if non-standard) |
-| `site` | string | Site name or UUID. Default: `default` |
-| `auth_mode` | `integration`, `legacy`, `hybrid` | Which APIs to authenticate against |
-| `username` | string | Legacy/Hybrid login username |
-| `api_key` | string | Integration API key (prefer `api_key_env`) |
-| `api_key_env` | string | Env var name containing the API key |
-| `totp_env` | string | Env var name for MFA one-time password |
-| `insecure` | bool | Accept self-signed TLS certificates |
-| `ca_cert` | path | Custom CA certificate PEM file |
-| `timeout` | seconds | Request timeout (default: 30) |
+| Setting       | Values                            | Description                                       |
+| ------------- | --------------------------------- | ------------------------------------------------- |
+| `controller`  | URL                               | Controller address (include port if non-standard) |
+| `site`        | string                            | Site name or UUID. Default: `default`             |
+| `auth_mode`   | `integration`, `legacy`, `hybrid` | Which APIs to authenticate against                |
+| `username`    | string                            | Legacy/Hybrid login username                      |
+| `api_key`     | string                            | Integration API key (prefer `api_key_env`)        |
+| `api_key_env` | string                            | Env var name containing the API key               |
+| `totp_env`    | string                            | Env var name for MFA one-time password            |
+| `insecure`    | bool                              | Accept self-signed TLS certificates               |
+| `ca_cert`     | path                              | Custom CA certificate PEM file                    |
+| `timeout`     | seconds                           | Request timeout (default: 30)                     |
 
 ::: tip
 Use `api_key_env` instead of `api_key` to avoid putting secrets in the config file. The API key is read from the named environment variable at runtime.
@@ -115,19 +115,19 @@ unifly config set timeout 60
 
 All settings can be overridden via environment variables. Useful for CI/CD, scripting, and ephemeral environments.
 
-| Variable | Description |
-|---|---|
-| `UNIFI_API_KEY` | Integration API key |
-| `UNIFI_URL` | Controller URL |
-| `UNIFI_USERNAME` | Legacy API username |
-| `UNIFI_PASSWORD` | Legacy API password |
-| `UNIFI_PROFILE` | Active profile name |
-| `UNIFI_SITE` | Target site name or UUID |
-| `UNIFI_OUTPUT` | Default output format |
-| `UNIFI_INSECURE` | `1` to accept self-signed certs |
-| `UNIFI_TIMEOUT` | Request timeout in seconds |
-| `UNIFI_TOTP` | One-time password for MFA controllers |
-| `NO_COLOR` | Disable colored output (standard) |
+| Variable         | Description                           |
+| ---------------- | ------------------------------------- |
+| `UNIFI_API_KEY`  | Integration API key                   |
+| `UNIFI_URL`      | Controller URL                        |
+| `UNIFI_USERNAME` | Legacy API username                   |
+| `UNIFI_PASSWORD` | Legacy API password                   |
+| `UNIFI_PROFILE`  | Active profile name                   |
+| `UNIFI_SITE`     | Target site name or UUID              |
+| `UNIFI_OUTPUT`   | Default output format                 |
+| `UNIFI_INSECURE` | `1` to accept self-signed certs       |
+| `UNIFI_TIMEOUT`  | Request timeout in seconds            |
+| `UNIFI_TOTP`     | One-time password for MFA controllers |
+| `NO_COLOR`       | Disable colored output (standard)     |
 
 ### Example: CI/CD Pipeline
 

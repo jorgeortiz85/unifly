@@ -64,9 +64,11 @@ unifly devices list -o plain         # IDs only, one per line (for xargs)
 
 ::: tip
 Use `-o json` for automation and `-o plain | xargs` for batch operations:
+
 ```bash
 unifly clients list -o plain | xargs -n1 unifly clients get
 ```
+
 :::
 
 ## Launch the TUI
@@ -92,10 +94,11 @@ graph LR
 Navigate screens with number keys `1`-`8`. Press `,` for settings, `?` for help, `q` to quit.
 
 ::: tip Heads Up
+
 - `events watch` requires Legacy or Hybrid auth (won't work with API key alone)
 - List commands default to 25 rows. Pass `--all` or `--limit 200` for full results
 - Some TUI panels show placeholders in API-key-only mode. Use Hybrid for the full experience
-:::
+  :::
 
 ## Multiple Controllers
 

@@ -2,34 +2,34 @@
 
 ## Commands
 
-| Command | Alias | Description |
-|---|---|---|
-| `devices` | `d` | Manage adopted and pending devices |
-| `clients` | `cl` | Manage connected clients |
-| `networks` | `n` | Manage networks and VLANs |
-| `wifi` | `w` | Manage WiFi broadcasts (SSIDs) |
-| `firewall` | `fw` | Manage firewall policies and zones |
-| `nat` | | Manage NAT policies (masquerade, SNAT, DNAT) |
-| `acl` | | Manage ACL rules |
-| `dns` | | Manage DNS policies (local records) |
-| `traffic-lists` | | Manage traffic matching lists |
-| `hotspot` | | Manage hotspot vouchers |
-| `vpn` | | View VPN servers and tunnels |
-| `sites` | | Manage sites |
-| `events` | | View and stream events |
-| `alarms` | | Manage alarms |
-| `stats` | | Query statistics and reports |
-| `system` | `sys` | System operations and info |
-| `topology` | `topo` | Show network topology tree |
-| `admin` | | Administrator management |
-| `dpi` | | DPI reference data |
-| `radius` | | View RADIUS profiles |
-| `wans` | | View WAN interfaces |
-| `countries` | | List available country codes |
-| `config` | | Manage CLI configuration |
-| `completions` | | Generate shell completions |
-| `api` | | Send a raw API request to an arbitrary endpoint |
-| `tui` | | Launch the real-time terminal dashboard |
+| Command         | Alias  | Description                                     |
+| --------------- | ------ | ----------------------------------------------- |
+| `devices`       | `d`    | Manage adopted and pending devices              |
+| `clients`       | `cl`   | Manage connected clients                        |
+| `networks`      | `n`    | Manage networks and VLANs                       |
+| `wifi`          | `w`    | Manage WiFi broadcasts (SSIDs)                  |
+| `firewall`      | `fw`   | Manage firewall policies and zones              |
+| `nat`           |        | Manage NAT policies (masquerade, SNAT, DNAT)    |
+| `acl`           |        | Manage ACL rules                                |
+| `dns`           |        | Manage DNS policies (local records)             |
+| `traffic-lists` |        | Manage traffic matching lists                   |
+| `hotspot`       |        | Manage hotspot vouchers                         |
+| `vpn`           |        | View VPN servers and tunnels                    |
+| `sites`         |        | Manage sites                                    |
+| `events`        |        | View and stream events                          |
+| `alarms`        |        | Manage alarms                                   |
+| `stats`         |        | Query statistics and reports                    |
+| `system`        | `sys`  | System operations and info                      |
+| `topology`      | `topo` | Show network topology tree                      |
+| `admin`         |        | Administrator management                        |
+| `dpi`           |        | DPI reference data                              |
+| `radius`        |        | View RADIUS profiles                            |
+| `wans`          |        | View WAN interfaces                             |
+| `countries`     |        | List available country codes                    |
+| `config`        |        | Manage CLI configuration                        |
+| `completions`   |        | Generate shell completions                      |
+| `api`           |        | Send a raw API request to an arbitrary endpoint |
+| `tui`           |        | Launch the real-time terminal dashboard         |
 
 Most resource groups support `list` and `get`; some also expose `create`, `update`, `delete`, `patch`, or specialized actions. Run `unifly <command> --help` for details.
 
@@ -103,7 +103,7 @@ NAT types: `masquerade`, `source`, `destination`. Create from CLI flags or a JSO
   "dst_address": "10.0.15.52",
   "dst_port": "53",
   "translated_address": "192.168.6.252",
-  "translated_port": "53"
+  "translated_port": "53",
 }
 ```
 

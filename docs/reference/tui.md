@@ -15,70 +15,70 @@ unifly tui -v                # Verbose logging to temp directory
 
 Navigate with number keys `1`-`8`, `Tab`/`Shift+Tab`, or `,` for Settings:
 
-| Key | Screen | When to Use |
-|---|---|---|
-| `1` | **Dashboard** | At-a-glance health check. Start here. |
-| `2` | **Devices** | Investigating a specific device, checking firmware, restarting |
-| `3` | **Clients** | Finding a client, checking signal strength, blocking a device |
-| `4` | **Networks** | Reviewing VLANs, editing DHCP settings, checking subnets |
-| `5` | **Firewall** | Auditing policies, reordering rules, checking zone assignments |
-| `6` | **Topology** | Understanding physical network layout, tracing uplink paths |
-| `7` | **Events** | Real-time troubleshooting, watching for connectivity issues |
-| `8` | **Stats** | Historical analysis, bandwidth trends, DPI app breakdown |
-| `,` | **Settings** | Switching profiles, changing themes, adjusting display options |
-| | **Onboarding** | First-run setup wizard (shown automatically on first launch) |
+| Key | Screen         | When to Use                                                    |
+| --- | -------------- | -------------------------------------------------------------- |
+| `1` | **Dashboard**  | At-a-glance health check. Start here.                          |
+| `2` | **Devices**    | Investigating a specific device, checking firmware, restarting |
+| `3` | **Clients**    | Finding a client, checking signal strength, blocking a device  |
+| `4` | **Networks**   | Reviewing VLANs, editing DHCP settings, checking subnets       |
+| `5` | **Firewall**   | Auditing policies, reordering rules, checking zone assignments |
+| `6` | **Topology**   | Understanding physical network layout, tracing uplink paths    |
+| `7` | **Events**     | Real-time troubleshooting, watching for connectivity issues    |
+| `8` | **Stats**      | Historical analysis, bandwidth trends, DPI app breakdown       |
+| `,` | **Settings**   | Switching profiles, changing themes, adjusting display options |
+|     | **Onboarding** | First-run setup wizard (shown automatically on first launch)   |
 
 ## Dashboard Panels
 
 The dashboard packs eight live panels into a dense, information-rich overview:
 
-| Panel | What It Shows |
-|---|---|
-| **WAN Traffic** | Area-fill chart with Braille line overlay, live TX/RX rates, peak tracking |
-| **Gateway** | Model, firmware, WAN IP, IPv6, DNS, ISP name, latency, uptime |
-| **Connectivity** | Subsystem status dots (WAN/WWW/WLAN/LAN/VPN), aggregate traffic bars |
-| **Capacity** | Color-coded CPU/MEM gauges, load averages, device/client fleet count |
-| **Networks** | VLANs sorted by ID with IPv6 prefix delegation and SLAAC mode |
-| **WiFi / APs** | Client count and WiFi experience percentage per access point |
-| **Top Clients** | Proportional traffic bars with fractional block characters |
-| **Recent Events** | Compact event display, color-coded by severity |
+| Panel             | What It Shows                                                              |
+| ----------------- | -------------------------------------------------------------------------- |
+| **WAN Traffic**   | Area-fill chart with Braille line overlay, live TX/RX rates, peak tracking |
+| **Gateway**       | Model, firmware, WAN IP, IPv6, DNS, ISP name, latency, uptime              |
+| **Connectivity**  | Subsystem status dots (WAN/WWW/WLAN/LAN/VPN), aggregate traffic bars       |
+| **Capacity**      | Color-coded CPU/MEM gauges, load averages, device/client fleet count       |
+| **Networks**      | VLANs sorted by ID with IPv6 prefix delegation and SLAAC mode              |
+| **WiFi / APs**    | Client count and WiFi experience percentage per access point               |
+| **Top Clients**   | Proportional traffic bars with fractional block characters                 |
+| **Recent Events** | Compact event display, color-coded by severity                             |
 
 ## Key Bindings
 
 ### Global
 
-| Key | Action |
-|---|---|
-| `1`-`8`, `,` | Jump to screen |
-| `Tab` / `Shift+Tab` | Next / previous screen |
-| `j` / `k` / `Up` / `Down` | Navigate up / down |
-| `g` / `G` | Jump to top / bottom |
-| `Ctrl+d` / `Ctrl+u` | Page down / up |
-| `Enter` | Select / expand detail |
-| `Esc` | Close detail / go back |
-| `/` | Search |
-| `?` | Help overlay |
-| `q` | Quit |
+| Key                       | Action                 |
+| ------------------------- | ---------------------- |
+| `1`-`8`, `,`              | Jump to screen         |
+| `Tab` / `Shift+Tab`       | Next / previous screen |
+| `j` / `k` / `Up` / `Down` | Navigate up / down     |
+| `g` / `G`                 | Jump to top / bottom   |
+| `Ctrl+d` / `Ctrl+u`       | Page down / up         |
+| `Enter`                   | Select / expand detail |
+| `Esc`                     | Close detail / go back |
+| `/`                       | Search                 |
+| `?`                       | Help overlay           |
+| `q`                       | Quit                   |
 
 ### Screen-Specific
 
-| Screen | Key | Action |
-|---|---|---|
-| **Devices** | `R` | Restart selected device |
-| **Devices** | `L` | Locate (flash LED) |
-| **Devices** (detail) | `h` / `l` | Previous / next detail tab |
-| **Clients** | `Tab` | Cycle filter (All / Wireless / Wired / VPN / Guest) |
-| **Clients** | `b` / `B` | Block / unblock client |
-| **Clients** | `x` | Kick client |
-| **Networks** | `e` | Edit selected network (opens overlay) |
-| **Firewall** | `h` / `l` | Cycle sub-tabs (Policies / Zones / ACL / NAT) |
-| **Firewall** | `K` / `J` | Reorder policy up / down |
-| **Topology** | Arrows | Pan canvas |
-| **Topology** | `+` / `-` | Zoom in / out |
-| **Topology** | `f` | Fit to view |
-| **Events** | `Space` | Pause / resume live stream |
-| **Stats** | `h` `d` `w` `m` | Period: 1h / 24h / 7d / 30d |
-| **Stats** | `r` | Refresh data |
+| Screen               | Key             | Action                                              |
+| -------------------- | --------------- | --------------------------------------------------- |
+| **Devices**          | `R`             | Restart selected device                             |
+| **Devices**          | `L`             | Locate (flash LED)                                  |
+| **Devices** (detail) | `h` / `l`       | Previous / next detail tab                          |
+| **Clients**          | `Tab`           | Cycle filter (All / Wireless / Wired / VPN / Guest) |
+| **Clients**          | `b` / `B`       | Block / unblock client                              |
+| **Clients**          | `x`             | Kick client                                         |
+| **Networks**         | `e`             | Edit selected network (opens overlay)               |
+| **Firewall**         | `h` / `l`       | Cycle sub-tabs (Policies / Zones / ACL / NAT)       |
+| **Firewall**         | `K` / `J`       | Reorder policy up / down                            |
+| **Topology**         | Arrows          | Pan canvas                                          |
+| **Topology**         | `+` / `-`       | Zoom in / out                                       |
+| **Topology**         | `f`             | Fit to view                                         |
+| **Events**           | `Space`         | Pause / resume live stream                          |
+| **Stats**            | `h` `d` `w` `m` | Period: 1h / 24h / 7d / 30d                         |
+| **Stats**            | `r`             | Refresh data                                        |
 
 ## Detail Views
 
@@ -112,11 +112,11 @@ graph LR
 
 The TUI works with all authentication modes, but some screens degrade gracefully:
 
-| Mode | Dashboard | Devices | Clients | Events | Stats |
-|---|---|---|---|---|---|
-| API Key | Partial | Full | Full | No | No |
-| Username/Password | Full | Full | Full | Full | Full |
-| **Hybrid** | **Full** | **Full** | **Full** | **Full** | **Full** |
+| Mode              | Dashboard | Devices  | Clients  | Events   | Stats    |
+| ----------------- | --------- | -------- | -------- | -------- | -------- |
+| API Key           | Partial   | Full     | Full     | No       | No       |
+| Username/Password | Full      | Full     | Full     | Full     | Full     |
+| **Hybrid**        | **Full**  | **Full** | **Full** | **Full** | **Full** |
 
 ::: tip
 Use **Hybrid mode** for the best TUI experience. It provides access to all features including events and statistics that require the Legacy API.

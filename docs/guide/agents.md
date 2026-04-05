@@ -29,13 +29,13 @@ graph TD
     style AGENT fill:#50fa7b,color:#0a0a0f
 ```
 
-| Component | Description |
-|---|---|
-| **unifly skill** | Complete CLI reference with command syntax, flags, output formats, and automation tips |
-| **Network Manager agent** | Autonomous agent for provisioning VLANs, auditing firewalls, diagnosing connectivity |
-| **Reference docs** | UniFi networking concepts, dual-API gate matrix, auth decision tree |
-| **Workflow patterns** | Runnable recipes for event streaming, firewall reordering, DHCP reservations, DNS policies |
-| **Example payloads** | JSON templates for `--from-file` (networks, firewall, NAT, WiFi) |
+| Component                 | Description                                                                                |
+| ------------------------- | ------------------------------------------------------------------------------------------ |
+| **unifly skill**          | Complete CLI reference with command syntax, flags, output formats, and automation tips     |
+| **Network Manager agent** | Autonomous agent for provisioning VLANs, auditing firewalls, diagnosing connectivity       |
+| **Reference docs**        | UniFi networking concepts, dual-API gate matrix, auth decision tree                        |
+| **Workflow patterns**     | Runnable recipes for event streaming, firewall reordering, DHCP reservations, DNS policies |
+| **Example payloads**      | JSON templates for `--from-file` (networks, firewall, NAT, WiFi)                           |
 
 ## What Your Agent Can Do
 
@@ -52,10 +52,10 @@ With the skill installed, your coding agent can:
 
 Two slash commands are included for quick actions:
 
-| Command | Description |
-|---|---|
-| `/unifly-status` | Quick health check of your UniFi infrastructure |
-| `/unifly-audit` | Security audit of WiFi, firewall, and network configuration |
+| Command          | Description                                                 |
+| ---------------- | ----------------------------------------------------------- |
+| `/unifly-status` | Quick health check of your UniFi infrastructure             |
+| `/unifly-audit`  | Security audit of WiFi, firewall, and network configuration |
 
 ## Prerequisite
 
@@ -75,11 +75,11 @@ The skill teaches the agent to use `unifly` CLI commands. It does not connect to
 
 Once the skill is installed, try these with your coding agent:
 
-- *"Set up an IoT VLAN on 10.0.30.0/24 with a dedicated WiFi SSID and firewall isolation from the trusted network"*
-- *"Audit my firewall rules for any allow-all policies or missing zone isolation"*
-- *"Find the client named 'ring-doorbell' and show me its connection details"*
-- *"Show me the network topology and identify any devices that are offline"*
-- *"Stream events for the next few minutes and flag anything unusual"*
+- _"Set up an IoT VLAN on 10.0.30.0/24 with a dedicated WiFi SSID and firewall isolation from the trusted network"_
+- _"Audit my firewall rules for any allow-all policies or missing zone isolation"_
+- _"Find the client named 'ring-doorbell' and show me its connection details"_
+- _"Show me the network topology and identify any devices that are offline"_
+- _"Stream events for the next few minutes and flag anything unusual"_
 
 The agent will use `unifly` commands with `-o json` output, parse the results, and orchestrate multi-step workflows automatically.
 

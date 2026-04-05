@@ -6,12 +6,12 @@ Unifly communicates with UniFi controllers through two distinct API interfaces, 
 
 The official REST API introduced in UniFi Network 7.x+.
 
-| Aspect | Details |
-|---|---|
-| **Auth** | API key via `X-API-KEY` header |
+| Aspect       | Details                                                                                         |
+| ------------ | ----------------------------------------------------------------------------------------------- |
+| **Auth**     | API key via `X-API-KEY` header                                                                  |
 | **Base URL** | `https://<controller>/proxy/network/integration/v1/` (UniFi OS) or `/integration/v1/` (Classic) |
-| **Format** | JSON with typed responses |
-| **Methods** | Full CRUD plus action endpoints (GET, POST, PUT, PATCH, DELETE) |
+| **Format**   | JSON with typed responses                                                                       |
+| **Methods**  | Full CRUD plus action endpoints (GET, POST, PUT, PATCH, DELETE)                                 |
 
 ### Covered Resources
 
@@ -29,12 +29,12 @@ Legacy still owns the live and historical monitoring surfaces: event streaming, 
 
 The original UniFi controller API, session-based with cookie authentication.
 
-| Aspect | Details |
-|---|---|
-| **Auth** | Cookie session + CSRF token |
+| Aspect       | Details                                                                 |
+| ------------ | ----------------------------------------------------------------------- |
+| **Auth**     | Cookie session + CSRF token                                             |
 | **Base URL** | `https://<controller>/proxy/network/` (UniFi OS) or root path (Classic) |
-| **Format** | JSON envelope: `{ "meta": {...}, "data": [...] }` |
-| **CSRF** | Required on all POST/PUT/DELETE via `X-CSRF-Token` header |
+| **Format**   | JSON envelope: `{ "meta": {...}, "data": [...] }`                       |
+| **CSRF**     | Required on all POST/PUT/DELETE via `X-CSRF-Token` header               |
 
 ### Exclusive Features
 
@@ -50,10 +50,10 @@ The original UniFi controller API, session-based with cookie authentication.
 
 Network Application 9+ exposes a second generation of legacy-authenticated endpoints under `/v2/api/site/{site}/`. These return plain JSON (no `{ meta, data }` envelope).
 
-| Endpoint | Description |
-|---|---|
+| Endpoint                         | Description                                   |
+| -------------------------------- | --------------------------------------------- |
 | `traffic-flow-latest-statistics` | DPI traffic flow data by application/category |
-| `nat` | NAT rule CRUD (DNAT, SNAT, masquerade) |
+| `nat`                            | NAT rule CRUD (DNAT, SNAT, masquerade)        |
 
 Unifly's DPI cascade tries the v2 endpoint first, then falls back to `stat/sitedpi` and `stat/dpi` for older firmware. NAT rules use the v2 endpoint exclusively:the Integration API does not expose NAT on Network Application 10.1.89.
 
@@ -79,13 +79,13 @@ GET requests work without CSRF tokens, but all POST/PUT/DELETE requests through 
 
 When configured with both an API key and credentials, unifly uses each API for what it does best:
 
-| Operation | API Used |
-|---|---|
+| Operation                               | API Used                      |
+| --------------------------------------- | ----------------------------- |
 | List/get/create/update/delete resources | Integration API (NAT uses v2) |
-| Stream events | Legacy API (WebSocket) |
-| Query statistics | Legacy API |
-| Device commands | Legacy API |
-| System health (ISP, DNS, gateway) | Legacy API |
+| Stream events                           | Legacy API (WebSocket)        |
+| Query statistics                        | Legacy API                    |
+| Device commands                         | Legacy API                    |
+| System health (ISP, DNS, gateway)       | Legacy API                    |
 
 This provides the most complete feature set while using the cleanest API surface available for each operation.
 

@@ -59,11 +59,11 @@ graph LR
 
 Entities can have different IDs depending on the API source:
 
-| API | ID Format | Example |
-|---|---|---|
-| Integration | UUID v4 | `a1b2c3d4-e5f6-7890-abcd-ef1234567890` |
-| Legacy | MAC address | `fc:ec:da:ab:cd:ef` |
-| Synthetic | Prefixed string | `net:a1b2c3d4`, `wifi:e5f6a7b8` |
+| API         | ID Format       | Example                                |
+| ----------- | --------------- | -------------------------------------- |
+| Integration | UUID v4         | `a1b2c3d4-e5f6-7890-abcd-ef1234567890` |
+| Legacy      | MAC address     | `fc:ec:da:ab:cd:ef`                    |
+| Synthetic   | Prefixed string | `net:a1b2c3d4`, `wifi:e5f6a7b8`        |
 
 The `EntityId` enum handles this transparently:
 
@@ -78,9 +78,9 @@ Non-MAC entities (networks, WiFi, firewall policies) use synthetic keys with a t
 
 ## CLI vs TUI Data Patterns
 
-| Pattern | CLI | TUI |
-|---|---|---|
-| **Connection** | `oneshot()`: no background tasks | `connect()`: full lifecycle |
-| **Data access** | Single `current()` snapshot | `changed()` subscription loop |
-| **Refresh** | None (fire-and-forget) | Automatic every 30 seconds |
-| **Events** | Optional stream command | Always connected via WebSocket |
+| Pattern         | CLI                              | TUI                            |
+| --------------- | -------------------------------- | ------------------------------ |
+| **Connection**  | `oneshot()`: no background tasks | `connect()`: full lifecycle    |
+| **Data access** | Single `current()` snapshot      | `changed()` subscription loop  |
+| **Refresh**     | None (fire-and-forget)           | Automatic every 30 seconds     |
+| **Events**      | Optional stream command          | Always connected via WebSocket |

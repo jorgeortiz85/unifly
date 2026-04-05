@@ -42,18 +42,18 @@ Most tools only speak one dialect. The web dashboard is slow and can't be script
 
 ## What You Can Do
 
-| Capability | Description |
-|---|---|
-| **Device Management** | List, inspect, restart, upgrade, and provision devices |
-| **Client Monitoring** | See connected clients with signal, traffic, and VLAN info |
-| **Network Configuration** | Manage VLANs, subnets, DHCP, and IPv6 settings |
-| **WiFi Management** | Create and modify SSIDs, view radio stats |
-| **Firewall** | Manage policies, zones, and ACL rules |
-| **NAT** | Masquerade, source NAT, and destination NAT rules (via Legacy v2 API) |
-| **Events & Alarms** | Stream live events, acknowledge and archive alarms |
-| **Statistics** | Query bandwidth, client counts, and DPI data over time |
-| **Raw API Access** | Hit any controller endpoint directly with `unifly api` |
-| **Real-Time Dashboard** | Monitor everything with live Braille charts and status bars |
+| Capability                | Description                                                           |
+| ------------------------- | --------------------------------------------------------------------- |
+| **Device Management**     | List, inspect, restart, upgrade, and provision devices                |
+| **Client Monitoring**     | See connected clients with signal, traffic, and VLAN info             |
+| **Network Configuration** | Manage VLANs, subnets, DHCP, and IPv6 settings                        |
+| **WiFi Management**       | Create and modify SSIDs, view radio stats                             |
+| **Firewall**              | Manage policies, zones, and ACL rules                                 |
+| **NAT**                   | Masquerade, source NAT, and destination NAT rules (via Legacy v2 API) |
+| **Events & Alarms**       | Stream live events, acknowledge and archive alarms                    |
+| **Statistics**            | Query bandwidth, client counts, and DPI data over time                |
+| **Raw API Access**        | Hit any controller endpoint directly with `unifly api`                |
+| **Real-Time Dashboard**   | Monitor everything with live Braille charts and status bars           |
 
 ## Architecture at a Glance
 

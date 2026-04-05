@@ -30,12 +30,12 @@ unifly config init                     # Select "API Key" during setup
 unifly --api-key <KEY> devices list    # Or pass directly
 ```
 
-| Pros | Limitations |
-|---|---|
-| Simplest setup | No event streaming |
-| No session management | No historical statistics |
-| Stable, no token expiry | No device commands (restart, adopt, locate) |
-| Works for all config CRUD | Client/device records miss some fields |
+| Pros                      | Limitations                                 |
+| ------------------------- | ------------------------------------------- |
+| Simplest setup            | No event streaming                          |
+| No session management     | No historical statistics                    |
+| Stable, no token expiry   | No device commands (restart, adopt, locate) |
+| Works for all config CRUD | Client/device records miss some fields      |
 
 Best for: CI/CD pipelines, scripted provisioning, config-only workflows.
 
@@ -47,11 +47,11 @@ Legacy session-based auth with cookie and CSRF token handling.
 unifly config init                     # Select "Username/Password" during setup
 ```
 
-| Pros | Limitations |
-|---|---|
-| Full Legacy API access | Sessions expire periodically |
+| Pros                           | Limitations                               |
+| ------------------------------ | ----------------------------------------- |
+| Full Legacy API access         | Sessions expire periodically              |
 | Events, stats, device commands | No access to modern Integration endpoints |
-| Admin management | DNS, ACL, traffic lists unavailable |
+| Admin management               | DNS, ACL, traffic lists unavailable       |
 
 Best for: Monitoring-focused setups, event streaming, read-heavy workflows.
 
@@ -63,13 +63,13 @@ Both APIs at once. API key for Integration CRUD, username/password for Legacy fe
 unifly config init                     # Select "Hybrid" during setup
 ```
 
-| Capability | API Used |
-|---|---|
-| Networks, WiFi, Firewall, DNS, ACL, Traffic Lists | Integration API |
-| NAT policies | Legacy v2 API (requires credentials) |
-| Events, Stats, DPI | Legacy API |
-| Device commands (restart, adopt) | Legacy API |
-| Client/device field enrichment | Both (merged by IP/MAC) |
+| Capability                                        | API Used                             |
+| ------------------------------------------------- | ------------------------------------ |
+| Networks, WiFi, Firewall, DNS, ACL, Traffic Lists | Integration API                      |
+| NAT policies                                      | Legacy v2 API (requires credentials) |
+| Events, Stats, DPI                                | Legacy API                           |
+| Device commands (restart, adopt)                  | Legacy API                           |
+| Client/device field enrichment                    | Both (merged by IP/MAC)              |
 
 How it works: unifly routes each request to the best API automatically. Client and device records are enriched by merging Integration data with Legacy fields (traffic bytes, hostname, wireless info, uplink MAC, VLAN).
 
@@ -79,11 +79,11 @@ To verify Hybrid is working, check that `clients list` shows traffic bytes and h
 
 All credentials are stored in your OS keyring:
 
-| OS | Backend |
-|---|---|
-| macOS | Keychain |
-| Linux | Secret Service (GNOME Keyring, KWallet) |
-| Windows | Windows Credential Manager |
+| OS      | Backend                                 |
+| ------- | --------------------------------------- |
+| macOS   | Keychain                                |
+| Linux   | Secret Service (GNOME Keyring, KWallet) |
+| Windows | Windows Credential Manager              |
 
 The `config.toml` file stores non-sensitive settings like controller URLs and site names. The setup wizard offers keyring storage by default, but also provides a plaintext config fallback for environments where the keyring isn't available (headless servers, WSL, CI).
 
