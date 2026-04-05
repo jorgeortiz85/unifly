@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+use reqwest::header::{HeaderMap, HeaderValue};
 use secrecy::SecretString;
 use serde_json::json;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -14,7 +15,10 @@ use url::Url;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use unifly_api::{AuthCredentials, Controller, ControllerConfig, CoreError, TlsVerification};
+use unifly_api::{
+    AuthCredentials, Controller, ControllerConfig, ControllerPlatform, CoreError, Error,
+    LegacyClient, MacAddress, TlsVerification, TransportConfig,
+};
 
 const LEGACY_SITE_ID: &str = "site-001";
 const LEGACY_SITE_NAME: &str = "default";
@@ -130,7 +134,172 @@ async fn mock_legacy_connect_with_events(
         .await;
 }
 
-async fn mock_api_key_connect(server: &MockServer, site_id: &str) {
+fn api_key_legacy_client(base_url: Url, site: &str, api_key: &str) -> LegacyClient {
+    let mut headers = HeaderMap::new();
+    let mut key_value = HeaderValue::from_str(api_key).unwrap();
+    key_value.set_sensitive(true);
+    headers.insert("X-API-KEY", key_value);
+
+    let http = TransportConfig::default()
+        .build_client_with_headers(headers)
+        .unwrap();
+
+    LegacyClient::with_client(
+        http,
+        base_url,
+        site.to_owned(),
+        ControllerPlatform::ClassicController,
+    )
+}
+
+fn session_legacy_client(base_url: Url, site: &str) -> LegacyClient {
+    LegacyClient::new(
+        base_url,
+        site.to_owned(),
+        ControllerPlatform::ClassicController,
+        &TransportConfig::default(),
+    )
+    .unwrap()
+}
+
+async fn mount_api_key_integration_routes(server: &MockServer) {
+    Mock::given(method("GET"))
+        .and(path("/integration/v1/sites"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "offset": 0,
+            "limit": 50,
+            "count": 1,
+            "totalCount": 1,
+            "data": [{
+                "id": API_KEY_SITE_ID,
+                "internalReference": LEGACY_SITE_NAME,
+                "name": LEGACY_SITE_LABEL,
+            }],
+        })))
+        .mount(server)
+        .await;
+
+    for (route, body) in [
+        (
+            format!("/integration/v1/sites/{API_KEY_SITE_ID}/devices"),
+            empty_integration_page(200),
+        ),
+        (
+            format!("/integration/v1/sites/{API_KEY_SITE_ID}/clients"),
+            json!({
+                "offset": 0,
+                "limit": 200,
+                "count": 1,
+                "totalCount": 1,
+                "data": [{
+                    "id": "c56a4180-65aa-42ec-a945-5fd21dec0538",
+                    "name": "Office Laptop",
+                    "type": "WIRELESS",
+                    "ipAddress": "10.0.0.50",
+                    "connectedAt": null,
+                    "macAddress": "aa:bb:cc:dd:ee:ff",
+                    "access": {},
+                }],
+            }),
+        ),
+        (
+            format!("/integration/v1/sites/{API_KEY_SITE_ID}/networks"),
+            empty_integration_page(200),
+        ),
+        (
+            format!("/integration/v1/sites/{API_KEY_SITE_ID}/wifi/broadcasts"),
+            empty_integration_page(200),
+        ),
+        (
+            format!("/integration/v1/sites/{API_KEY_SITE_ID}/firewall/policies"),
+            empty_integration_page(200),
+        ),
+        (
+            format!("/integration/v1/sites/{API_KEY_SITE_ID}/firewall/zones"),
+            empty_integration_page(200),
+        ),
+        (
+            format!("/integration/v1/sites/{API_KEY_SITE_ID}/acl-rules"),
+            empty_integration_page(200),
+        ),
+        (
+            format!("/integration/v1/sites/{API_KEY_SITE_ID}/dns/policies"),
+            empty_integration_page(200),
+        ),
+        (
+            format!("/integration/v1/sites/{API_KEY_SITE_ID}/vouchers"),
+            empty_integration_page(200),
+        ),
+        (
+            format!("/integration/v1/sites/{API_KEY_SITE_ID}/traffic-matching-lists"),
+            empty_integration_page(200),
+        ),
+    ] {
+        Mock::given(method("GET"))
+            .and(path(route))
+            .respond_with(ResponseTemplate::new(200).set_body_json(body))
+            .mount(server)
+            .await;
+    }
+}
+
+async fn mount_api_key_legacy_routes(server: &MockServer) {
+    use wiremock::matchers::header;
+
+    Mock::given(method("GET"))
+        .and(path("/api/s/default/stat/device"))
+        .and(header("X-API-KEY", "the-key"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(empty_legacy_envelope()))
+        .mount(server)
+        .await;
+
+    Mock::given(method("GET"))
+        .and(path("/api/s/default/stat/sta"))
+        .and(header("X-API-KEY", "the-key"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(legacy_envelope(&json!([{
+                "_id": "client-1",
+                "mac": "aa:bb:cc:dd:ee:ff",
+                "ip": "10.0.0.50",
+                "hostname": "test-host",
+                "is_wired": false,
+                "tx_bytes": 1234,
+                "rx_bytes": 5678,
+            }]))),
+        )
+        .mount(server)
+        .await;
+
+    Mock::given(method("GET"))
+        .and(path("/api/s/default/stat/event"))
+        .and(header("X-API-KEY", "the-key"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(empty_legacy_envelope()))
+        .mount(server)
+        .await;
+
+    Mock::given(method("GET"))
+        .and(path("/api/s/default/stat/health"))
+        .and(header("X-API-KEY", "the-key"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(empty_legacy_envelope()))
+        .mount(server)
+        .await;
+
+    Mock::given(method("GET"))
+        .and(path("/api/s/default/rest/user"))
+        .and(header("X-API-KEY", "the-key"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(empty_legacy_envelope()))
+        .mount(server)
+        .await;
+
+    Mock::given(method("GET"))
+        .and(path("/v2/api/site/default/nat"))
+        .and(header("X-API-KEY", "the-key"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([])))
+        .mount(server)
+        .await;
+}
+
+async fn mock_api_key_with_legacy(server: &MockServer) {
     Mock::given(method("GET"))
         .and(path("/api/auth/login"))
         .respond_with(ResponseTemplate::new(404))
@@ -143,30 +312,8 @@ async fn mock_api_key_connect(server: &MockServer, site_id: &str) {
         .mount(server)
         .await;
 
-    for route in [
-        format!("/integration/v1/sites/{site_id}/devices"),
-        format!("/integration/v1/sites/{site_id}/clients"),
-        format!("/integration/v1/sites/{site_id}/networks"),
-        format!("/integration/v1/sites/{site_id}/wifi/broadcasts"),
-        format!("/integration/v1/sites/{site_id}/firewall/policies"),
-        format!("/integration/v1/sites/{site_id}/firewall/zones"),
-        format!("/integration/v1/sites/{site_id}/acl-rules"),
-        format!("/integration/v1/sites/{site_id}/dns/policies"),
-        format!("/integration/v1/sites/{site_id}/vouchers"),
-        format!("/integration/v1/sites/{site_id}/traffic-matching-lists"),
-    ] {
-        Mock::given(method("GET"))
-            .and(path(route))
-            .respond_with(ResponseTemplate::new(200).set_body_json(empty_integration_page(200)))
-            .mount(server)
-            .await;
-    }
-
-    Mock::given(method("GET"))
-        .and(path("/integration/v1/sites"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(empty_integration_page(50)))
-        .mount(server)
-        .await;
+    mount_api_key_integration_routes(server).await;
+    mount_api_key_legacy_routes(server).await;
 }
 
 #[tokio::test]
@@ -233,12 +380,12 @@ async fn legacy_mode_rejects_integration_only_surfaces_clearly() {
 #[tokio::test]
 async fn api_key_mode_has_legacy_and_integration_access() {
     let server = MockServer::start().await;
-    mock_api_key_connect(&server, API_KEY_SITE_ID).await;
+    mock_api_key_with_legacy(&server).await;
 
     let controller = Controller::new(base_config(
         Url::parse(&server.uri()).unwrap(),
-        AuthCredentials::ApiKey(secret("api-key")),
-        API_KEY_SITE_ID,
+        AuthCredentials::ApiKey(secret("the-key")),
+        LEGACY_SITE_NAME,
         false,
     ));
 
@@ -246,8 +393,198 @@ async fn api_key_mode_has_legacy_and_integration_access() {
 
     assert!(controller.has_legacy_access().await);
     assert!(controller.has_integration_access().await);
+    assert_eq!(controller.store().client_count(), 1);
+
+    let client = controller
+        .store()
+        .client_by_mac(&MacAddress::new("aa:bb:cc:dd:ee:ff"))
+        .expect("expected merged client in store");
+    assert_eq!(client.hostname.as_deref(), Some("test-host"));
+    assert_eq!(client.tx_bytes, Some(1234));
+    assert_eq!(client.rx_bytes, Some(5678));
+
+    let received = server.received_requests().await.unwrap();
+    let legacy_reqs: Vec<_> = received
+        .iter()
+        .filter(|req| {
+            req.url.path().starts_with("/api/s/default/")
+                || req.url.path().starts_with("/v2/api/site/default/")
+        })
+        .collect();
+    assert!(
+        !legacy_reqs.is_empty(),
+        "expected api-key mode to exercise legacy HTTP routes"
+    );
+    for req in legacy_reqs {
+        assert_eq!(
+            req.headers
+                .get("x-api-key")
+                .and_then(|value| value.to_str().ok()),
+            Some("the-key"),
+            "legacy request {} missing X-API-KEY",
+            req.url.path()
+        );
+        assert!(
+            req.headers.get("cookie").is_none(),
+            "legacy request {} should not send Cookie in api-key mode",
+            req.url.path()
+        );
+        assert!(
+            req.headers.get("x-csrf-token").is_none(),
+            "legacy request {} should not send X-CSRF-Token in api-key mode",
+            req.url.path()
+        );
+    }
 
     controller.disconnect().await;
+}
+
+#[tokio::test]
+async fn api_key_legacy_raw_mutations_skip_csrf_header() {
+    use wiremock::matchers::header;
+
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/s/default/cmd/devmgr"))
+        .and(header("X-API-KEY", "the-key"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"ok": true})))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("PUT"))
+        .and(path("/api/s/default/rest/user/user-1"))
+        .and(header("X-API-KEY", "the-key"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"ok": true})))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("DELETE"))
+        .and(path("/v2/api/site/default/nat/rule-1"))
+        .and(header("X-API-KEY", "the-key"))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&server)
+        .await;
+
+    let legacy = api_key_legacy_client(
+        Url::parse(&server.uri()).unwrap(),
+        LEGACY_SITE_NAME,
+        "the-key",
+    );
+
+    legacy
+        .raw_post(
+            "api/s/default/cmd/devmgr",
+            &json!({"cmd": "restart", "mac": "aa:bb:cc:dd:ee:ff"}),
+        )
+        .await
+        .unwrap();
+    legacy
+        .raw_put(
+            "api/s/default/rest/user/user-1",
+            &json!({"use_fixedip": true, "fixed_ip": "10.0.0.60"}),
+        )
+        .await
+        .unwrap();
+    legacy
+        .raw_delete("v2/api/site/default/nat/rule-1")
+        .await
+        .unwrap();
+
+    let received = server.received_requests().await.unwrap();
+    let mutated: Vec<_> = received
+        .iter()
+        .filter(|req| {
+            matches!(req.method.as_str(), "POST" | "PUT" | "DELETE")
+                && (req.url.path().starts_with("/api/s/default/")
+                    || req.url.path().starts_with("/v2/api/site/default/"))
+        })
+        .collect();
+    assert_eq!(mutated.len(), 3);
+
+    for req in mutated {
+        assert_eq!(
+            req.headers
+                .get("x-api-key")
+                .and_then(|value| value.to_str().ok()),
+            Some("the-key"),
+            "mutation {} {} missing X-API-KEY",
+            req.method,
+            req.url.path()
+        );
+        assert!(
+            req.headers.get("cookie").is_none(),
+            "mutation {} {} should not send Cookie in api-key mode",
+            req.method,
+            req.url.path()
+        );
+        assert!(
+            req.headers.get("x-csrf-token").is_none(),
+            "mutation {} {} should not send X-CSRF-Token in api-key mode",
+            req.method,
+            req.url.path()
+        );
+    }
+}
+
+#[tokio::test]
+async fn legacy_401_without_cookie_jar_reports_invalid_api_key() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/api/s/default/stat/device"))
+        .respond_with(ResponseTemplate::new(401).set_body_json(json!({
+            "meta": { "rc": "error", "msg": "api.err.NoPermission" },
+            "data": [],
+        })))
+        .mount(&server)
+        .await;
+
+    let legacy = api_key_legacy_client(
+        Url::parse(&server.uri()).unwrap(),
+        LEGACY_SITE_NAME,
+        "the-key",
+    );
+
+    let listed = legacy.list_devices().await;
+    assert!(
+        matches!(listed, Err(Error::InvalidApiKey)),
+        "expected InvalidApiKey for envelope request, got: {listed:?}"
+    );
+
+    let raw = legacy.raw_get("api/s/default/stat/device").await;
+    assert!(
+        matches!(raw, Err(Error::InvalidApiKey)),
+        "expected InvalidApiKey for raw request, got: {raw:?}"
+    );
+}
+
+#[tokio::test]
+async fn legacy_401_with_cookie_jar_reports_session_expired() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/api/s/default/stat/device"))
+        .respond_with(ResponseTemplate::new(401).set_body_json(json!({
+            "meta": { "rc": "error", "msg": "api.err.NoPermission" },
+            "data": [],
+        })))
+        .mount(&server)
+        .await;
+
+    let legacy = session_legacy_client(Url::parse(&server.uri()).unwrap(), LEGACY_SITE_NAME);
+
+    let listed = legacy.list_devices().await;
+    assert!(
+        matches!(listed, Err(Error::SessionExpired)),
+        "expected SessionExpired for envelope request, got: {listed:?}"
+    );
+
+    let raw = legacy.raw_get("api/s/default/stat/device").await;
+    assert!(
+        matches!(raw, Err(Error::SessionExpired)),
+        "expected SessionExpired for raw request, got: {raw:?}"
+    );
 }
 
 #[tokio::test]

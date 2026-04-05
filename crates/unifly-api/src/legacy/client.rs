@@ -189,6 +189,19 @@ impl LegacyClient {
         }
     }
 
+    /// Classify a legacy 401 based on the active auth strategy.
+    ///
+    /// Session-backed clients carry a cookie jar and should surface the
+    /// failure as an expired session. API-key clients never have a jar,
+    /// so the same 401 means the key was rejected.
+    fn unauthorized_error(&self) -> Error {
+        if self.cookie_jar.is_some() {
+            Error::SessionExpired
+        } else {
+            Error::InvalidApiKey
+        }
+    }
+
     // ── URL builders ─────────────────────────────────────────────────
 
     /// Build a full URL for a controller-level API path.
@@ -248,9 +261,7 @@ impl LegacyClient {
         let status = resp.status();
 
         if status == reqwest::StatusCode::UNAUTHORIZED {
-            return Err(Error::Authentication {
-                message: "session expired or invalid credentials".into(),
-            });
+            return Err(self.unauthorized_error());
         }
         if !status.is_success() {
             let body = resp.text().await.unwrap_or_default();
@@ -334,9 +345,7 @@ impl LegacyClient {
         let status = resp.status();
 
         if status == reqwest::StatusCode::UNAUTHORIZED {
-            return Err(Error::Authentication {
-                message: "session expired or invalid credentials".into(),
-            });
+            return Err(self.unauthorized_error());
         }
         if !status.is_success() {
             let body = resp.text().await.unwrap_or_default();
@@ -369,9 +378,7 @@ impl LegacyClient {
         let status = resp.status();
 
         if status == reqwest::StatusCode::UNAUTHORIZED {
-            return Err(Error::Authentication {
-                message: "session expired or invalid credentials".into(),
-            });
+            return Err(self.unauthorized_error());
         }
         if !status.is_success() {
             let body = resp.text().await.unwrap_or_default();
@@ -400,9 +407,7 @@ impl LegacyClient {
         let status = resp.status();
 
         if status == reqwest::StatusCode::UNAUTHORIZED {
-            return Err(Error::Authentication {
-                message: "session expired or invalid credentials".into(),
-            });
+            return Err(self.unauthorized_error());
         }
         if !status.is_success() {
             let body = resp.text().await.unwrap_or_default();
@@ -429,9 +434,7 @@ impl LegacyClient {
         self.update_csrf_from_response(resp.headers());
 
         if status == reqwest::StatusCode::UNAUTHORIZED {
-            return Err(Error::Authentication {
-                message: "session expired or invalid credentials".into(),
-            });
+            return Err(self.unauthorized_error());
         }
 
         if status == reqwest::StatusCode::FORBIDDEN {
@@ -455,7 +458,19 @@ impl LegacyClient {
         {
             let msg = err.message.unwrap_or_default();
             return Err(if err.code == 401 {
-                Error::Authentication { message: msg }
+                if msg.is_empty() {
+                    self.unauthorized_error()
+                } else {
+                    match self.unauthorized_error() {
+                        Error::SessionExpired => Error::Authentication {
+                            message: format!("session expired: {msg}"),
+                        },
+                        Error::InvalidApiKey => Error::Authentication {
+                            message: format!("API key rejected: {msg}"),
+                        },
+                        other => other,
+                    }
+                }
             } else {
                 Error::LegacyApi {
                     message: format!("UniFi OS error {}: {msg}", err.code),

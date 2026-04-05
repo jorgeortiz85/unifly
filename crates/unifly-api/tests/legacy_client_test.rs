@@ -178,7 +178,7 @@ async fn test_list_events_with_limit() {
 // ── Error tests ─────────────────────────────────────────────────────
 
 #[tokio::test]
-async fn test_session_expired() {
+async fn test_unauthorized_without_cookie_jar_reports_invalid_api_key() {
     let (server, client) = setup().await;
 
     Mock::given(method("GET"))
@@ -188,15 +188,27 @@ async fn test_session_expired() {
 
     let result = client.list_devices().await;
 
-    match result {
-        Err(Error::Authentication { ref message }) => {
-            assert!(
-                message.contains("session expired") || message.contains("insufficient permissions"),
-                "expected auth error message, got: {message}"
-            );
-        }
-        other => panic!("expected Authentication error, got: {other:?}"),
-    }
+    assert!(
+        matches!(result, Err(Error::InvalidApiKey)),
+        "expected InvalidApiKey, got: {result:?}"
+    );
+}
+
+#[tokio::test]
+async fn test_unauthorized_with_cookie_jar_reports_session_expired() {
+    let (server, client) = setup_with_jar().await;
+
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(401))
+        .mount(&server)
+        .await;
+
+    let result = client.list_devices().await;
+
+    assert!(
+        matches!(result, Err(Error::SessionExpired)),
+        "expected SessionExpired, got: {result:?}"
+    );
 }
 
 #[tokio::test]
