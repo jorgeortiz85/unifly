@@ -1,6 +1,6 @@
 # Contributing to unifly
 
-Thanks for your interest in contributing! Whether it's a bug report, feature idea, or code contribution — it all helps make unifly better.
+Thanks for your interest in contributing! Bug reports, feature ideas, and code contributions all help make unifly better.
 
 ## Reporting Bugs
 
@@ -16,18 +16,19 @@ Open a [GitHub Issue](https://github.com/hyperb1iss/unifly/issues) with:
 
 Open a [GitHub Issue](https://github.com/hyperb1iss/unifly/issues) describing:
 
-- The use case — what problem does this solve?
+- The use case: what problem does this solve?
 - How you'd expect it to work (CLI syntax, TUI behavior, etc.)
 - Whether it relates to the Integration API, Legacy API, or both
 
-Check the [ROADMAP.md](ROADMAP.md) first — it might already be planned.
+Check the [ROADMAP.md](ROADMAP.md) first; it might already be planned.
 
 ## Development Setup
 
 ### Prerequisites
 
-- **Rust 1.94+** (edition 2024) — install via [rustup](https://rustup.rs/)
-- **Nightly rustfmt** — `rustup component add rustfmt --toolchain nightly`
+- **Rust 1.94+** (edition 2024) via [rustup](https://rustup.rs/)
+- **Nightly rustfmt**: `rustup component add rustfmt --toolchain nightly`
+- **just** task runner: `cargo install just`
 - A UniFi Network controller for integration testing (Cloud Key, Dream Machine, or self-hosted)
 
 ### Build & Test
@@ -46,24 +47,32 @@ cargo run -p unifly -- devices list
 cargo run -p unifly -- tui
 ```
 
+Or use the just recipes:
+
+```bash
+just cli devices list
+just tui
+```
+
 ### Workspace Structure
 
 ```
 crates/
-  unifly-api/      # Library — HTTP/WS transport, Controller, DataStore, domain models
-  unifly/          # Single binary: CLI commands + tui subcommand, config, profiles
+  unifly-api/      # Library: HTTP/WS transport, Controller, DataStore, domain models
+  unifly/          # Single binary: CLI commands + TUI dashboard (feature-gated via `tui` feature)
 ```
 
-Dependency chain: `unifly` depends on `unifly-api`.
+Dependency chain: `unifly` depends on `unifly-api`. The TUI is optional and can be excluded with `--no-default-features --features cli`.
 
-See the [README](README.md#-architecture) for the full architecture overview.
+For deeper architectural context and code policies, see [AGENTS.md](AGENTS.md).
 
 ## Code Style
 
 ### Formatting
 
 ```bash
-cargo +nightly fmt --all
+just fmt                  # runs cargo +nightly fmt --all
+just fmt-check            # read-only check (same as CI)
 ```
 
 The project uses nightly rustfmt with a custom `rustfmt.toml` (100-char max width, field init shorthand, try shorthand).
@@ -71,37 +80,73 @@ The project uses nightly rustfmt with a custom `rustfmt.toml` (100-char max widt
 ### Linting
 
 ```bash
-cargo clippy --workspace --all-targets -- -D warnings
+just clippy               # runs cargo clippy --workspace --all-targets
 ```
 
-The workspace has opinionated clippy configuration — pedantic lints enabled. Key rules:
+The workspace has opinionated clippy configuration. Key rules:
 
-- `unsafe_code = "forbid"` — no unsafe code, period
-- `unwrap_used = "deny"` — use `?`, `.ok()`, `.unwrap_or()`, or proper error handling
-- `pedantic = "deny"` — clippy pedantic lints are enforced
+- `unsafe_code = "forbid"`: no unsafe code, period
+- `unwrap_used = "deny"`: use `?`, `.ok()`, `.unwrap_or()`, or proper error handling
+- `pedantic = "deny"`: clippy pedantic lints are enforced (with a few pragmatic exceptions)
+- `all = "deny"` and `perf = "deny"`: no warnings slide
+
+Numeric cast lints (`cast_precision_loss`, `cast_possible_truncation`, `cast_sign_loss`) are set to warn, not deny.
+
+See `Cargo.toml` `[workspace.lints]` for the full configuration.
 
 ### Conventions
 
 - Error types use `thiserror` with `miette` for rich diagnostics
 - Async runtime is `tokio`; all public async APIs are `Send + Sync`
 - Entity IDs use the `EntityId` enum (`Uuid` | `Legacy`) for dual-API compatibility
-- Secrets are wrapped in `secrecy::SecretString` — never log or display credentials
+- Secrets are wrapped in `secrecy::SecretString`. Never log or display credentials
+
+## Testing
+
+### Test Layout
+
+```
+crates/unifly-api/tests/
+  integration_client_test.rs     # wiremock-based Integration API tests
+  legacy_client_test.rs          # wiremock-based Legacy API tests
+  controller_runtime_test.rs     # Controller lifecycle + refresh loop
+
+crates/unifly/tests/
+  cli_test.rs                    # assert_cmd-based end-to-end CLI tests
+```
+
+Unit tests are inline in source files under `#[cfg(test)] mod tests`.
+
+### Test Libraries
+
+| Library | Purpose |
+| --- | --- |
+| **wiremock** | Mock HTTP servers for Integration/Legacy API tests |
+| **insta** | Snapshot tests for output formatting (`just snap-review` to approve) |
+| **assert_cmd** + **predicates** | End-to-end CLI tests that spawn the built binary |
+| **tempfile** | Per-test config dir isolation |
+| **tokio-test** | Poll-based async unit tests |
+| **pretty_assertions** | Better diffs on assertion failures |
+
+### Test Policy
+
+- Unit tests should be pure and deterministic. No real network calls.
+- Integration tests use wiremock or assert_cmd, never a real controller.
+- Tests must not require a specific UniFi hardware or firmware version.
 
 ## Pull Request Workflow
 
 1. **Fork** the repository
 2. **Branch** from `main` (`feature/my-feature` or `fix/my-fix`)
 3. **Implement** your changes with tests where applicable
-4. **Ensure CI passes** locally:
+4. **Run the CI gate locally** before pushing:
    ```bash
-   cargo +nightly fmt --all --check
-   cargo clippy --workspace --all-targets -- -D warnings
-   cargo test --workspace
+   just check               # fmt-check + clippy + test (the canonical gate)
    ```
 5. **Open a PR** targeting `main`
-6. Describe what changed and why — link the relevant issue if one exists
+6. Describe what changed and why. Link the relevant issue if one exists.
 
-PRs are reviewed for correctness, style consistency, and architectural fit. Don't worry about perfection on the first pass — feedback is collaborative, not adversarial.
+Feedback is collaborative, not adversarial. We'll work through any issues together.
 
 ## License
 

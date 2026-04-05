@@ -4,7 +4,7 @@
 # Default profile to use when --profile is not specified
 default_profile = "home"
 
-# Home controller — UDM Pro with hybrid auth
+# Home controller: UDM Pro with hybrid auth
 [profiles.home]
 controller = "https://192.168.1.1"
 site = "default"
@@ -16,7 +16,7 @@ username = "admin"
 insecure = false
 timeout = 30
 
-# Office controller — Cloud Key Gen2 with API key only
+# Office controller: Cloud Key Gen2 with API key only
 [profiles.office]
 controller = "https://10.0.0.1"
 site = "default"
@@ -25,7 +25,7 @@ api_key_env = "UNIFI_OFFICE_API_KEY"
 insecure = true  # self-signed cert
 timeout = 60
 
-# Remote site — Legacy auth only (older firmware)
+# Remote site: Legacy auth only (older firmware)
 [profiles.warehouse]
 controller = "https://warehouse.example.com:8443"
 site = "default"

@@ -40,12 +40,12 @@ The default site is named `default`.
 
 ### Device States
 
-- **ONLINE** — Device is connected and operating normally
-- **OFFLINE** — Device is unreachable
-- **PENDING** — Device discovered but not yet adopted
-- **ADOPTING** — Adoption in progress
-- **UPGRADING** — Firmware upgrade in progress
-- **PROVISIONING** — Configuration being applied
+- **ONLINE**: Device is connected and operating normally
+- **OFFLINE**: Device is unreachable
+- **PENDING**: Device discovered but not yet adopted
+- **ADOPTING**: Adoption in progress
+- **UPGRADING**: Firmware upgrade in progress
+- **PROVISIONING**: Configuration being applied
 
 ## Dual-API Architecture
 
@@ -113,29 +113,29 @@ right `auth_mode`.
 
 ### Legacy API required (username + password)
 
-- `admin` (list/invite/revoke/update) — `/rest/admin`
+- `admin` (list/invite/revoke/update): `/rest/admin`
 - `alarms` (list/archive/archive-all)
-- `clients reservations`, `clients set-ip`, `clients remove-ip` — `/rest/user`
+- `clients reservations`, `clients set-ip`, `clients remove-ip`: `/rest/user`
 - `devices` adopt, remove, restart, locate, port-cycle, upgrade, provision,
   speedtest (all route through `cmd/devmgr` and `cmd/stamgr`)
 - `clients` authorize, unauthorize, block, unblock, kick, forget (via
   `cmd/stamgr`)
-- `dpi status | enable | disable` — `/set/setting/dpi`
-- `events list`, `events watch` — `/stat/event` and WebSocket
+- `dpi status | enable | disable`: `/set/setting/dpi`
+- `events list`, `events watch`: `/stat/event` and WebSocket
 - `sites create | delete`
-- `stats site | device | client | gateway | dpi` — `/stat/report/*`
+- `stats site | device | client | gateway | dpi`: `/stat/report/*`
 - `system health | sysinfo | backup | reboot | poweroff`
 
 ### Hybrid-enriched (works in any mode, but richer in Hybrid)
 
-- `clients list` — Integration fetch, Legacy fields merged by IP match
-- `clients find` — inherits the merged view
-- `devices list` — Integration fetch, Legacy `num_sta` merged by MAC
-- `topology` — depends on merged `uplink_device_mac` for tree construction
+- `clients list`: Integration fetch, Legacy fields merged by IP match
+- `clients find`: inherits the merged view
+- `devices list`: Integration fetch, Legacy `num_sta` merged by MAC
+- `topology`: depends on merged `uplink_device_mac` for tree construction
 
 ### Raw API escape hatch
 
-- `api <path>` — Routes through the Legacy client (handles CSRF and session
+- `api <path>`: Routes through the Legacy client (handles CSRF and session
   automatically). Can reach Legacy, v2 (`v2/api/site/...`), and Integration
   (`integration/v1/...`) endpoints regardless of auth mode.
 
@@ -238,25 +238,25 @@ Common VLAN design:
 
 ### Network Management Types
 
-- **Gateway** — Routed network with DHCP, NAT, firewall (most common)
-- **Switch** — Layer 2 only, no routing
-- **VLAN-only** — Tag without a subnet, used in trunk scenarios
+- **Gateway**: Routed network with DHCP, NAT, firewall (most common)
+- **Switch**: Layer 2 only, no routing
+- **VLAN-only**: Tag without a subnet, used in trunk scenarios
 
 ### DHCP
 
 UniFi supports three DHCP modes:
 
-- **Server** — Controller or gateway runs DHCP (most common)
-- **Relay** — Forward DHCP to an upstream server
-- **None** — No DHCP, static IPs only
+- **Server**: Controller or gateway runs DHCP (most common)
+- **Relay**: Forward DHCP to an upstream server
+- **None**: No DHCP, static IPs only
 
 ### IPv6
 
 Dual-stack networking supports:
 
-- **SLAAC** — Stateless Address Autoconfiguration
-- **DHCPv6** — Stateful IPv6 address assignment
-- **Prefix delegation** — Automatic prefix from upstream (PD)
+- **SLAAC**: Stateless Address Autoconfiguration
+- **DHCPv6**: Stateful IPv6 address assignment
+- **Prefix delegation**: Automatic prefix from upstream (PD)
 
 ## Security Model
 
@@ -267,27 +267,27 @@ control traffic between zone pairs.
 
 Built-in zones:
 
-- **Internal** — LAN networks
-- **External** — WAN/Internet traffic
-- **DMZ** — Public-facing services
-- **VPN** — VPN-originated traffic
-- **Hotspot** — Guest/hotspot networks
+- **Internal**: LAN networks
+- **External**:WAN/Internet traffic
+- **DMZ**: Public-facing services
+- **VPN**: VPN-originated traffic
+- **Hotspot**: Guest/hotspot networks
 
 Policies define rules between source and destination zones:
 
-- **Action** — `ALLOW`, `BLOCK`, `REJECT`
-- **Direction** — Implied by zone pair
-- **Logging** — Optional rule-level logging
-- **Order** — First match wins; ordering matters
+- **Action**:`ALLOW`, `BLOCK`, `REJECT`
+- **Direction**: Implied by zone pair
+- **Logging**: Optional rule-level logging
+- **Order**: First match wins; ordering matters
 
 ### NAT Policies
 
 NAT policies (`unifly nat policies`) support three kinds:
 
-- **Masquerade** — Source NAT using the outgoing interface address (most
+- **Masquerade**: Source NAT using the outgoing interface address (most
   common for Internet-bound traffic)
-- **Source NAT** — Explicit source address rewrite
-- **Destination NAT** — Port forwarding and DNAT
+- **Source NAT**: Explicit source address rewrite
+- **Destination NAT**: Port forwarding and DNAT
 
 ### ACLs
 
@@ -329,22 +329,22 @@ archive-all`.
 
 `unifly stats` pulls from Legacy report endpoints. Supported intervals:
 
-- `5minute` — High resolution, short retention window
-- `hourly` — Medium resolution
-- `daily` — Long-term trends
-- `monthly` — Capacity planning
+- `5minute`: High resolution, short retention window
+- `hourly`: Medium resolution
+- `daily`: Long-term trends
+- `monthly`: Capacity planning
 
 Subcommands: `site`, `device`, `client`, `gateway`, `dpi`. The `dpi`
 subcommand supports `--group-by by-app` or `--group-by by-cat`.
 
 ### DPI (Deep Packet Inspection)
 
-- `unifly dpi apps` — List known applications (Integration API)
-- `unifly dpi categories` — List known categories (Integration API)
-- `unifly dpi status` — Current DPI enable state (Legacy API)
-- `unifly dpi enable` — Turn DPI on (Legacy API)
-- `unifly dpi disable` — Turn DPI off (Legacy API)
-- `unifly stats dpi` — Query DPI traffic breakdown
+- `unifly dpi apps`: List known applications (Integration API)
+- `unifly dpi categories`: List known categories (Integration API)
+- `unifly dpi status`: Current DPI enable state (Legacy API)
+- `unifly dpi enable`: Turn DPI on (Legacy API)
+- `unifly dpi disable`: Turn DPI off (Legacy API)
+- `unifly stats dpi`: Query DPI traffic breakdown
 
 ## Error Taxonomy
 

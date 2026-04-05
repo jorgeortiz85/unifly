@@ -37,7 +37,7 @@
 
 ## 💜 What is unifly?
 
-A complete command-line toolkit for managing Ubiquiti UniFi network controllers. One binary with 25 top-level commands for scripting and a built-in TUI dashboard for real-time monitoring, powered by a shared async engine that speaks every UniFi API dialect.
+A complete command-line toolkit for managing Ubiquiti UniFi network controllers. One binary with 26 top-level commands for scripting and a built-in TUI dashboard for real-time monitoring, powered by a shared async engine that speaks every UniFi API dialect.
 
 > _Manage devices, monitor clients, inspect VLANs, stream events, and watch bandwidth charts, all without leaving your terminal._
 
@@ -55,7 +55,7 @@ UniFi controllers expose multiple APIs with different capabilities. unifly unifi
 > npx skills add hyperb1iss/unifly
 > ```
 >
-> **Humans** get a gorgeous 8-screen TUI, shell completions, pipe-friendly output, and the quiet satisfaction of never opening the UniFi web UI again. Keep scrolling to [Install](#-install).
+> **Humans** get a gorgeous 10-screen TUI, shell completions, pipe-friendly output, and the quiet satisfaction of never opening the UniFi web UI again. Keep scrolling to [Install](#-install).
 
 ---
 
@@ -64,8 +64,8 @@ UniFi controllers expose multiple APIs with different capabilities. unifly unifi
 | Capability | What You Get |
 | --- | --- |
 | 🔮 **Dual API Engine** | Integration API (REST, API key) + Legacy API (session, cookie/CSRF) with automatic Hybrid negotiation |
-| ⚡ **Real-Time TUI** | 8-screen dashboard with area-fill traffic charts, CPU/MEM gauges, live client counts, zoomable topology |
-| 🦋 **25 Top-Level Commands** | Devices, clients, networks, WiFi, firewall policies, zones, ACLs, NAT policies, DNS, VPN, hotspot vouchers, DPI, RADIUS, topology, `tui`... |
+| ⚡ **Real-Time TUI** | 10-screen dashboard with area-fill traffic charts, CPU/MEM gauges, live client counts, zoomable topology |
+| 🦋 **26 Top-Level Commands** | Devices, clients, networks, WiFi, firewall policies, zones, ACLs, NAT, DNS, VPN, DPI, RADIUS, topology, raw API passthrough, `tui`... |
 | 💎 **Flexible Output** | Table, JSON, compact JSON, YAML, and plain text. Pipe-friendly for scripting |
 | 🔒 **Secure Credentials** | OS keyring storage for API keys and passwords, with plaintext config support when you choose it |
 | 🌐 **Multi-Profile** | Named profiles for multiple controllers. Switch with a single flag |
@@ -197,6 +197,7 @@ Best of both worlds: API key for Integration API CRUD, username/password for Leg
 | `vpn` | | View VPN servers and tunnels |
 | `wans` | | View WAN interfaces |
 | `wifi` | `w` | Manage WiFi broadcasts (SSIDs) |
+| `api` | | Raw API passthrough (GET/POST to any endpoint) |
 | `tui` | | Launch the real-time terminal dashboard |
 
 Most resource groups support `list` and `get`; some also expose `create`, `update`, `delete`, `patch`, or specialized actions. Run `unifly <command> --help` for details.
@@ -236,7 +237,7 @@ unifly completions powershell | Out-String | Invoke-Expression
 
 ## 🖥️ TUI
 
-The `unifly tui` subcommand launches a real-time terminal dashboard for monitoring and managing your UniFi network. Eight screens cover everything from live bandwidth charts to firewall policy management.
+The `unifly tui` subcommand launches a real-time terminal dashboard for monitoring and managing your UniFi network. Ten screens cover everything from live bandwidth charts to firewall policy management.
 
 ```bash
 unifly tui                   # Launch with default profile
@@ -247,7 +248,7 @@ unifly tui -v                # Verbose logging
 
 ### Screens
 
-Navigate with number keys `1`–`8` or `Tab`/`Shift+Tab`:
+Navigate with number keys `1`-`8`, `Tab`/`Shift+Tab`, or `,` for Settings:
 
 | Key | Screen | Description |
 | --- | --- | --- |
@@ -256,9 +257,11 @@ Navigate with number keys `1`–`8` or `Tab`/`Shift+Tab`:
 | `3` | **Clients** | Connected clients: hostname, IP, MAC, VLAN, signal bars, traffic. Filterable by type (All/Wireless/Wired/VPN/Guest) |
 | `4` | **Networks** | VLAN topology: subnets, DHCP, IPv6, gateway type. Inline edit overlay for live config changes |
 | `5` | **Firewall** | Policies, zones, ACL rules, and NAT policies across four sub-tabs with visual rule reordering |
-| `6` | **Topology** | Zoomable network topology tree: gateway → switches → APs, color-coded by type and state |
+| `6` | **Topology** | Zoomable network topology tree: gateway to switches to APs, color-coded by type and state |
 | `7` | **Events** | Live event stream with 10K rolling buffer. Pause, scroll back, severity color-coding |
 | `8` | **Stats** | Historical charts: WAN bandwidth area fills, client counts, DPI app/category breakdown (1h/24h/7d/30d) |
+| `,` | **Settings** | Controller profile, theme selector, display preferences |
+| | **Onboarding** | First-run setup wizard for controller connection |
 
 ### Dashboard
 
@@ -316,7 +319,7 @@ Historical statistics with selectable time windows and dual-API data sourcing:
 
 | Key | Action |
 | --- | --- |
-| `1`–`8` | Jump to screen |
+| `1`-`8` | Jump to screen |
 | `Tab` / `Shift+Tab` | Next / previous screen |
 | `j` / `k` / `↑` / `↓` | Navigate up / down |
 | `g` / `G` | Jump to top / bottom |
@@ -368,7 +371,7 @@ Two crates, clean dependency chain:
 | Crate | Purpose |
 | --- | --- |
 | **unifly-api** | Async HTTP/WebSocket client, Controller lifecycle, reactive DataStore (`DashMap` + `tokio::watch`), entity models. Published on [crates.io](https://crates.io/crates/unifly-api) |
-| **unifly** | Single binary: CLI commands + `unifly tui` dashboard via feature flags, profile/keyring config, clap command routing, 8-screen ratatui dashboard with SilkCircuit theme |
+| **unifly** | Single binary: CLI commands + `unifly tui` dashboard via feature flags, profile/keyring config, clap command routing, 10-screen ratatui dashboard with SilkCircuit theme |
 
 ### Data Flow
 
@@ -523,7 +526,7 @@ cargo build --workspace
 
 ```bash
 cargo test --workspace
-cargo clippy --workspace -- -D warnings
+cargo clippy --workspace --all-targets
 ```
 
 ### Run

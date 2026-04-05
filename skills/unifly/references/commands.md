@@ -395,15 +395,15 @@ unifly api <path> [-m get|post] [-d '<json-body>']
 
 ## Topology, TUI, Completions, Config, Countries
 
-- `unifly topology` — Pretty-print the gateway > switch > AP > client tree
+- `unifly topology`: Pretty-print the gateway > switch > AP > client tree
   (Hybrid recommended for complete uplink data).
-- `unifly tui [--theme NAME] [--log-file PATH]` — Launches the Ratatui
+- `unifly tui [--theme NAME] [--log-file PATH]`: Launches the Ratatui
   dashboard. `UNIFLY_THEME` env var also sets the theme.
-- `unifly completions bash|zsh|fish|powershell|elvish` — Emit completion
+- `unifly completions bash|zsh|fish|powershell|elvish`: Emit completion
   script to stdout.
-- `unifly config init | show | set | profiles | use | set-password` —
+- `unifly config init | show | set | profiles | use | set-password`:
   Profile management. `set-password` stores in OS keyring.
-- `unifly countries` — List country codes for WiFi regulatory settings.
+- `unifly countries`: List country codes for WiFi regulatory settings.
 
 ## Cross-Cutting Patterns
 
@@ -454,14 +454,14 @@ queries should always pass one of these flags to avoid silent truncation.**
 
 ### Output Modes for Pipelines
 
-- `-o json` — Structured output, the default for agent use
-- `-o json-compact` — Single-line JSON per record, great for line-oriented
+- `-o json`: Structured output, the default for agent use
+- `-o json-compact`: Single-line JSON per record, great for line-oriented
   processing
-- `-o plain` — Emits IDs one per line; ideal for `xargs`:
+- `-o plain`: Emits IDs one per line, ideal for `xargs`:
   ```bash
   unifly clients list -o plain | xargs -n1 unifly clients block
   ```
-- `-o table` — Human display only, not for parsing
+- `-o table`: Human display only, not for parsing
 
 ### Dry-Run-Like Patterns
 

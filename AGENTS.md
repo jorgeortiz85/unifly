@@ -6,7 +6,7 @@ this file. Cursor, Codex, Aider, Cline, and Claude Code all read from here.
 
 For end-user documentation see `README.md`. For contributor workflow see
 `CONTRIBUTING.md`. For how agents should _use_ the unifly CLI at runtime see
-`skills/unifly/SKILL.md` — that is a separate audience from this file.
+`skills/unifly/SKILL.md` (a separate audience from this file).
 
 ---
 
@@ -15,12 +15,12 @@ For end-user documentation see `README.md`. For contributor workflow see
 unifly is a Rust CLI and TUI for managing Ubiquiti UniFi network
 infrastructure. A single `unifly` binary ships three user-facing surfaces:
 
-- **CLI commands** (`unifly devices list`, etc.) — 26 top-level commands
+- **CLI commands** (`unifly devices list`, etc.): 26 top-level commands
   covering devices, clients, networks, WiFi, firewall, NAT, DNS, ACL,
   traffic-lists, hotspot, events, stats, DPI, and a raw `api` escape hatch.
-- **TUI dashboard** (`unifly tui`) — 8-screen Ratatui interface for real-time
+- **TUI dashboard** (`unifly tui`) -- 10-screen Ratatui interface for real-time
   monitoring and interactive management.
-- **Agent skill** at `skills/unifly/SKILL.md` — bundled documentation that
+- **Agent skill** at `skills/unifly/SKILL.md`: bundled documentation that
   teaches AI agents to drive the CLI.
 
 The binary is powered by the `unifly-api` library crate, which is also
@@ -106,17 +106,17 @@ ClawHub and Claude Code plugin).
 
 `crates/unifly-api/src/` splits transport into two clients:
 
-- **`integration/`** — `IntegrationClient`, `X-API-KEY` auth, modern REST
+- **`integration/`**: `IntegrationClient`, `X-API-KEY` auth, modern REST
   endpoints at `/proxy/network/integration/v1/`. Returns clean JSON with
   UUIDs. Covers configuration CRUD (networks, wifi, firewall, nat, dns,
   acl, hotspot, traffic-lists, wans).
-- **`legacy/`** — `LegacyClient`, cookie + CSRF auth, envelope-wrapped
+- **`legacy/`**: `LegacyClient`, cookie + CSRF auth, envelope-wrapped
   responses at `/proxy/network/api/` and `/proxy/network/v2/api/`. Covers
   events (WebSocket), stats, device commands, admin, backups, DPI control.
 
 Both clients share a common `TransportConfig` and `TlsMode`. TLS modes:
 `SystemDefaults`, `AcceptInvalid`, `CustomPem`. Credentials are wrapped in
-`secrecy::SecretString` throughout — **never log or display them**.
+`secrecy::SecretString` throughout. **Never log or display them.**
 
 ### Controller Facade
 
@@ -130,26 +130,28 @@ pub struct Controller(Arc<ControllerInner>);
 The `Arc` makes `Controller` cheaply cloneable across async tasks. Key
 operations live in submodules:
 
-- `lifecycle.rs` — connect, disconnect, reconnect
-- `runtime.rs` — background refresh loop, command processor
-- `query.rs` / `query/` — read-side operations
-- `commands/` — write-side operations (`execute(CoreCommand)`)
-- `payloads.rs` / `payloads/` — request body construction
-- `refresh.rs` — periodic data sync
-- `subscriptions.rs` — WebSocket event fan-out
-- `legacy_queries.rs` — Legacy-specific read paths, including `raw_get`/
+- `lifecycle.rs`: connect, disconnect, reconnect
+- `runtime.rs`: background refresh loop, command processor
+- `query.rs` / `query/`: read-side operations
+- `commands/`: write-side operations (`execute(CoreCommand)`)
+- `payloads.rs` / `payloads/`: request body construction
+- `refresh.rs`: periodic data sync
+- `subscriptions.rs`: WebSocket event fan-out
+- `legacy_queries.rs`: Legacy-specific read paths, including `raw_get`/
   `raw_post` used by the `unifly api` command
 
 ### Reactive DataStore
 
 `crates/unifly-api/src/store/` implements lock-free reactive storage:
 
-- `EntityCollection<T>` — `DashMap` for lookup, `tokio::watch::Sender<Vec<T>>`
+- `EntityCollection<T>`: `DashMap` for lookup, `tokio::watch::Sender<Vec<T>>`
   for broadcast
-- `DataStore` — aggregate of 13+ `EntityCollection`s (devices, clients,
-  networks, wifi, firewall policies, zones, NAT, ACL, DNS, traffic lists,
-  vouchers, alarms, events)
-- `EntityStream<T>` — subscriber handle wrapping `watch::Receiver`; provides
+- `DataStore` -- aggregate of 13 `EntityCollection`s (devices, clients,
+  networks, wifi_broadcasts, firewall_policies, firewall_zones, nat_policies,
+  acl_rules, dns_policies, traffic_matching_lists, vouchers, sites, events)
+  plus `watch::Sender` fields for site_health, last_full_refresh, and
+  last_ws_event
+- `EntityStream<T>`: subscriber handle wrapping `watch::Receiver`; provides
   `current()`, `latest()`, `changed().await`
 
 **Serde `rc` feature is required** because `Arc<T>` is serialized for JSON
@@ -197,7 +199,7 @@ crates/unifly/src/cli/
   args.rs                    # Top-level Cli struct, Command enum, GlobalOpts
   args/
     common.rs                # GlobalOpts, ListArgs, OutputFormat
-    <entity>.rs              # 22 files: one per entity
+    <entity>.rs              # 22 entity-specific files (23 total with common.rs)
   commands/
     mod.rs                   # dispatch() router
     util/
@@ -230,10 +232,10 @@ in `commands/mod.rs::dispatch()` via match on `Command`.
 auth mode cannot reach Legacy endpoints.
 
 Not every Integration-only command actually calls `ensure_integration_access`
-either — the gate is only invoked by 8 handlers (acl, dns, events, firewall,
+either. The gate is only invoked by 7 handlers (acl, dns, firewall,
 hotspot, networks, traffic_lists, wifi). New Integration-only commands
-should add the gate call for clean error messages. `nat` notably does not,
-and it should.
+should add the gate call for clean error messages. `nat` and `events`
+notably do not, and they should.
 
 ### Output Formats
 
@@ -280,8 +282,9 @@ crates/unifly/src/tui/
   component.rs / screen.rs   # traits
   data_bridge.rs             # Controller streams -> App state
   app.rs / app/              # top-level App state + run loop
-  screens/                   # 8 screens (Dashboard, Devices, Clients,
-                             #  Networks, Firewall, Topology, Events, Stats)
+  screens/                   # 10 screens (Dashboard, Devices, Clients,
+                             #  Networks, Firewall, Topology, Events, Stats,
+                             #  Onboarding, Settings)
   widgets/                   # shared custom widgets
   forms/                     # editable form overlays (Networks, Settings)
 ```
@@ -310,9 +313,9 @@ git-iris bug fix).
 
 Two error types, composed via `From` impls:
 
-- **`CoreError`** (`unifly-api/src/core_error.rs`) — library-level, 14+
+- **`CoreError`** (`unifly-api/src/core_error.rs`): library-level, 14+
   variants, one `From<unifly_api::Error>` impl mapping transport errors
-- **`CliError`** (`unifly/src/cli/error.rs`) — CLI-level, `thiserror` +
+- **`CliError`** (`unifly/src/cli/error.rs`): CLI-level, `thiserror` +
   `miette` for rich terminal diagnostics, wraps `CoreError`
 
 **Conventions:**
@@ -346,17 +349,17 @@ Unit tests are inline in source files under `#[cfg(test)] mod tests`.
 
 ### Libraries
 
-- **wiremock** — mock HTTP servers for Integration/Legacy tests. Serve
+- **wiremock**: mock HTTP servers for Integration/Legacy tests. Serve
   static JSON fixtures from `tests/fixtures/`.
-- **insta** — snapshot tests for output formatting. `just snap-review`
+- **insta**: snapshot tests for output formatting. `just snap-review`
   opens the interactive UI to approve changes. Snapshot files live next to
   the test as `.snap` or `.snap.new`.
-- **assert_cmd** + **predicates** — end-to-end CLI tests that spawn the
+- **assert_cmd** + **predicates**: end-to-end CLI tests that spawn the
   built binary.
-- **tempfile** — per-test config dir isolation so tests don't touch
+- **tempfile**: per-test config dir isolation so tests don't touch
   `~/.config/unifly/`.
-- **tokio-test** — for poll-based async unit tests.
-- **pretty_assertions** — better diffs on assertion failures.
+- **tokio-test**: poll-based async unit tests.
+- **pretty_assertions**: better diffs on assertion failures.
 
 `insta` is built with `opt-level = 3` in `[profile.dev.package.insta]` so
 snapshot diffing is fast even in debug builds.
@@ -490,7 +493,7 @@ commit.
 4. **Never commit secrets, API keys, or the `token/` directory.** That
    directory is `.gitignore`d but guard against accidental `git add -A`.
    Prefer adding files by name.
-5. **Never commit `docs/plans/`** — it is a scratch area for design notes
+5. **Never commit `docs/plans/`**. It is a scratch area for design notes
    and tracking docs that should not ship. Treat it like a gitignored
    notebook even though it is not currently gitignored.
 6. **Never delete or modify files you did not touch.** Other agents may be
@@ -518,8 +521,8 @@ Three plugin manifests must stay in sync with `workspace.package.version`:
 ```
 
 The `version` field in each must match the workspace version exactly.
-These have drifted before. If the workspace is at `0.7.0`, all three must
-say `0.7.0`.
+These have drifted before. If the workspace is at `0.8.0`, all three must
+say `0.8.0`.
 
 When releasing, patch them manually before the release commit, or add a CI
 step (not yet implemented) to patch them automatically in the shared
@@ -543,14 +546,14 @@ workflow.
   uses `hostIpAddress` (not `host`), `prefixLength` (not `prefix`),
   `dhcpConfiguration.mode/leaseTimeSeconds/ipAddressRange` (not
   `dhcp.server.*`). The `networks list` endpoint returns SUMMARY data
-  without `ipv4Configuration` — must fetch each network individually to
+  without `ipv4Configuration`. Must fetch each network individually to
   get full config. See `convert.rs::parse_network_fields` which handles
   both old and new styles.
 - **Integration clients lack fields** the UI shows: `wireless`,
   `uplink_device_mac`, `vlan`, `tx_bytes`, `rx_bytes`, `hostname`. These
   must come from Legacy API. Hybrid merge is by IP-address match in
   `controller::refresh::full_refresh`.
-- **Device `radios` is always empty** — parsing from the `interfaces`
+- **Device `radios` is always empty**. Parsing from the `interfaces`
   JSON is not yet implemented. Known gap.
 
 ### CLI Quirks
@@ -588,7 +591,7 @@ workflow.
   handles this.
 - **Controller reconnect lifecycle is broken.** The internal
   `CancellationToken` becomes permanent after the first disconnect.
-  Reconnect does not work correctly yet. Known gap — documented so
+  Reconnect does not work correctly yet. Known gap, documented so
   agents do not waste time chasing a fix unless it is the explicit task.
 
 ---
@@ -608,22 +611,22 @@ workflow.
 
 ### Documentation Files
 
-- `README.md` — end-user install + usage
-- `CONTRIBUTING.md` — contributor onboarding
-- `CHANGELOG.md` — version history
-- `ROADMAP.md` — forward-looking plans
-- `AGENTS.md` / `CLAUDE.md` — this file (CLAUDE.md is a symlink)
-- `skills/unifly/SKILL.md` — agent skill for USING the CLI
-- `docs/images/` — committed screenshots and GIFs
-- `docs/plans/` — **scratch area, do not commit contents** (not currently
+- `README.md`: end-user install + usage
+- `CONTRIBUTING.md`: contributor onboarding
+- `CHANGELOG.md`: version history
+- `ROADMAP.md`: forward-looking plans
+- `AGENTS.md` / `CLAUDE.md`: this file (CLAUDE.md is a symlink)
+- `skills/unifly/SKILL.md`: agent skill for USING the CLI
+- `docs/images/`: committed screenshots and GIFs
+- `docs/plans/` --**scratch area, do not commit contents** (not currently
   gitignored but treat as ephemeral)
 
 ### Scratch Areas
 
-- `docs/plans/` — design docs and session tracking
-- `research/` — external research, API audit notes
-- `specs/` — early project specs, some outdated
-- `target/` — cargo build artifacts (gitignored)
+- `docs/plans/`: design docs and session tracking
+- `research/`: external research, API audit notes
+- `specs/`: early project specs, some outdated
+- `target/`: cargo build artifacts (gitignored)
 
 ---
 
@@ -679,16 +682,16 @@ Update `skills/unifly/examples/*.json` if the payload shape for
 
 ## Pointers
 
-- **`README.md`** — end-user documentation, install, features, TUI
+- **`README.md`**: end-user documentation, install, features, TUI
   screenshots
-- **`CONTRIBUTING.md`** — PR workflow, code style overview
-- **`CHANGELOG.md`** — version history
-- **`ROADMAP.md`** — planned features and known gaps
-- **`skills/unifly/SKILL.md`** — agent skill for _using_ the CLI (not for
+- **`CONTRIBUTING.md`**: PR workflow, code style overview
+- **`CHANGELOG.md`**: version history
+- **`ROADMAP.md`**: planned features and known gaps
+- **`skills/unifly/SKILL.md`**: agent skill for _using_ the CLI (not for
   developing it)
-- **`Cargo.toml`** — workspace version, lints, dependencies, profiles
-- **`justfile`** — task recipes
-- **`.github/workflows/`** — CI + release + docs workflows
-- **`docs/images/`** — shipped screenshots and the animated TUI tour GIF
-- **`aur/update-aur.sh`** — AUR package refresh script used by
+- **`Cargo.toml`**: workspace version, lints, dependencies, profiles
+- **`justfile`**: task recipes
+- **`.github/workflows/`**: CI + release + docs workflows
+- **`docs/images/`**: shipped screenshots and the animated TUI tour GIF
+- **`aur/update-aur.sh`**: AUR package refresh script used by
   `just aur-update`

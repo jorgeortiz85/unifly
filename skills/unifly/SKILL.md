@@ -18,7 +18,7 @@ description: >-
   operations.
 ---
 
-# unifly — UniFi Network Management
+# unifly: UniFi Network Management
 
 unifly is a Rust CLI for managing Ubiquiti UniFi network infrastructure. It
 unifies the modern Integration API (REST, API key) and the Legacy API (cookie
@@ -236,19 +236,19 @@ UNIFI_PROFILE=warehouse unifly system health
 
 ### Reference Files
 
-- **`references/commands.md`** — Per-command flag reference with gotchas
+- **`references/commands.md`**: Per-command flag reference with gotchas
   (non-obvious flags, dual-API boundaries, correct argument forms)
-- **`references/concepts.md`** — UniFi networking concepts, dual-API gate
+- **`references/concepts.md`**: UniFi networking concepts, dual-API gate
   matrix, auth decision tree, environment variables, platform config paths,
   MFA/TOTP, error taxonomy
-- **`references/workflows.md`** — Runnable automation recipes (event
+- **`references/workflows.md`**: Runnable automation recipes (event
   streaming, safe firewall reorder, bulk DHCP reservations, ad-blocking via
   DNS policies, cafe voucher flow, incident response)
 
 ### Example Files
 
-- **`examples/config.toml`** — Multi-profile config template
-- **`examples/network-iot-vlan.json`** — VLAN creation payload for `--from-file`
-- **`examples/firewall-block-iot.json`** — Firewall policy payload
-- **`examples/nat-masquerade.json`** — NAT policy payload
-- **`examples/wifi-iot.json`** — WiFi SSID payload
+- **`examples/config.toml`**: Multi-profile config template
+- **`examples/network-iot-vlan.json`**: VLAN creation payload for `--from-file`
+- **`examples/firewall-block-iot.json`**: Firewall policy payload
+- **`examples/nat-masquerade.json`**: NAT policy payload
+- **`examples/wifi-iot.json`**: WiFi SSID payload
