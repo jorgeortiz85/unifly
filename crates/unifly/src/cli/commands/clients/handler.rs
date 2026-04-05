@@ -21,6 +21,26 @@ fn find_client(controller: &Controller, needle: &str) -> Option<Arc<Client>> {
         .cloned()
 }
 
+/// Resolve a flexible client identifier (name, hostname, IP, MAC, or UUID)
+/// to the matching client record from the in-memory snapshot.
+fn resolve_client(controller: &Controller, needle: &str) -> Option<Arc<Client>> {
+    let lower = needle.to_lowercase();
+    // Exact match on structured fields first
+    controller
+        .clients_snapshot()
+        .iter()
+        .find(|c| {
+            c.mac.to_string() == lower
+                || c.ip.is_some_and(|ip| ip.to_string() == needle)
+                || c.id.to_string() == needle
+                || c.name.as_ref().is_some_and(|n| n.to_lowercase() == lower)
+                || c.hostname
+                    .as_ref()
+                    .is_some_and(|h| h.to_lowercase() == lower)
+        })
+        .cloned()
+}
+
 fn matches_find_query(client: &Client, query: &str) -> bool {
     let fields = [
         client.ip.map(|ip| ip.to_string()),
@@ -103,7 +123,19 @@ pub(super) async fn handle(
             Ok(())
         }
 
-        ClientsCommand::Roams { mac, limit } => {
+        ClientsCommand::Roams { client, limit } => {
+            // Resolve to MAC address — try direct use first, then snapshot lookup
+            let mac = if client.contains(':') && client.len() == 17 {
+                client.to_lowercase()
+            } else {
+                resolve_client(controller, &client)
+                    .map(|c| c.mac.to_string())
+                    .ok_or_else(|| CliError::NotFound {
+                        resource_type: "client".into(),
+                        identifier: client.clone(),
+                        list_command: "clients list".into(),
+                    })?
+            };
             let events = controller.get_client_roams(&mac, Some(limit)).await?;
             let out = output::render_list(
                 &global.output,
@@ -121,7 +153,19 @@ pub(super) async fn handle(
             Ok(())
         }
 
-        ClientsCommand::Wifi { ip } => {
+        ClientsCommand::Wifi { client } => {
+            // Resolve to IP address — try direct use first, then snapshot lookup
+            let ip = if client.parse::<Ipv4Addr>().is_ok() {
+                client.clone()
+            } else {
+                resolve_client(controller, &client)
+                    .and_then(|c| c.ip.map(|ip| ip.to_string()))
+                    .ok_or_else(|| CliError::NotFound {
+                        resource_type: "client".into(),
+                        identifier: client.clone(),
+                        list_command: "clients list".into(),
+                    })?
+            };
             let data = controller.get_client_wifi_experience(&ip).await?;
             let out = output::render_single(
                 &global.output,

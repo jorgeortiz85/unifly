@@ -235,10 +235,13 @@ async fn test_list_channels() {
     let envelope = json!({
         "meta": { "rc": "ok" },
         "data": [{
-            "code": "US",
-            "radio": "na",
-            "channel": 36,
-            "channels": [36, 40, 44, 48, 149, 153, 157, 161, 165]
+            "code": "840",
+            "key": "US",
+            "name": "United States",
+            "channels_ng": [1, 6, 11],
+            "channels_na": [36, 40, 44, 48, 149, 153, 157, 161, 165],
+            "channels_na_dfs": [52, 56, 60, 64],
+            "channels_6e": [1, 5, 9]
         }]
     });
 
@@ -251,10 +254,14 @@ async fn test_list_channels() {
     let channels = client.list_channels().await.unwrap();
 
     assert_eq!(channels.len(), 1);
-    assert_eq!(channels[0].radio.as_deref(), Some("na"));
-    let channels_list = channels[0].channels.as_ref().unwrap();
-    assert!(channels_list.contains(&36));
-    assert!(channels_list.contains(&165));
+    assert_eq!(channels[0].key.as_deref(), Some("US"));
+    assert_eq!(channels[0].name.as_deref(), Some("United States"));
+    let na = channels[0].channels_na.as_ref().unwrap();
+    assert!(na.contains(&36));
+    assert!(na.contains(&165));
+    let ng = channels[0].channels_ng.as_ref().unwrap();
+    assert!(ng.contains(&1));
+    assert!(ng.contains(&11));
 }
 
 #[tokio::test]

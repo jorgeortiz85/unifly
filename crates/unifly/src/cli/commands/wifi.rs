@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use serde::Serialize;
 use tabled::Tabled;
 use unifly_api::model::{WifiBroadcast, WifiSecurityMode};
 use unifly_api::session_models::{ChannelAvailability, RogueAp};
@@ -71,16 +72,14 @@ struct NeighborRow {
     observer: String,
 }
 
-#[derive(Tabled)]
+#[derive(Tabled, Serialize)]
 struct ChannelRow {
-    #[tabled(rename = "Radio")]
-    radio: String,
-    #[tabled(rename = "Country")]
-    country: String,
-    #[tabled(rename = "Current")]
-    current: String,
-    #[tabled(rename = "Available")]
-    available: String,
+    #[tabled(rename = "Band")]
+    band: String,
+    #[tabled(rename = "Channels")]
+    channels: String,
+    #[tabled(rename = "Count")]
+    count: String,
 }
 
 fn wifi_row(w: &Arc<WifiBroadcast>, p: &output::Painter) -> WifiRow {
@@ -118,26 +117,32 @@ fn neighbor_row(ap: &RogueAp, p: &output::Painter) -> NeighborRow {
     }
 }
 
-fn channel_row(channel: &ChannelAvailability, p: &output::Painter) -> ChannelRow {
-    ChannelRow {
-        radio: p.name(channel.radio.as_deref().unwrap_or("-")),
-        country: p.muted(channel.code.as_deref().unwrap_or("-")),
-        current: p.number(
-            &channel
-                .channel
-                .map_or_else(|| "-".into(), |current| current.to_string()),
-        ),
-        available: p.muted(&channel.channels.as_ref().map_or_else(
-            || "-".into(),
-            |channels| {
-                channels
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            },
-        )),
+/// Expand a single regulatory record into per-band rows for table display.
+fn channel_rows(record: &ChannelAvailability, p: &output::Painter) -> Vec<ChannelRow> {
+    let mut rows = Vec::new();
+    let bands: &[(&str, &Option<Vec<i32>>)] = &[
+        ("2.4 GHz", &record.channels_ng),
+        ("5 GHz", &record.channels_na),
+        ("5 GHz DFS", &record.channels_na_dfs),
+        ("6 GHz", &record.channels_6e),
+    ];
+    for &(label, channels) in bands {
+        if let Some(chs) = channels
+            && !chs.is_empty()
+        {
+            rows.push(ChannelRow {
+                band: p.name(label),
+                channels: p.muted(
+                    &chs.iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                ),
+                count: p.number(&chs.len().to_string()),
+            });
+        }
     }
+    rows
 }
 
 fn detail(w: &Arc<WifiBroadcast>) -> String {
@@ -212,27 +217,50 @@ pub async fn handle(
             Ok(())
         }
 
-        WifiCommand::Neighbors { within } => {
+        WifiCommand::Neighbors { within, limit, all } => {
             let aps = controller.list_rogue_aps(within).await?;
+            let max = if all { aps.len() } else { limit.unwrap_or(25) };
+            let truncated = aps.len() > max;
+            let display: Vec<_> = aps.into_iter().take(max).collect();
             let out = output::render_list(
                 &global.output,
-                &aps,
+                &display,
                 |ap| neighbor_row(ap, &p),
                 |ap| ap.bssid.clone(),
             );
             output::print_output(&out, global.quiet);
+            if truncated && !global.quiet {
+                eprintln!("Showing {max} of more results. Use --all or --limit <n> to see more.");
+            }
             Ok(())
         }
 
         WifiCommand::Channels => {
-            let channels = controller.list_channels().await?;
-            let out = output::render_list(
-                &global.output,
-                &channels,
-                |channel| channel_row(channel, &p),
-                |channel| channel.radio.clone().unwrap_or_else(|| "unknown".into()),
-            );
-            output::print_output(&out, global.quiet);
+            let records = controller.list_channels().await?;
+            // Print country header, then per-band channel rows.
+            for record in &records {
+                let country = record
+                    .name
+                    .as_deref()
+                    .or(record.key.as_deref())
+                    .unwrap_or("Unknown");
+                let code = record.code.as_deref().unwrap_or("-");
+                if !global.quiet {
+                    eprintln!("Country: {country} ({code})");
+                }
+                let rows: Vec<ChannelRow> = channel_rows(record, &p);
+                let out = output::render_list(
+                    &global.output,
+                    &rows,
+                    |row| ChannelRow {
+                        band: row.band.clone(),
+                        channels: row.channels.clone(),
+                        count: row.count.clone(),
+                    },
+                    |row| row.band.clone(),
+                );
+                output::print_output(&out, global.quiet);
+            }
             Ok(())
         }
 

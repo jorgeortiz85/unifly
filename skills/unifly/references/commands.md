@@ -63,8 +63,8 @@ unifly devices tags [subcommands]
 unifly clients list [--all] [--type wireless|wired|guest]
 unifly clients find <query>             # case-insensitive substring over IP, name, hostname, MAC
 unifly clients get <mac|id>
-unifly clients roams <mac> [--limit N]
-unifly clients wifi <ip>                # aliases: wifi-experience, wifiman
+unifly clients roams <client> [--limit N] # accepts name, hostname, IP, or MAC
+unifly clients wifi <client>             # accepts name, hostname, IP, or MAC; aliases: wifi-experience, wifiman
 unifly clients authorize <mac> [--minutes N] [--up-rate N] [--down-rate N]
 unifly clients unauthorize <mac>
 unifly clients block <mac>
@@ -83,24 +83,24 @@ unifly clients remove-ip <mac> [--network <name|id>]
   pass, case-insensitive.
 - `reservations` (alias `res`) lists **all** DHCP reservations including
   offline clients. It goes through Session API `/rest/user`.
-- `roams` uses `GET /v2/api/site/{site}/system-log/client-connection/{mac}`.
-  Default limit is 50 events; override with `--limit`. The underlying v2
-  endpoint expects the MAC in both the path and the `?mac=` query param.
-- `roams` is the quickest way to diagnose sticky clients and bad handoffs:
-  it shows connect, disconnect, and AP transition events with timestamp,
-  SSID, signal, and band when the controller exposes them.
+- `roams` accepts any client identifier (name, hostname, IP, or MAC). It
+  resolves to a MAC via the in-memory client snapshot before hitting
+  `GET /v2/api/site/{site}/system-log/client-connection/{mac}`.
+  Default limit is 50 events; override with `--limit`.
+- `roams` output includes From/To AP names, SSID, signal strength, channel,
+  and band for each event. Use it to diagnose sticky clients, ping-pong
+  roaming, and bad handoffs.
 - `set-ip` auto-detects the target network from the IP subnet unless
   `--network` is supplied explicitly.
 - `remove-ip` defaults to removing from all networks. Scope it with
   `--network` if the MAC has reservations in multiple networks.
-- `wifi` uses `GET /v2/api/site/{site}/wifiman/{ip}/` for live wireless
-  telemetry: `wifi_experience`, signal/noise/channel, link rates, nearest
-  neighbors, and uplink chain details.
-- `wifi` only works for wireless clients. Wired clients typically return an
-  endpoint error or empty response.
-- `wifi` band codes (`2.4g`, `5g`, `6g`) differ from `clients list`
-  session-radio codes (`ng`, `na`, `6e`). Don't compare them directly
-  without mapping.
+- `wifi` accepts any client identifier (name, hostname, IP, or MAC). It
+  resolves to an IP via the in-memory snapshot before hitting
+  `GET /v2/api/site/{site}/wifiman/{ip}/`. Shows wifi experience score,
+  signal/noise/channel, band, link rates, nearest neighbor APs with signal
+  strength, and the full uplink chain with per-hop experience scores.
+- `wifi` only works for wireless clients. Wired clients return a 404.
+- Band labels are normalized to human-readable: `2.4 GHz`, `5 GHz`, `6 GHz`.
 - `list` wireless/bytes/hostname fields are only populated in Hybrid mode.
 
 ## Networks `[I for CRUD]`
@@ -131,7 +131,7 @@ unifly networks refs <id>                # reverse references
 ```bash
 unifly wifi list
 unifly wifi get <id|name>
-unifly wifi neighbors [--within SECONDS] # alias: rogueap
+unifly wifi neighbors [--within SECONDS] [--limit N] [--all] # alias: rogueap
 unifly wifi channels
 unifly wifi create --name SSID --security MODE --passphrase PASS --network ID \
   [--broadcast-type standard|iot-optimized] [--frequencies 2.4,5,6] [-F payload.json]
@@ -147,12 +147,14 @@ unifly wifi delete <id>
   limits, lower beacon power).
 - `neighbors` uses `GET /api/s/{site}/stat/rogueap` and surfaces APs seen by
   your own radios. Signal is from your AP's perspective, not the neighbor's.
+  Default display limit is 25; use `--all` or `--limit N` to see more.
 - `neighbors --within` is in seconds, and the underlying `stat/rogueap`
   endpoint also uses seconds rather than the epoch milliseconds common in
   other UniFi stats routes.
-- `channels` uses `GET /api/s/{site}/stat/current-channel` and reports
-  channel availability per radio under the active country code. It's handy
-  for DFS sanity checks before manual channel planning.
+- `channels` uses `GET /api/s/{site}/stat/current-channel` and shows
+  regulatory channel availability per band (2.4 GHz, 5 GHz, 5 GHz DFS,
+  6 GHz) for the controller's country. Useful for DFS planning and
+  verifying which 6 GHz channels are available in your region.
 - `--frequencies` is comma-separated: `2.4`, `5`, `6`. All three are valid
   on WiFi 6E and WiFi 7 APs.
 - `--from-file` accepts full payloads for complex SSID configurations

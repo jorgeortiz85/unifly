@@ -295,22 +295,36 @@ pub struct RogueAp {
     pub extra: serde_json::Map<String, serde_json::Value>,
 }
 
-/// Per-radio regulatory channel availability from `stat/current-channel`.
+/// Country-level regulatory channel data from `stat/current-channel`.
+///
+/// The UniFi API returns one record per country with per-band channel lists
+/// (e.g. `channels_ng`, `channels_na`, `channels_6e`) rather than per-radio
+/// rows. The typed fields cover the most common bands; the `extra` map
+/// captures width-specific and AFC lists.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChannelAvailability {
+    /// ISO 3166-1 numeric country code (e.g. `"840"` for the US).
     #[serde(default)]
     pub code: Option<String>,
+    /// Two-letter country key (e.g. `"US"`).
     #[serde(default)]
-    pub radio: Option<String>,
+    pub key: Option<String>,
+    /// Human-readable country name.
     #[serde(default)]
-    pub channel: Option<i32>,
+    pub name: Option<String>,
+    /// 2.4 GHz channels.
     #[serde(default)]
-    pub channels: Option<Vec<i32>>,
+    pub channels_ng: Option<Vec<i32>>,
+    /// 5 GHz channels.
     #[serde(default)]
-    pub ht_modes: Option<Vec<String>>,
+    pub channels_na: Option<Vec<i32>>,
+    /// 5 GHz DFS channels.
     #[serde(default)]
-    pub vht_modes: Option<Vec<String>>,
-    /// Catch-all for undocumented fields.
+    pub channels_na_dfs: Option<Vec<i32>>,
+    /// 6 GHz channels.
+    #[serde(default)]
+    pub channels_6e: Option<Vec<i32>>,
+    /// Catch-all for width-specific lists, AFC data, etc.
     #[serde(flatten)]
     pub extra: serde_json::Map<String, serde_json::Value>,
 }

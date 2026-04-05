@@ -28,6 +28,14 @@ pub enum WifiCommand {
         /// Only show APs seen within this many seconds
         #[arg(long)]
         within: Option<i64>,
+
+        /// Maximum number of results to display
+        #[arg(long)]
+        limit: Option<usize>,
+
+        /// Show all results (no limit)
+        #[arg(long, conflicts_with = "limit")]
+        all: bool,
     },
 
     /// List per-radio regulatory channel availability

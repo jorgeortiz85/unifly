@@ -127,12 +127,16 @@ pub(super) struct RoamRow {
     time: String,
     #[tabled(rename = "Event")]
     event: String,
-    #[tabled(rename = "AP")]
-    ap: String,
+    #[tabled(rename = "From")]
+    from_ap: String,
+    #[tabled(rename = "To")]
+    to_ap: String,
     #[tabled(rename = "SSID")]
     ssid: String,
     #[tabled(rename = "Signal")]
     signal: String,
+    #[tabled(rename = "Channel")]
+    channel: String,
     #[tabled(rename = "Band")]
     band: String,
 }
@@ -173,7 +177,13 @@ fn append_neighbor_lines(lines: &mut Vec<String>, data: &Value, painter: &Painte
         let bssid = json_str(neighbor, &["bssid"]).unwrap_or("-");
         let channel =
             json_i64(neighbor, &["channel"]).map_or_else(|| "-".into(), |value| value.to_string());
-        let signal = json_i64(neighbor, &["signal"])
+        // The wifiman response nests signal in an array: "signal": [{"signal": -67, ...}]
+        let signal = neighbor
+            .get("signal")
+            .and_then(Value::as_array)
+            .and_then(|arr| arr.first())
+            .and_then(|entry| entry.get("signal"))
+            .and_then(Value::as_i64)
             .map_or_else(|| "-".into(), |value| format!("{value} dBm"));
         lines.push(format!(
             "  {} ch:{} signal:{}",
@@ -195,8 +205,8 @@ fn append_uplink_lines(lines: &mut Vec<String>, data: &Value, painter: &Painter)
     lines.push(String::new());
     lines.push(format!("Uplink Chain ({} hops):", uplinks.len()));
     for uplink in uplinks {
-        let name = json_str(uplink, &["device_name", "name"]).unwrap_or("-");
-        let experience = json_i64(uplink, &["wifi_experience"])
+        let name = json_str(uplink, &["display_name", "device_name", "name"]).unwrap_or("-");
+        let experience = json_i64(uplink, &["experience", "wifi_experience"])
             .map_or_else(|| "-".into(), |value| format!("{value}/100"));
         lines.push(format!(
             "  {} experience:{}",
@@ -206,20 +216,49 @@ fn append_uplink_lines(lines: &mut Vec<String>, data: &Value, painter: &Painter)
     }
 }
 
+/// Extract the `name` field from a nested parameter object.
+///
+/// The v2 `system-log/client-connection` response nests all fields under
+/// `parameters.PARAM_KEY.name` rather than flat top-level keys.
+fn roam_param_name<'a>(event: &'a Value, param_key: &str) -> Option<&'a str> {
+    event
+        .get("parameters")
+        .and_then(|p| p.get(param_key))
+        .and_then(|p| p.get("name"))
+        .and_then(Value::as_str)
+}
+
+/// Map UniFi radio band codes to human-readable labels.
+fn format_radio_band(code: &str) -> &str {
+    match code {
+        "ng" => "2.4 GHz",
+        "na" => "5 GHz",
+        "6e" => "6 GHz",
+        other => other,
+    }
+}
+
 pub(super) fn roam_row(event: &Value, painter: &Painter) -> RoamRow {
     let time =
         json_i64(event, &["timestamp", "time"]).map_or_else(|| "-".into(), format_event_timestamp);
-    let signal = json_i64(event, &["signal", "connection_signal"])
-        .map_or_else(|| "-".into(), |value| format!("{value} dBm"));
+
+    let signal = roam_param_name(event, "SIGNAL_STRENGTH")
+        .map_or_else(|| "-".into(), |s| format!("{s} dBm"));
+    let channel = roam_param_name(event, "CHANNEL").unwrap_or("-");
+    let band = roam_param_name(event, "RADIO_BAND").map_or("-", format_radio_band);
+    let from_ap = roam_param_name(event, "DEVICE_FROM").unwrap_or("-");
+    let to_ap = roam_param_name(event, "DEVICE_TO").unwrap_or("-");
+    let ssid = roam_param_name(event, "WLAN").unwrap_or("-");
 
     RoamRow {
         time: painter.muted(&time),
-        event: painter
-            .name(json_str(event, &["event_type", "eventType", "event", "key"]).unwrap_or("-")),
-        ap: painter.muted(json_str(event, &["ap_name", "ap", "ap_mac"]).unwrap_or("-")),
-        ssid: painter.name(json_str(event, &["ssid", "essid"]).unwrap_or("-")),
+        event: painter.name(json_str(event, &["key", "event_type", "eventType"]).unwrap_or("-")),
+        from_ap: painter.muted(from_ap),
+        to_ap: painter.muted(to_ap),
+        ssid: painter.name(ssid),
         signal: painter.number(&signal),
-        band: painter.muted(json_str(event, &["band", "radio"]).unwrap_or("-")),
+        channel: painter.number(channel),
+        band: painter.muted(band),
     }
 }
 
@@ -257,7 +296,14 @@ pub(super) fn wifi_experience_detail(data: &Value, painter: &Painter) -> String 
         ),
         format!(
             "Band:             {}",
-            painter.muted(json_str(data, &["band"]).unwrap_or("-"))
+            painter.muted(
+                json_str(data, &["wlan_band", "band"]).map_or("-", |code| match code {
+                    "2.4g" => "2.4 GHz",
+                    "5g" => "5 GHz",
+                    "6g" => "6 GHz",
+                    other => other,
+                })
+            )
         ),
         format!(
             "Channel Width:    {}",

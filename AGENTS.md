@@ -562,12 +562,25 @@ workflow.
 - **`stat/rogueap` uses epoch seconds**, not milliseconds. Passing
   millisecond-style values or assuming stats-report semantics returns empty
   data silently.
-- **`wifiman/{ip}/` band codes differ from `stat/sta`**. Wi-Fi experience
-  uses `2.4g` / `5g` / `6g`; station data uses `ng` / `na` / `6e`.
+- **`wifiman/{ip}/` band field is `wlan_band`**, not `band`. Values are
+  `2.4g` / `5g` / `6g` (station data uses `ng` / `na` / `6e`). Uplink
+  devices use `display_name` (not `device_name`/`name`) and `experience`
+  (not `wifi_experience`). Neighbor signal is nested:
+  `signal: [{"signal": -67, "signal_type": "AP_AP"}]`.
 - **`stat/report/*.ap` and `*.site` use different attribute prefixes**.
   `.ap` expects `ng-cu_total`; `.site` expects `ap-ng-cu_total`.
-- **`system-log/client-connection/{mac}` requires MAC duplication** in both
-  the URL path and the `?mac=` query parameter.
+- **`system-log/client-connection/{mac}`** requires MAC duplication in both
+  the URL path and the `?mac=` query parameter. The response uses a deeply
+  nested `parameters` structure: event details live under
+  `parameters.DEVICE_FROM.name`, `parameters.WLAN.name`,
+  `parameters.SIGNAL_STRENGTH.name`, `parameters.RADIO_BAND.name`,
+  `parameters.CHANNEL.name`, etc. — **not** flat top-level fields.
+- **`stat/current-channel`** returns country-level regulatory data, not
+  per-radio rows. Channel lists are keyed by band: `channels_ng` (2.4 GHz),
+  `channels_na` (5 GHz), `channels_na_dfs`, `channels_6e` (6 GHz), plus
+  width-specific variants (`channels_na_40`, `channels_6e_80`, etc.) and
+  AFC data. Country is identified by `code` (numeric, e.g. `"840"`),
+  `key` (e.g. `"US"`), and `name` (e.g. `"United States"`).
 - **Session v2 observability routes return raw JSON**, not the classic
   `{meta, data}` envelope. Use `get_raw()` / `raw_get()` patterns.
 - **Device `radios` is always empty**. Parsing from the `interfaces`
@@ -592,6 +605,12 @@ workflow.
 - **`unifly api <path>`** routes through the Session client and handles
   CSRF automatically, so it can reach Session v1, v2, and Integration
   endpoints without caring about auth mode.
+- **`clients roams` and `clients wifi`** accept any client identifier
+  (name, hostname, IP, or MAC). Resolution uses the in-memory snapshot,
+  so the client must appear in `clients list`. `roams` resolves to MAC;
+  `wifi` resolves to IP.
+- **`wifi neighbors`** defaults to 25 results. Use `--all` or `--limit N`
+  to see more.
 - **Serde defaults to PascalCase** for enums without `#[serde(rename_all
 = "...")]`. When writing JSON payload files for `--from-file`, use
   `"Gateway"` not `"gateway"`, `"Wpa2Personal"` not `"wpa2_personal"`.
