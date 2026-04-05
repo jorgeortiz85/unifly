@@ -237,119 +237,37 @@ unifly completions powershell | Out-String | Invoke-Expression
 
 ## 🖥️ TUI
 
-The `unifly tui` subcommand launches a real-time terminal dashboard for monitoring and managing your UniFi network. Ten screens cover everything from live bandwidth charts to firewall policy management.
+`unifly tui` launches a 10-screen real-time dashboard for monitoring and managing your network.
 
 ```bash
 unifly tui                   # Launch with default profile
 unifly tui -p office         # Use a specific profile
 unifly tui -k                # Accept self-signed TLS certs
-unifly tui -v                # Verbose logging
 ```
-
-### Screens
-
-Navigate with number keys `1`-`8`, `Tab`/`Shift+Tab`, or `,` for Settings:
-
-| Key | Screen | Description |
-| --- | --- | --- |
-| `1` | **Dashboard** | btop-style overview: area-fill WAN traffic chart, gateway info, connectivity health, CPU/MEM bars, networks with IPv6, WiFi AP experience, top clients, recent events |
-| `2` | **Devices** | Adopted devices with model, IP, CPU/MEM, TX/RX, uptime. 5-tab detail panel (Overview, Performance, Radios, Clients, Ports) |
-| `3` | **Clients** | Connected clients: hostname, IP, MAC, VLAN, signal bars, traffic. Filterable by type (All/Wireless/Wired/VPN/Guest) |
-| `4` | **Networks** | VLAN topology: subnets, DHCP, IPv6, gateway type. Inline edit overlay for live config changes |
-| `5` | **Firewall** | Policies, zones, ACL rules, and NAT policies across four sub-tabs with visual rule reordering |
-| `6` | **Topology** | Zoomable network topology tree: gateway to switches to APs, color-coded by type and state |
-| `7` | **Events** | Live event stream with 10K rolling buffer. Pause, scroll back, severity color-coding |
-| `8` | **Stats** | Historical charts: WAN bandwidth area fills, client counts, DPI app/category breakdown (1h/24h/7d/30d) |
-| `,` | **Settings** | Controller profile, theme selector, display preferences |
-| | **Onboarding** | First-run setup wizard for controller connection |
-
-### Dashboard
-
-The dashboard packs eight live panels into a dense, information-rich overview:
 
 <p align="center">
   <img src="docs/images/dashboard.png" alt="unifly tui dashboard" width="900">
 </p>
 
-- **WAN Traffic** · Area-fill chart with Braille line overlay, live TX/RX rates, peak tracking
-- **Gateway** · Model, firmware, WAN IP, IPv6, DNS, ISP, latency, uptime
-- **Connectivity** · Subsystem status dots (WAN/WWW/WLAN/LAN/VPN), aggregate traffic bars
-- **Capacity** · Color-coded CPU/MEM gauges, load averages, device/client fleet summary
-- **Networks** · VLANs sorted by ID with IPv6 prefix delegation and SLAAC mode
-- **WiFi / APs** · Client count, WiFi experience %, channel info per access point
-- **Top Clients** · Proportional traffic bars with fractional block characters
-- **Recent Events** · Two-column compact event display, color-coded by severity
-
-### Devices & Clients
+| Screen | Highlights |
+| --- | --- |
+| **Dashboard** | btop-style overview: WAN traffic chart, gateway info, CPU/MEM gauges, top clients, recent events |
+| **Devices** | Model, firmware, uptime, CPU/MEM. 5-tab detail panel. Restart, locate, upgrade |
+| **Clients** | Signal, traffic, VLAN. Filter by type. Block/unblock/kick |
+| **Networks** | VLAN topology with inline edit overlay for live config changes |
+| **Firewall** | Policies, zones, ACL, NAT across four sub-tabs with drag reordering |
+| **Topology** | Zoomable network tree with pan, zoom, fit-to-view |
+| **Events** | Live WebSocket stream with 10K buffer, pause, severity filtering |
+| **Stats** | WAN bandwidth, client counts, DPI breakdown (1h/24h/7d/30d) |
+| **Settings** | Profile switching, theme selector, display preferences |
+| **Onboarding** | First-run setup wizard |
 
 <p align="center">
   <img src="docs/images/devices.png" alt="unifly tui devices" width="900">
-</p>
-
-<p align="center">
   <img src="docs/images/clients.png" alt="unifly tui clients" width="900">
 </p>
 
-### Networks & Firewall
-
-<p align="center">
-  <img src="docs/images/networks.png" alt="unifly tui networks" width="900">
-</p>
-
-<p align="center">
-  <img src="docs/images/firewall.png" alt="unifly tui firewall" width="900">
-</p>
-
-### Stats
-
-Historical statistics with selectable time windows and dual-API data sourcing:
-
-<p align="center">
-  <img src="docs/images/stats.png" alt="unifly tui stats" width="900">
-</p>
-
-- **WAN Bandwidth** · TX/RX area fills with Braille line overlay, auto-scaling axes
-- **Client Count** · Braille line chart tracking connected clients over time
-- **Top Applications** · DPI application breakdown with proportional bars (Integration API names, Legacy fallback)
-- **Traffic by Category** · Percentage bars for streaming, gaming, social, etc.
-
-### Key Bindings
-
-#### Global
-
-| Key | Action |
-| --- | --- |
-| `1`-`8` | Jump to screen |
-| `Tab` / `Shift+Tab` | Next / previous screen |
-| `j` / `k` / `↑` / `↓` | Navigate up / down |
-| `g` / `G` | Jump to top / bottom |
-| `Ctrl+d` / `Ctrl+u` | Page down / up |
-| `Enter` | Select / expand detail |
-| `Esc` | Close detail / go back |
-| `/` | Search |
-| `?` | Help overlay |
-| `,` | Settings |
-| `q` | Quit |
-
-#### Screen-Specific
-
-| Screen | Key | Action |
-| --- | --- | --- |
-| **Devices** | `R` | Restart device |
-| **Devices** | `L` | Locate (flash LED) |
-| **Devices** (detail) | `h` / `l` | Previous / next detail tab |
-| **Clients** | `Tab` | Cycle filter (All → Wireless → Wired → VPN → Guest) |
-| **Clients** | `b` / `B` | Block / unblock client |
-| **Clients** | `x` | Kick client |
-| **Networks** | `e` | Edit selected network |
-| **Firewall** | `h` / `l` | Cycle sub-tabs (Policies / Zones / ACL Rules / NAT) |
-| **Firewall** | `K` / `J` | Reorder policy up / down |
-| **Topology** | `←` `→` `↑` `↓` | Pan canvas |
-| **Topology** | `+` / `-` | Zoom in / out |
-| **Topology** | `f` | Fit to view |
-| **Events** | `Space` | Pause / resume live stream |
-| **Stats** | `h` `d` `w` `m` | Period: 1h / 24h / 7d / 30d |
-| **Stats** | `r` | Refresh |
+Full keybinding reference and screen details in the [TUI documentation](https://hyperb1iss.github.io/unifly/reference/tui).
 
 ---
 
@@ -357,121 +275,38 @@ Historical statistics with selectable time windows and dual-API data sourcing:
 
 Two crates, clean dependency chain:
 
-```
-  unifly (CLI + TUI binaries)
-       │
-       ▼
-  unifly-api (library)
-  ├── HTTP/WS transport
-  ├── Controller lifecycle
-  ├── Reactive DataStore
-  └── Domain models
-```
-
 | Crate | Purpose |
 | --- | --- |
 | **unifly-api** | Async HTTP/WebSocket client, Controller lifecycle, reactive DataStore (`DashMap` + `tokio::watch`), entity models. Published on [crates.io](https://crates.io/crates/unifly-api) |
-| **unifly** | Single binary: CLI commands + `unifly tui` dashboard via feature flags, profile/keyring config, clap command routing, 10-screen ratatui dashboard with SilkCircuit theme |
+| **unifly** | Single binary: CLI commands + `unifly tui` dashboard via feature flags, profile/keyring config, 10-screen ratatui dashboard with SilkCircuit theme |
 
-### Data Flow
-
-```
-Controller URL ──▶ Integration API ──▶ REST (API key auth)
-                   Legacy API ────────▶ REST (cookie + CSRF)
-                   WebSocket ─────────▶ Push events
-
-                         │
-                         ▼
-                    Controller
-                   ┌──────────┐
-                   │ DataStore │ ◀── DashMap + watch channels
-                   │ Refresh   │ ◀── Background polling (30s)
-                   │ Commands  │ ◀── Action channel (mpsc)
-                   └──────────┘
-                         │
-              ┌──────────┼──────────┐
-              ▼          ▼          ▼
-           CLI out    TUI render  Event stream
-```
-
-The `Controller` (in `unifly-api`) wraps `Arc<ControllerInner>` for cheap cloning across async tasks. `EntityStream<T>` wraps `tokio::watch::Receiver` for reactive subscriptions so the TUI receives updates without polling.
+Deep dive: [Architecture documentation](https://hyperb1iss.github.io/unifly/architecture/)
 
 ---
 
 ## ⚙️ Configuration
 
-Config lives in your platform-standard config directory:
-
-| OS | Path |
-| --- | --- |
-| Linux | `~/.config/unifly/config.toml` |
-| macOS | `~/Library/Application Support/unifly/config.toml` |
-| Windows | `%APPDATA%\unifly\config.toml` |
-
-```toml
-default_profile = "home"
-
-[defaults]
-output = "table"
-color = "auto"
-insecure = false
-timeout = 30
-
-[profiles.home]
-controller = "https://192.168.1.1"
-site = "default"
-auth_mode = "hybrid"
-# API key + password stored in OS keyring
-
-[profiles.office]
-controller = "https://10.0.0.1"
-site = "default"
-auth_mode = "legacy"
-username = "admin"
-insecure = true
-```
-
 ```bash
-unifly config init             # Interactive setup
-unifly config use office       # Switch active profile
+unifly config init             # Interactive setup wizard
 unifly config profiles         # List profiles (* marks active)
-unifly --profile home devices  # One-off override
+unifly config use office       # Switch default profile
+unifly -p home devices list    # One-off override
 ```
+
+Named profiles for multiple controllers, OS keyring credential storage, environment variable overrides, and TOML config files. Full details: [Configuration guide](https://hyperb1iss.github.io/unifly/guide/configuration)
 
 ---
 
 ## 📦 Library
 
-The engine is published on [crates.io](https://crates.io). Use it to build your own UniFi tools, integrations, or automations in Rust.
-
 [![unifly-api](https://img.shields.io/crates/v/unifly-api.svg)](https://crates.io/crates/unifly-api) · Async HTTP/WebSocket transport, high-level Controller, reactive DataStore, domain models
-
-### Quick Start
-
-**Low-level API access** · talk directly to the controller:
-
-```rust
-use unifly_api::{IntegrationClient, TransportConfig, TlsMode, ControllerPlatform};
-use secrecy::SecretString;
-
-let transport = TransportConfig::new(TlsMode::DangerAcceptInvalid);
-let client = IntegrationClient::from_api_key(
-    "https://192.168.1.1",
-    &SecretString::from("your-api-key"),
-    &transport,
-    ControllerPlatform::UnifiOs,
-)?;
-let devices = client.list_devices("default").await?;
-```
-
-**High-level Controller** · reactive streams, automatic refresh, data merging:
 
 ```rust
 use unifly_api::{Controller, ControllerConfig, AuthCredentials, TlsVerification};
 use secrecy::SecretString;
 
 let config = ControllerConfig {
-    base_url: "https://192.168.1.1".parse()?,
+    url: "https://192.168.1.1".parse()?,
     auth: AuthCredentials::ApiKey(SecretString::from("your-api-key")),
     tls: TlsVerification::DangerAcceptInvalid,
     ..Default::default()
@@ -479,11 +314,11 @@ let config = ControllerConfig {
 let controller = Controller::new(config);
 controller.connect().await?;
 
-let devices = controller.devices().current();
+let devices = controller.devices_snapshot();
 println!("Found {} devices", devices.len());
 ```
 
-Full API documentation on [docs.rs/unifly-api](https://docs.rs/unifly-api).
+Full API docs on [docs.rs/unifly-api](https://docs.rs/unifly-api). Usage guide with more examples: [Library documentation](https://hyperb1iss.github.io/unifly/reference/library)
 
 ---
 

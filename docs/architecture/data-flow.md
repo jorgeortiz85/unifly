@@ -82,5 +82,5 @@ Non-MAC entities (networks, WiFi, firewall policies) use synthetic keys with a t
 | --------------- | -------------------------------- | ------------------------------ |
 | **Connection**  | `oneshot()`: no background tasks | `connect()`: full lifecycle    |
 | **Data access** | Single `current()` snapshot      | `changed()` subscription loop  |
-| **Refresh**     | None (fire-and-forget)           | Automatic every 30 seconds     |
+| **Refresh**     | None (fire-and-forget)           | Automatic every 10 seconds     |
 | **Events**      | Optional stream command          | Always connected via WebSocket |
