@@ -245,7 +245,7 @@ pub async fn handle(
                     .or(record.key.as_deref())
                     .unwrap_or("Unknown");
                 let code = record.code.as_deref().unwrap_or("-");
-                if !global.quiet {
+                if !global.quiet && matches!(global.output, crate::cli::args::OutputFormat::Table) {
                     eprintln!("Country: {country} ({code})");
                 }
                 let rows: Vec<ChannelRow> = channel_rows(record, &p);

@@ -177,13 +177,17 @@ fn append_neighbor_lines(lines: &mut Vec<String>, data: &Value, painter: &Painte
         let bssid = json_str(neighbor, &["bssid"]).unwrap_or("-");
         let channel =
             json_i64(neighbor, &["channel"]).map_or_else(|| "-".into(), |value| value.to_string());
-        // The wifiman response nests signal in an array: "signal": [{"signal": -67, ...}]
+        // wifiman may nest signal as [{"signal": N}] or return it flat as N
         let signal = neighbor
             .get("signal")
-            .and_then(Value::as_array)
-            .and_then(|arr| arr.first())
-            .and_then(|entry| entry.get("signal"))
-            .and_then(Value::as_i64)
+            .and_then(|v| {
+                v.as_i64().or_else(|| {
+                    v.as_array()
+                        .and_then(|arr| arr.first())
+                        .and_then(|entry| entry.get("signal"))
+                        .and_then(Value::as_i64)
+                })
+            })
             .map_or_else(|| "-".into(), |value| format!("{value} dBm"));
         lines.push(format!(
             "  {} ch:{} signal:{}",
@@ -229,11 +233,14 @@ fn roam_param_name<'a>(event: &'a Value, param_key: &str) -> Option<&'a str> {
 }
 
 /// Map UniFi radio band codes to human-readable labels.
+///
+/// Two code families exist: stat/sta uses "ng"/"na"/"6e", while
+/// wifiman and system-log endpoints use "2.4g"/"5g"/"6g".
 fn format_radio_band(code: &str) -> &str {
     match code {
-        "ng" => "2.4 GHz",
-        "na" => "5 GHz",
-        "6e" => "6 GHz",
+        "ng" | "2.4g" => "2.4 GHz",
+        "na" | "5g" => "5 GHz",
+        "6e" | "6g" => "6 GHz",
         other => other,
     }
 }
