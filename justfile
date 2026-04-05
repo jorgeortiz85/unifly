@@ -86,6 +86,14 @@ tui *args:
 doc:
     cargo doc --workspace --no-deps --open
 
+# Format markdown and JSON with prettier
+prettier:
+    cd docs && npx prettier --write "**/*.md" "**/*.json"
+
+# Check markdown and JSON formatting
+prettier-check:
+    cd docs && npx prettier --check "**/*.md" "**/*.json"
+
 # ── Clean ───────────────────────────────────────────────────────
 
 # Remove build artifacts
