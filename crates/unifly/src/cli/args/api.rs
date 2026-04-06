@@ -4,6 +4,9 @@ use clap::{Args, ValueEnum};
 pub enum ApiMethod {
     Get,
     Post,
+    Put,
+    Patch,
+    Delete,
 }
 
 #[derive(Debug, Args)]
@@ -15,11 +18,11 @@ pub struct ApiArgs {
     /// Integration:   integration/v1/dpi/applications
     pub path: String,
 
-    /// HTTP method (GET or POST)
+    /// HTTP method
     #[arg(long, short, value_enum, default_value_t = ApiMethod::Get)]
     pub method: ApiMethod,
 
-    /// JSON request body (for POST/PUT)
+    /// JSON request body (for POST, PUT, or PATCH)
     #[arg(long, short)]
     pub data: Option<String>,
 }

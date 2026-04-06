@@ -54,7 +54,28 @@ fn unifly_cmd_in(config_home: &std::path::Path) -> assert_cmd::Command {
 }
 
 fn written_config(tempdir: &TempDir) -> String {
-    std::fs::read_to_string(tempdir.path().join("unifly").join("config.toml")).unwrap()
+    let candidates = [
+        tempdir.path().join("unifly").join("config.toml"),
+        tempdir
+            .path()
+            .join("Library")
+            .join("Application Support")
+            .join("unifly")
+            .join("config.toml"),
+        tempdir
+            .path()
+            .join("AppData")
+            .join("Roaming")
+            .join("unifly")
+            .join("config.toml"),
+    ];
+
+    let path = candidates
+        .into_iter()
+        .find(|candidate| candidate.exists())
+        .expect("config file should be written to one of the platform config directories");
+
+    std::fs::read_to_string(path).unwrap()
 }
 
 /// Concatenate stdout + stderr from a command output for flexible matching.
@@ -108,6 +129,21 @@ fn test_version_flag() {
         .assert()
         .success()
         .stdout(predicate::str::contains("unifly"));
+}
+
+#[test]
+fn test_api_help_mentions_all_http_methods() {
+    unifly_cmd()
+        .args(["api", "--help"])
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::contains("get")
+                .and(predicate::str::contains("post"))
+                .and(predicate::str::contains("put"))
+                .and(predicate::str::contains("patch"))
+                .and(predicate::str::contains("delete")),
+        );
 }
 
 // ── Shell completions ───────────────────────────────────────────────
@@ -382,7 +418,7 @@ fn test_api_command_parses_with_valid_method() {
 #[test]
 fn test_api_command_rejects_invalid_method() {
     let output = unifly_cmd()
-        .args(["api", "api/s/default/stat/health", "--method", "patch"])
+        .args(["api", "api/s/default/stat/health", "--method", "trace"])
         .output()
         .unwrap();
     assert!(
@@ -619,6 +655,207 @@ fn test_firewall_subcommands_exist() {
         .assert()
         .success()
         .stdout(predicate::str::contains("policies").and(predicate::str::contains("zones")));
+}
+
+#[test]
+fn test_vpn_settings_subcommands_exist() {
+    unifly_cmd()
+        .args(["vpn", "settings", "--help"])
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::contains("list")
+                .and(predicate::str::contains("get"))
+                .and(predicate::str::contains("set"))
+                .and(predicate::str::contains("patch")),
+        );
+}
+
+#[test]
+fn test_vpn_settings_set_command_parses() {
+    unifly_cmd()
+        .args(["vpn", "settings", "set", "teleport", "--enabled", "true"])
+        .assert()
+        .failure()
+        .stderr(
+            predicate::str::contains("config")
+                .or(predicate::str::contains("Configuration"))
+                .or(predicate::str::contains("controller"))
+                .or(predicate::str::contains("profile")),
+        );
+}
+
+#[test]
+fn test_vpn_site_to_site_subcommands_exist() {
+    unifly_cmd()
+        .args(["vpn", "site-to-site", "--help"])
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::contains("list")
+                .and(predicate::str::contains("get"))
+                .and(predicate::str::contains("create"))
+                .and(predicate::str::contains("update"))
+                .and(predicate::str::contains("delete")),
+        );
+}
+
+#[test]
+fn test_vpn_site_to_site_create_command_parses() {
+    unifly_cmd()
+        .args(["vpn", "site-to-site", "create", "-F", "vpn.json"])
+        .assert()
+        .failure()
+        .stderr(
+            predicate::str::contains("config")
+                .or(predicate::str::contains("Configuration"))
+                .or(predicate::str::contains("controller"))
+                .or(predicate::str::contains("profile"))
+                .or(predicate::str::contains("No such file")),
+        );
+}
+
+#[test]
+fn test_vpn_remote_access_subcommands_exist() {
+    unifly_cmd()
+        .args(["vpn", "remote-access", "--help"])
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::contains("list")
+                .and(predicate::str::contains("get"))
+                .and(predicate::str::contains("create"))
+                .and(predicate::str::contains("update"))
+                .and(predicate::str::contains("suggest-port"))
+                .and(predicate::str::contains("download-config"))
+                .and(predicate::str::contains("delete")),
+        );
+}
+
+#[test]
+fn test_vpn_remote_access_create_command_parses() {
+    unifly_cmd()
+        .args(["vpn", "remote-access", "create", "-F", "vpn.json"])
+        .assert()
+        .failure()
+        .stderr(
+            predicate::str::contains("config")
+                .or(predicate::str::contains("Configuration"))
+                .or(predicate::str::contains("controller"))
+                .or(predicate::str::contains("profile"))
+                .or(predicate::str::contains("No such file")),
+        );
+}
+
+#[test]
+fn test_vpn_remote_access_download_config_command_parses() {
+    unifly_cmd()
+        .args(["vpn", "remote-access", "download-config", "vpn1"])
+        .assert()
+        .failure()
+        .stderr(
+            predicate::str::contains("config")
+                .or(predicate::str::contains("Configuration"))
+                .or(predicate::str::contains("controller"))
+                .or(predicate::str::contains("profile")),
+        );
+}
+
+#[test]
+fn test_vpn_clients_subcommands_exist() {
+    unifly_cmd()
+        .args(["vpn", "clients", "--help"])
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::contains("list")
+                .and(predicate::str::contains("get"))
+                .and(predicate::str::contains("create"))
+                .and(predicate::str::contains("update"))
+                .and(predicate::str::contains("delete")),
+        );
+}
+
+#[test]
+fn test_vpn_clients_create_command_parses() {
+    unifly_cmd()
+        .args(["vpn", "clients", "create", "-F", "vpn.json"])
+        .assert()
+        .failure()
+        .stderr(
+            predicate::str::contains("config")
+                .or(predicate::str::contains("Configuration"))
+                .or(predicate::str::contains("controller"))
+                .or(predicate::str::contains("profile"))
+                .or(predicate::str::contains("No such file")),
+        );
+}
+
+#[test]
+fn test_vpn_connections_subcommands_exist() {
+    unifly_cmd()
+        .args(["vpn", "connections", "--help"])
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::contains("list")
+                .and(predicate::str::contains("get"))
+                .and(predicate::str::contains("restart")),
+        );
+}
+
+#[test]
+fn test_vpn_connections_restart_command_parses() {
+    unifly_cmd()
+        .args(["vpn", "connections", "restart", "vpn1"])
+        .assert()
+        .failure()
+        .stderr(
+            predicate::str::contains("config")
+                .or(predicate::str::contains("Configuration"))
+                .or(predicate::str::contains("controller"))
+                .or(predicate::str::contains("profile")),
+        );
+}
+
+#[test]
+fn test_vpn_peers_subcommands_exist() {
+    unifly_cmd()
+        .args(["vpn", "peers", "--help"])
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::contains("list")
+                .and(predicate::str::contains("get"))
+                .and(predicate::str::contains("create"))
+                .and(predicate::str::contains("update"))
+                .and(predicate::str::contains("delete"))
+                .and(predicate::str::contains("subnets")),
+        );
+}
+
+#[test]
+fn test_vpn_peers_create_command_parses() {
+    unifly_cmd()
+        .args(["vpn", "peers", "create", "server123", "-F", "peer.json"])
+        .assert()
+        .failure()
+        .stderr(
+            predicate::str::contains("config")
+                .or(predicate::str::contains("Configuration"))
+                .or(predicate::str::contains("controller"))
+                .or(predicate::str::contains("profile"))
+                .or(predicate::str::contains("No such file")),
+        );
+}
+
+#[test]
+fn test_vpn_magic_site_to_site_subcommands_exist() {
+    unifly_cmd()
+        .args(["vpn", "magic-site-to-site", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("list").and(predicate::str::contains("get")));
 }
 
 #[test]

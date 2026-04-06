@@ -3,7 +3,7 @@
 
 use serde_json::json;
 use url::Url;
-use wiremock::matchers::{method, path, query_param};
+use wiremock::matchers::{body_json, method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use unifly_api::{ControllerPlatform, Error, SessionClient, TransportConfig};
@@ -39,6 +39,10 @@ async fn setup_with_jar() -> (MockServer, SessionClient) {
 
 fn site_path(suffix: &str) -> String {
     format!("/api/s/default/{suffix}")
+}
+
+fn site_path_v2(suffix: &str) -> String {
+    format!("/v2/api/site/default/{suffix}")
 }
 
 // ── Authentication tests ────────────────────────────────────────────
@@ -461,6 +465,222 @@ async fn test_legacy_api_error() {
         }
         other => panic!("expected SessionApi error, got: {other:?}"),
     }
+}
+
+// ── WireGuard peer tests ────────────────────────────────────────────
+
+#[tokio::test]
+async fn test_list_wireguard_peers() {
+    let (server, client) = setup().await;
+
+    Mock::given(method("GET"))
+        .and(path(site_path_v2("wireguard/server123/users")))
+        .and(query_param("networkId", "server123"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([
+            { "_id": "peer1", "name": "Laptop" }
+        ])))
+        .mount(&server)
+        .await;
+
+    let peers = client.list_wireguard_peers("server123").await.unwrap();
+
+    assert_eq!(peers.len(), 1);
+    assert_eq!(peers[0]["_id"], "peer1");
+}
+
+#[tokio::test]
+async fn test_list_all_wireguard_peers() {
+    let (server, client) = setup().await;
+
+    Mock::given(method("GET"))
+        .and(path(site_path_v2("wireguard/users")))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([
+            { "_id": "peer1", "name": "Laptop" }
+        ])))
+        .mount(&server)
+        .await;
+
+    let peers = client.list_all_wireguard_peers().await.unwrap();
+
+    assert_eq!(peers.len(), 1);
+    assert_eq!(peers[0]["name"], "Laptop");
+}
+
+#[tokio::test]
+async fn test_get_wireguard_peer_existing_subnets() {
+    let (server, client) = setup().await;
+
+    Mock::given(method("GET"))
+        .and(path(site_path_v2("wireguard/users/existing-subnets")))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "subnets": ["10.0.0.0/24"]
+        })))
+        .mount(&server)
+        .await;
+
+    let body = client.get_wireguard_peer_existing_subnets().await.unwrap();
+
+    assert_eq!(body["subnets"][0], "10.0.0.0/24");
+}
+
+#[tokio::test]
+async fn test_create_wireguard_peers() {
+    let (server, client) = setup().await;
+    let payload = json!([
+        {
+            "name": "Laptop",
+            "interface_ip": "192.168.42.2",
+            "public_key": "pubkey",
+            "allowed_ips": ["10.0.0.0/24"],
+            "preshared_key": ""
+        }
+    ]);
+
+    Mock::given(method("POST"))
+        .and(path(site_path_v2("wireguard/server123/users/batch")))
+        .and(body_json(payload.clone()))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([])))
+        .mount(&server)
+        .await;
+
+    client
+        .create_wireguard_peers("server123", &payload)
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn test_update_wireguard_peers() {
+    let (server, client) = setup().await;
+    let payload = json!([
+        {
+            "_id": "peer1",
+            "name": "Laptop",
+            "interface_ip": "192.168.42.2",
+            "public_key": "pubkey",
+            "allowed_ips": ["10.0.0.0/24"],
+            "preshared_key": ""
+        }
+    ]);
+
+    Mock::given(method("PUT"))
+        .and(path(site_path_v2("wireguard/server123/users/batch")))
+        .and(body_json(payload.clone()))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([])))
+        .mount(&server)
+        .await;
+
+    client
+        .update_wireguard_peers("server123", &payload)
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn test_delete_wireguard_peers() {
+    let (server, client) = setup().await;
+    let payload = json!(["peer1"]);
+
+    Mock::given(method("POST"))
+        .and(path(site_path_v2("wireguard/server123/users/batch_delete")))
+        .and(body_json(payload.clone()))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([])))
+        .mount(&server)
+        .await;
+
+    client
+        .delete_wireguard_peers("server123", &payload)
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn test_list_vpn_client_connections() {
+    let (server, client) = setup().await;
+
+    Mock::given(method("GET"))
+        .and(path(site_path_v2("vpn/connections")))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "connections": [
+                { "network_id": "vpn1", "name": "Branch Client" }
+            ]
+        })))
+        .mount(&server)
+        .await;
+
+    let connections = client.list_vpn_client_connections().await.unwrap();
+
+    assert_eq!(connections.len(), 1);
+    assert_eq!(connections[0]["network_id"], "vpn1");
+}
+
+#[tokio::test]
+async fn test_get_openvpn_port_suggestions() {
+    let (server, client) = setup().await;
+
+    Mock::given(method("GET"))
+        .and(path(site_path_v2("network/port-suggest")))
+        .and(query_param("service", "openvpn"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "available_ports": [1194]
+        })))
+        .mount(&server)
+        .await;
+
+    let body = client.get_openvpn_port_suggestions().await.unwrap();
+
+    assert_eq!(body["available_ports"][0], 1194);
+}
+
+#[tokio::test]
+async fn test_restart_vpn_client_connection() {
+    let (server, client) = setup().await;
+
+    Mock::given(method("POST"))
+        .and(path(site_path_v2("vpn/vpn1/restart")))
+        .and(body_json(json!({})))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([])))
+        .mount(&server)
+        .await;
+
+    client.restart_vpn_client_connection("vpn1").await.unwrap();
+}
+
+#[tokio::test]
+async fn test_download_openvpn_configuration() {
+    let (server, client) = setup().await;
+    let body = b"client\nremote example.com 1194\n";
+
+    Mock::given(method("GET"))
+        .and(path(site_path_v2("vpn/openvpn/server123/configuration")))
+        .respond_with(ResponseTemplate::new(200).set_body_raw(body.to_vec(), "text/plain"))
+        .mount(&server)
+        .await;
+
+    let bytes = client
+        .download_openvpn_configuration("server123")
+        .await
+        .unwrap();
+
+    assert_eq!(bytes, body);
+}
+
+#[tokio::test]
+async fn test_list_magic_site_to_site_vpn_configs() {
+    let (server, client) = setup().await;
+
+    Mock::given(method("GET"))
+        .and(path(site_path_v2("magicsitetositevpn/configs")))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([
+            { "id": "magic1", "name": "HQ <-> Branch" }
+        ])))
+        .mount(&server)
+        .await;
+
+    let configs = client.list_magic_site_to_site_vpn_configs().await.unwrap();
+
+    assert_eq!(configs.len(), 1);
+    assert_eq!(configs[0]["id"], "magic1");
 }
 
 // ── MFA/TOTP tests ─────────────────────────────────────────────────

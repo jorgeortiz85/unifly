@@ -22,11 +22,23 @@ pub async fn handle(
         })?;
 
     let result = match args.method {
+        ApiMethod::Get => controller.raw_get(&args.path).await?,
         ApiMethod::Post => {
             let payload = body.unwrap_or(serde_json::json!({}));
             controller.raw_post(&args.path, &payload).await?
         }
-        ApiMethod::Get => controller.raw_get(&args.path).await?,
+        ApiMethod::Put => {
+            let payload = body.unwrap_or(serde_json::json!({}));
+            controller.raw_put(&args.path, &payload).await?
+        }
+        ApiMethod::Patch => {
+            let payload = body.unwrap_or(serde_json::json!({}));
+            controller.raw_patch(&args.path, &payload).await?
+        }
+        ApiMethod::Delete => {
+            controller.raw_delete(&args.path).await?;
+            serde_json::json!({ "ok": true })
+        }
     };
 
     let out = match &global.output {

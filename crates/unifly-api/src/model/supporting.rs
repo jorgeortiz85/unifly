@@ -4,6 +4,7 @@
 // resources that don't warrant their own module.
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::net::IpAddr;
 
 use super::common::EntityOrigin;
@@ -51,6 +52,103 @@ pub struct IpsecSa {
     pub ike_version: Option<String>,
     #[serde(flatten)]
     pub extra: serde_json::Map<String, serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VpnSetting {
+    pub key: String,
+    pub enabled: Option<bool>,
+    #[serde(default)]
+    pub fields: serde_json::Map<String, Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SiteToSiteVpn {
+    pub id: EntityId,
+    pub name: String,
+    pub enabled: bool,
+    pub vpn_type: String,
+    pub remote_site_id: Option<String>,
+    pub local_ip: Option<String>,
+    pub interface: Option<String>,
+    pub remote_host: Option<String>,
+    #[serde(default)]
+    pub remote_vpn_subnets: Vec<String>,
+    #[serde(default)]
+    pub fields: serde_json::Map<String, Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemoteAccessVpnServer {
+    pub id: EntityId,
+    pub name: String,
+    pub enabled: bool,
+    pub vpn_type: String,
+    pub local_port: Option<u16>,
+    pub local_wan_ip: Option<String>,
+    pub interface: Option<String>,
+    pub gateway_subnet: Option<String>,
+    pub radius_profile_id: Option<String>,
+    pub exposed_to_site_vpn: Option<bool>,
+    #[serde(default)]
+    pub fields: serde_json::Map<String, Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WireGuardPeer {
+    pub id: EntityId,
+    pub server_id: Option<EntityId>,
+    pub name: String,
+    pub interface_ip: Option<String>,
+    pub interface_ipv6: Option<String>,
+    pub public_key: Option<String>,
+    #[serde(default)]
+    pub allowed_ips: Vec<String>,
+    pub has_private_key: bool,
+    pub has_preshared_key: bool,
+    #[serde(default)]
+    pub fields: serde_json::Map<String, Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VpnClientConnection {
+    pub id: EntityId,
+    pub name: Option<String>,
+    pub connection_type: Option<String>,
+    pub status: Option<String>,
+    pub local_address: Option<String>,
+    pub remote_address: Option<String>,
+    pub username: Option<String>,
+    #[serde(default)]
+    pub fields: serde_json::Map<String, Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VpnClientProfile {
+    pub id: EntityId,
+    pub name: String,
+    pub enabled: bool,
+    pub vpn_type: String,
+    pub server_address: Option<String>,
+    pub server_port: Option<u16>,
+    pub local_address: Option<String>,
+    pub username: Option<String>,
+    pub interface: Option<String>,
+    pub route_distance: Option<u32>,
+    #[serde(default)]
+    pub fields: serde_json::Map<String, Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MagicSiteToSiteVpnConfig {
+    pub id: EntityId,
+    pub name: Option<String>,
+    pub status: Option<String>,
+    pub enabled: Option<bool>,
+    pub local_site_name: Option<String>,
+    pub remote_site_name: Option<String>,
+    #[serde(default)]
+    pub fields: serde_json::Map<String, Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

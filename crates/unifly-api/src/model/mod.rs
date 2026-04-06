@@ -62,7 +62,9 @@ pub use event::{Alarm, Event, EventCategory, EventSeverity};
 
 // Supporting types
 pub use supporting::{
-    DeviceTag, IpsecSa, RadiusProfile, TrafficMatchingList, VpnServer, VpnTunnel, WanInterface,
+    DeviceTag, IpsecSa, MagicSiteToSiteVpnConfig, RadiusProfile, RemoteAccessVpnServer,
+    SiteToSiteVpn, TrafficMatchingList, VpnClientConnection, VpnClientProfile, VpnServer,
+    VpnSetting, VpnTunnel, WanInterface, WireGuardPeer,
 };
 
 // Session-only resources

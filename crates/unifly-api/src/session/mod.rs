@@ -11,6 +11,7 @@ pub mod devices;
 pub mod events;
 pub mod models;
 pub mod nat;
+pub mod networkconf;
 pub mod session_cache;
 pub mod sites;
 pub mod stats;
@@ -18,5 +19,6 @@ pub mod system;
 pub mod system_log;
 pub mod vpn;
 pub mod wifi;
+pub mod wireguard;
 
 pub use client::SessionClient;

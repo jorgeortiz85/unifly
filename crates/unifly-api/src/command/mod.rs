@@ -15,10 +15,13 @@ use crate::model::{
 pub use requests::{
     CreateAclRuleRequest, CreateDnsPolicyRequest, CreateFirewallPolicyRequest,
     CreateFirewallZoneRequest, CreateNatPolicyRequest, CreateNetworkRequest,
-    CreateTrafficMatchingListRequest, CreateVouchersRequest, CreateWifiBroadcastRequest,
-    TrafficFilterSpec, UpdateAclRuleRequest, UpdateDnsPolicyRequest, UpdateFirewallPolicyRequest,
-    UpdateFirewallZoneRequest, UpdateNetworkRequest, UpdateTrafficMatchingListRequest,
-    UpdateWifiBroadcastRequest,
+    CreateRemoteAccessVpnServerRequest, CreateSiteToSiteVpnRequest,
+    CreateTrafficMatchingListRequest, CreateVouchersRequest, CreateVpnClientProfileRequest,
+    CreateWifiBroadcastRequest, CreateWireGuardPeerRequest, TrafficFilterSpec,
+    UpdateAclRuleRequest, UpdateDnsPolicyRequest, UpdateFirewallPolicyRequest,
+    UpdateFirewallZoneRequest, UpdateNetworkRequest, UpdateRemoteAccessVpnServerRequest,
+    UpdateSiteToSiteVpnRequest, UpdateTrafficMatchingListRequest, UpdateVpnClientProfileRequest,
+    UpdateWifiBroadcastRequest, UpdateWireGuardPeerRequest,
 };
 
 /// A command envelope sent through the command channel.
@@ -145,6 +148,48 @@ pub enum Command {
     // ── NAT ──────────────────────────────────────────────────────────
     CreateNatPolicy(CreateNatPolicyRequest),
     DeleteNatPolicy {
+        id: EntityId,
+    },
+
+    // ── VPN (Legacy) ────────────────────────────────────────────────
+    CreateSiteToSiteVpn(CreateSiteToSiteVpnRequest),
+    UpdateSiteToSiteVpn {
+        id: EntityId,
+        update: UpdateSiteToSiteVpnRequest,
+    },
+    DeleteSiteToSiteVpn {
+        id: EntityId,
+    },
+    CreateRemoteAccessVpnServer(CreateRemoteAccessVpnServerRequest),
+    UpdateRemoteAccessVpnServer {
+        id: EntityId,
+        update: UpdateRemoteAccessVpnServerRequest,
+    },
+    DeleteRemoteAccessVpnServer {
+        id: EntityId,
+    },
+    CreateVpnClientProfile(CreateVpnClientProfileRequest),
+    UpdateVpnClientProfile {
+        id: EntityId,
+        update: UpdateVpnClientProfileRequest,
+    },
+    DeleteVpnClientProfile {
+        id: EntityId,
+    },
+    CreateWireGuardPeer {
+        server_id: EntityId,
+        peer: CreateWireGuardPeerRequest,
+    },
+    UpdateWireGuardPeer {
+        server_id: EntityId,
+        peer_id: EntityId,
+        update: UpdateWireGuardPeerRequest,
+    },
+    DeleteWireGuardPeer {
+        server_id: EntityId,
+        peer_id: EntityId,
+    },
+    RestartVpnClientConnection {
         id: EntityId,
     },
 

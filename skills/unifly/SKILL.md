@@ -97,10 +97,10 @@ All commands follow `unifly [global-flags] <command> <action> [args]`.
 | `sites`         |            | list, create, delete                                                                                           |
 | `admin`         |            | list, invite, revoke, update                                                                                   |
 | `wans`          |            | list                                                                                                           |
-| `vpn`           |            | servers {list, get}, tunnels {list, get}, status, health                                                      |
+| `vpn`           |            | servers {list, get}, tunnels {list, get}, status, health, site-to-site {list, get, create, update, delete}, remote-access {list, get, create, update, suggest-port, download-config, delete}, clients {list, get, create, update, delete}, connections {list, get, restart}, peers {list, get, create, update, delete, subnets}, magic-site-to-site {list, get}, settings {list, get, set, patch} |
 | `radius`        |            | profiles                                                                                                       |
 | `countries`     |            | _(no subcommands)_                                                                                             |
-| `api`           |            | Raw API passthrough (GET/POST any path)                                                                        |
+| `api`           |            | Raw API passthrough (GET/POST/PUT/PATCH/DELETE any path)                                                       |
 | `config`        |            | init, show, set, profiles, use, set-password                                                                   |
 | `tui`           |            | _(no subcommands)_                                                                                             |
 | `completions`   |            | bash, zsh, fish, powershell, elvish                                                                            |
@@ -132,8 +132,9 @@ recipes with runnable shell scripts, consult `references/workflows.md`.
 
 Most entities accept `--from-file <path.json>` (or `-F`) instead of flag
 salad: `networks`, `wifi`, `firewall policies`, `firewall zones`, `nat policies`,
-`acl`, `dns`, `traffic-lists`, `hotspot`. Construct the JSON payload, validate
-it, then apply. See `examples/` for payload templates.
+`acl`, `dns`, `traffic-lists`, `hotspot`, `vpn site-to-site`, `vpn remote-access`,
+`vpn clients`, and `vpn peers`. Construct the JSON payload, validate it, then
+apply. See `examples/` for payload templates.
 
 ```bash
 unifly networks create -F examples/network-iot-vlan.json
@@ -174,7 +175,101 @@ management and session caching are automatic.
 ```bash
 unifly api "v2/api/site/default/traffic-flow-latest-statistics"
 unifly api "cmd/stamgr" -m post -d '{"cmd":"kick-sta","mac":"aa:bb:cc:dd:ee:ff"}'
+unifly api "api/s/default/set/setting/teleport" -m put -d '{"enabled":true}'
 ```
+
+### Legacy VPN payloads and settings
+
+`unifly vpn site-to-site` wraps legacy `rest/networkconf` records whose
+`purpose` is `site-vpn`. This is the current CRUD path for manual IPsec and
+OpenVPN site-to-site records exposed by the controller.
+
+```bash
+unifly vpn site-to-site list -o json
+unifly vpn site-to-site get <id> -o json
+unifly vpn site-to-site create -F site-to-site.json
+unifly vpn site-to-site update <id> -F site-to-site.json
+unifly vpn site-to-site delete <id>
+```
+
+`unifly vpn remote-access` wraps legacy `rest/networkconf` records whose
+`purpose` is `remote-user-vpn`. This is the current CRUD path for L2TP,
+OpenVPN, and WireGuard remote-access servers exposed by the controller.
+
+```bash
+unifly vpn remote-access list -o json
+unifly vpn remote-access get <id> -o json
+unifly vpn remote-access create -F remote-access.json
+unifly vpn remote-access update <id> -F remote-access.json
+unifly vpn remote-access suggest-port -o json
+unifly vpn remote-access download-config <id> --path .
+unifly vpn remote-access delete <id>
+```
+
+`unifly vpn clients` wraps legacy `rest/networkconf` records whose
+`purpose` is `vpn-client`. This is the current CRUD path for configured
+OpenVPN and WireGuard client profiles exposed by the controller.
+
+```bash
+unifly vpn clients list -o json
+unifly vpn clients get <id> -o json
+unifly vpn clients create -F vpn-client.json
+unifly vpn clients update <id> -F vpn-client.json
+unifly vpn clients delete <id>
+```
+
+`unifly vpn peers` wraps the legacy v2 WireGuard peer endpoints for
+remote-access VPN servers. `list` can enumerate all peers or scope to a
+single server ID; `create`, `update`, and `delete` require the parent
+remote-access server ID.
+
+```bash
+unifly vpn peers list -o json
+unifly vpn peers list <server-id> -o json
+unifly vpn peers get <server-id> <peer-id> -o json
+unifly vpn peers create <server-id> -F peer.json
+unifly vpn peers update <server-id> <peer-id> -F peer.json
+unifly vpn peers delete <server-id> <peer-id>
+unifly vpn peers subnets -o json
+```
+
+`unifly vpn connections` wraps the legacy v2 VPN client connection
+inventory exposed at `v2/api/site/<site>/vpn/connections`. `restart`
+issues the same controller action the web UI uses for a single connection.
+
+```bash
+unifly vpn connections list -o json
+unifly vpn connections get <id> -o json
+unifly vpn connections restart <id>
+```
+
+`unifly vpn magic-site-to-site` wraps the legacy v2
+`magicsitetositevpn/configs` inventory endpoint. It is currently
+read-only.
+
+```bash
+unifly vpn magic-site-to-site list -o json
+unifly vpn magic-site-to-site get <id> -o json
+```
+
+`unifly vpn settings` wraps the legacy `rest/setting` records for the VPN
+feature toggles the controller exposes today: `teleport`,
+`magic-site-to-site-vpn`, `openvpn`, and `peer-to-peer`.
+
+```bash
+unifly vpn settings list -o json
+unifly vpn settings get peer-to-peer -o json
+unifly vpn settings set teleport --enabled true
+unifly vpn settings patch peer-to-peer -F peer-to-peer.json
+```
+
+`site-to-site get`, `remote-access get`, `clients get`, `connections get`,
+`peers get`, and `magic-site-to-site get` return redacted records with
+summary fields and the sanitized controller payload under `fields`.
+
+`settings get` returns a redacted wrapper with `key`, `enabled`, and `fields`.
+`patch` accepts either the raw legacy setting body or that wrapper shape and
+will send the inner `fields` object back to the controller.
 
 ### Bulk operations via filter DSL
 

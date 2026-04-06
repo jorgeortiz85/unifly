@@ -8,6 +8,7 @@ mod network;
 mod policy;
 mod traffic;
 mod vouchers;
+mod vpn;
 
 pub use dns::{CreateDnsPolicyRequest, UpdateDnsPolicyRequest};
 pub use network::{
@@ -21,3 +22,8 @@ pub use policy::{
 };
 pub use traffic::{CreateTrafficMatchingListRequest, UpdateTrafficMatchingListRequest};
 pub use vouchers::CreateVouchersRequest;
+pub use vpn::{
+    CreateRemoteAccessVpnServerRequest, CreateSiteToSiteVpnRequest, CreateVpnClientProfileRequest,
+    CreateWireGuardPeerRequest, UpdateRemoteAccessVpnServerRequest, UpdateSiteToSiteVpnRequest,
+    UpdateVpnClientProfileRequest, UpdateWireGuardPeerRequest,
+};

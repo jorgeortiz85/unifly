@@ -11,6 +11,7 @@ mod device_client;
 mod network;
 mod policy;
 mod system;
+mod vpn;
 
 pub(super) use super::payloads::{
     build_acl_filter_value, build_create_dns_policy_fields, build_create_wifi_broadcast_payload,
@@ -89,6 +90,19 @@ pub(super) async fn route_command(
         | Command::CreateTrafficMatchingList(_)
         | Command::UpdateTrafficMatchingList { .. }
         | Command::DeleteTrafficMatchingList { .. }) => policy::route(&ctx, cmd).await,
+        cmd @ (Command::CreateSiteToSiteVpn(_)
+        | Command::UpdateSiteToSiteVpn { .. }
+        | Command::DeleteSiteToSiteVpn { .. }
+        | Command::CreateRemoteAccessVpnServer(_)
+        | Command::UpdateRemoteAccessVpnServer { .. }
+        | Command::DeleteRemoteAccessVpnServer { .. }
+        | Command::CreateVpnClientProfile(_)
+        | Command::UpdateVpnClientProfile { .. }
+        | Command::DeleteVpnClientProfile { .. }
+        | Command::CreateWireGuardPeer { .. }
+        | Command::UpdateWireGuardPeer { .. }
+        | Command::DeleteWireGuardPeer { .. }
+        | Command::RestartVpnClientConnection { .. }) => vpn::route(&ctx, cmd).await,
         cmd @ (Command::SetDpiEnabled { .. }
         | Command::ArchiveAlarm { .. }
         | Command::ArchiveAllAlarms

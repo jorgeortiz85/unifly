@@ -421,6 +421,75 @@ unifly sites delete <name>
 
 Site `create --description` is **required**.
 
+## VPN `[I for servers/tunnels, L for site-to-site/remote-access/clients/peers/settings, V2 for connections/magic-site-to-site]`
+
+```bash
+unifly vpn servers [--all] [-o json]
+unifly vpn tunnels [--all] [-o json]
+unifly vpn site-to-site list [--all] [-o json]
+unifly vpn site-to-site get <id> [-o json]
+unifly vpn site-to-site create -F payload.json
+unifly vpn site-to-site update <id> -F payload.json
+unifly vpn site-to-site delete <id>
+unifly vpn remote-access list [--all] [-o json]
+unifly vpn remote-access get <id> [-o json]
+unifly vpn remote-access create -F payload.json
+unifly vpn remote-access update <id> -F payload.json
+unifly vpn remote-access suggest-port [-o json]
+unifly vpn remote-access download-config <id> [--path PATH]
+unifly vpn remote-access delete <id>
+unifly vpn clients list [--all] [-o json]
+unifly vpn clients get <id> [-o json]
+unifly vpn clients create -F payload.json
+unifly vpn clients update <id> -F payload.json
+unifly vpn clients delete <id>
+unifly vpn connections list [--all] [-o json]
+unifly vpn connections get <id> [-o json]
+unifly vpn connections restart <id>
+unifly vpn peers list [server-id] [--all] [-o json]
+unifly vpn peers get <server-id> <id> [-o json]
+unifly vpn peers create <server-id> -F payload.json
+unifly vpn peers update <server-id> <id> -F payload.json
+unifly vpn peers delete <server-id> <id>
+unifly vpn peers subnets [-o json]
+unifly vpn magic-site-to-site list [--all] [-o json]
+unifly vpn magic-site-to-site get <id> [-o json]
+unifly vpn settings list [--all] [-o json]
+unifly vpn settings get <teleport|magic-site-to-site-vpn|openvpn|peer-to-peer> [-o json]
+unifly vpn settings set <key> --enabled true|false
+unifly vpn settings patch <key> -F payload.json
+```
+
+**Gotchas:**
+
+- `servers` and `tunnels` are Integration API inventory only.
+- `site-to-site` uses Legacy `rest/networkconf` records filtered to
+  `purpose=site-vpn`.
+- `remote-access` uses Legacy `rest/networkconf` records filtered to
+  `purpose=remote-user-vpn`.
+- `remote-access suggest-port` uses the Legacy v2
+  `network/port-suggest?service=openvpn` helper and returns
+  `available_ports`.
+- `remote-access download-config` fetches the Legacy v2
+  `vpn/openvpn/<id>/configuration` export and writes `<id>.ovpn` by
+  default.
+- `clients` uses Legacy `rest/networkconf` records filtered to
+  `purpose=vpn-client`.
+- `connections` uses the Legacy v2 `vpn/connections` inventory and
+  `vpn/<id>/restart` action.
+- `peers` uses Legacy v2 `wireguard/*/users` batch endpoints. `create`,
+  `update`, and `delete` require the parent remote-access server ID.
+- `subnets` lists already-consumed subnets from
+  `v2/api/site/<site>/wireguard/users/existing-subnets`.
+- `magic-site-to-site` uses the Legacy v2
+  `magicsitetositevpn/configs` inventory endpoint and is read-only.
+- `settings` uses Legacy `rest/setting` records for VPN feature toggles.
+- `patch` accepts either a raw legacy setting body or the wrapper emitted
+  by `get` (`{ "key": ..., "enabled": ..., "fields": { ... } }`).
+- Sensitive nested material such as private keys and PSKs is redacted from
+  `get` output. Reconstruct those fields explicitly before updating if the
+  controller requires them unchanged.
+
 ## Alarms `[L]`
 
 ```bash
@@ -432,7 +501,7 @@ unifly alarms archive-all
 ## API (raw passthrough) `[any mode]`
 
 ```bash
-unifly api <path> [-m get|post] [-d '<json-body>']
+unifly api <path> [-m get|post|put|patch|delete] [-d '<json-body>']
 ```
 
 **Gotchas:**
@@ -444,7 +513,8 @@ unifly api <path> [-m get|post] [-d '<json-body>']
   - Session v2: `v2/api/site/default/traffic-flow-latest-statistics`
   - Integration v1: `integration/v1/sites/default/clients`
   - Commands: `cmd/stamgr`, `cmd/devmgr`
-- `-d '<json>'` is the POST body. Pair with `-m post`.
+- `-d '<json>'` is used for `post`, `put`, and `patch`.
+- `delete` does not require a body.
 - Essential when unifly does not wrap a specific endpoint yet.
 
 ## Topology, TUI, Completions, Config, Countries

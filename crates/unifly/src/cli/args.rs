@@ -173,7 +173,7 @@ pub enum Command {
     /// Manage traffic matching lists
     TrafficLists(TrafficListsArgs),
 
-    /// View VPN servers and tunnels
+    /// View VPN servers and tunnels, and manage legacy VPN resources
     Vpn(VpnArgs),
 
     /// View WAN interfaces

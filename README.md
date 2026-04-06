@@ -204,10 +204,10 @@ full live monitoring plus maximum compatibility.
 | `system` | `sys` | System operations and info |
 | `topology` | `topo` | Show network topology tree |
 | `traffic-lists` | | Manage traffic matching lists |
-| `vpn` | | View VPN servers and tunnels |
+| `vpn` | | View VPN inventory, legacy site-to-site, remote-access, and client records, OpenVPN helpers, VPN connections, WireGuard peers, magic site-to-site configs, and VPN settings |
 | `wans` | | View WAN interfaces |
 | `wifi` | `w` | Manage WiFi broadcasts (SSIDs) |
-| `api` | | Raw API passthrough (GET/POST to any endpoint) |
+| `api` | | Raw API passthrough (GET/POST/PUT/PATCH/DELETE to any endpoint) |
 | `tui` | | Launch the real-time terminal dashboard |
 
 Most resource groups support `list` and `get`; some also expose `create`, `update`, `delete`, `patch`, or specialized actions. Run `unifly <command> --help` for details.

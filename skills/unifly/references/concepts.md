@@ -402,10 +402,15 @@ Common failures and how to diagnose them:
 - **Local controllers only.** The Site Manager cloud API (`api.ui.com/v1/`)
   is not yet implemented. Do not attempt to use unifly against cloud-only
   controllers.
-- **VPN mutations and peer management are not yet supported.** `unifly vpn
-  servers`, `unifly vpn servers get`, `unifly vpn tunnels`,
-  `unifly vpn tunnels get`, `unifly vpn status`, and `unifly vpn health`
-  are all read-only.
+- **VPN coverage is broad but split across two APIs.** Integration API
+  provides `unifly vpn servers` (with get/detail), `unifly vpn tunnels`
+  (with get/detail), `unifly vpn status` (IPsec SA), and
+  `unifly vpn health`. Session API provides full CRUD via
+  `unifly vpn site-to-site`, `unifly vpn remote-access` (including
+  suggest-port and download-config), `unifly vpn clients`,
+  `unifly vpn peers` (WireGuard), `unifly vpn connections`, and
+  `unifly vpn settings`. `unifly vpn magic-site-to-site` is read-only.
+  UniFi-to-UniFi auto flows are still not wrapped.
 - **Port forwarding** lives under `nat policies` with destination NAT, not
   a dedicated command.
 - **No `nat policies update`.** Delete and recreate to modify a NAT policy.
