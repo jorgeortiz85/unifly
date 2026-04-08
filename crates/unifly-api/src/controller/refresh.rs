@@ -167,8 +167,20 @@ impl Controller {
 
                     let events = match events_res {
                         Ok(raw) => raw.into_iter().map(Event::from).collect(),
+                        Err(ref error) if error.is_not_found() => {
+                            debug!(
+                                auth = ?session.auth(),
+                                error = %error,
+                                "session event endpoint unavailable; treating as empty"
+                            );
+                            Vec::new()
+                        }
                         Err(error) => {
-                            warn!(error = %error, "session event fetch failed (non-fatal)");
+                            warn!(
+                                auth = ?session.auth(),
+                                error = %error,
+                                "session event fetch failed (non-fatal)"
+                            );
                             Vec::new()
                         }
                     };

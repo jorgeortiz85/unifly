@@ -149,6 +149,7 @@ fn api_key_legacy_client(base_url: Url, site: &str, api_key: &str) -> SessionCli
         base_url,
         site.to_owned(),
         ControllerPlatform::ClassicController,
+        unifly_api::session::client::SessionAuth::ApiKey,
     )
 }
 
@@ -243,7 +244,21 @@ async fn mount_api_key_integration_routes(server: &MockServer) {
     }
 }
 
-async fn mount_api_key_legacy_routes(server: &MockServer) {
+fn api_key_event_envelope() -> serde_json::Value {
+    legacy_envelope(&json!([{
+        "_id": "evt-api-key-1",
+        "key": "EVT_GW_Connected",
+        "msg": "Gateway connected",
+        "datetime": "2025-01-01T00:00:00Z",
+        "subsystem": "device",
+        "site_id": LEGACY_SITE_ID,
+    }]))
+}
+
+async fn mount_api_key_legacy_routes_with_event_response(
+    server: &MockServer,
+    event_response: ResponseTemplate,
+) {
     use wiremock::matchers::header;
 
     Mock::given(method("GET"))
@@ -273,7 +288,7 @@ async fn mount_api_key_legacy_routes(server: &MockServer) {
     Mock::given(method("GET"))
         .and(path("/api/s/default/stat/event"))
         .and(header("X-API-KEY", "the-key"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(empty_legacy_envelope()))
+        .respond_with(event_response)
         .mount(server)
         .await;
 
@@ -300,6 +315,17 @@ async fn mount_api_key_legacy_routes(server: &MockServer) {
 }
 
 async fn mock_api_key_with_legacy(server: &MockServer) {
+    mock_api_key_with_legacy_event_response(
+        server,
+        ResponseTemplate::new(200).set_body_json(api_key_event_envelope()),
+    )
+    .await;
+}
+
+async fn mock_api_key_with_legacy_event_response(
+    server: &MockServer,
+    event_response: ResponseTemplate,
+) {
     Mock::given(method("GET"))
         .and(path("/api/auth/login"))
         .respond_with(ResponseTemplate::new(404))
@@ -313,7 +339,7 @@ async fn mock_api_key_with_legacy(server: &MockServer) {
         .await;
 
     mount_api_key_integration_routes(server).await;
-    mount_api_key_legacy_routes(server).await;
+    mount_api_key_legacy_routes_with_event_response(server, event_response).await;
 }
 
 #[tokio::test]
@@ -392,8 +418,13 @@ async fn api_key_mode_has_legacy_and_integration_access() {
     controller.connect().await.unwrap();
 
     assert!(controller.has_session_access().await);
+    assert!(!controller.has_live_event_access().await);
     assert!(controller.has_integration_access().await);
     assert_eq!(controller.store().client_count(), 1);
+    let events = controller.events_snapshot();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].event_type, "EVT_GW_Connected");
+    assert_eq!(events[0].message, "Gateway connected");
 
     let client = controller
         .store()
@@ -435,6 +466,29 @@ async fn api_key_mode_has_legacy_and_integration_access() {
             req.url.path()
         );
     }
+
+    controller.disconnect().await;
+}
+
+#[tokio::test]
+async fn api_key_mode_treats_missing_event_endpoint_as_empty() {
+    let server = MockServer::start().await;
+    mock_api_key_with_legacy_event_response(&server, ResponseTemplate::new(404)).await;
+
+    let controller = Controller::new(base_config(
+        Url::parse(&server.uri()).unwrap(),
+        AuthCredentials::ApiKey(secret("the-key")),
+        LEGACY_SITE_NAME,
+        false,
+    ));
+
+    controller.connect().await.unwrap();
+
+    assert!(controller.has_session_access().await);
+    assert!(!controller.has_live_event_access().await);
+    assert!(controller.has_integration_access().await);
+    assert_eq!(controller.events_snapshot().len(), 0);
+    assert_eq!(controller.store().client_count(), 1);
 
     controller.disconnect().await;
 }

@@ -6,6 +6,7 @@ use crate::model::{
     AclRule, Client, Device, DnsPolicy, Event, FirewallPolicy, FirewallZone, HealthSummary,
     NatPolicy, Network, Site, TrafficMatchingList, Voucher, WifiBroadcast,
 };
+use crate::session::SessionAuth;
 use crate::stream::EntityStream;
 
 use super::{ConnectionState, Controller};
@@ -137,14 +138,63 @@ impl Controller {
         std::mem::take(&mut *self.inner.warnings.lock().await)
     }
 
-    /// Whether a logged-in Session client is available for session-only features.
+    /// Whether any Session API client is available.
     pub async fn has_session_access(&self) -> bool {
         self.inner.session_client.lock().await.is_some()
+    }
+
+    /// Whether live event streaming is available via a cookie-backed session.
+    pub async fn has_live_event_access(&self) -> bool {
+        self.inner
+            .session_client
+            .lock()
+            .await
+            .as_ref()
+            .is_some_and(|session| session.auth() == SessionAuth::Cookie)
     }
 
     /// Whether the Integration API is available for integration-backed features.
     pub async fn has_integration_access(&self) -> bool {
         self.inner.integration_client.lock().await.is_some()
             && self.inner.site_id.lock().await.is_some()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use url::Url;
+
+    use super::{Controller, SessionAuth};
+    use crate::config::ControllerConfig;
+    use crate::{ControllerPlatform, SessionClient};
+
+    fn session_client(auth: SessionAuth) -> Arc<SessionClient> {
+        Arc::new(SessionClient::with_client(
+            reqwest::Client::new(),
+            Url::parse("https://controller.example").expect("valid test URL"),
+            "default".into(),
+            ControllerPlatform::ClassicController,
+            auth,
+        ))
+    }
+
+    #[tokio::test]
+    async fn api_key_session_client_has_session_access_but_not_live_event_access() {
+        let controller = Controller::new(ControllerConfig::default());
+        *controller.inner.session_client.lock().await = Some(session_client(SessionAuth::ApiKey));
+
+        assert!(controller.has_session_access().await);
+        assert!(!controller.has_live_event_access().await);
+    }
+
+    #[tokio::test]
+    async fn cookie_session_client_has_live_event_access() {
+        let controller = Controller::new(ControllerConfig::default());
+        *controller.inner.session_client.lock().await = Some(session_client(SessionAuth::Cookie));
+
+        assert!(controller.has_session_access().await);
+        assert!(controller.has_live_event_access().await);
     }
 }

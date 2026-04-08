@@ -62,7 +62,8 @@ impl Controller {
                 // Also create a session client using the same API key.
                 // UniFi OS accepts X-API-KEY on session endpoints, which
                 // gives us access to /rest/user (DHCP reservations),
-                // /stat/sta (client stats), events, and health data.
+                // /stat/sta (client stats), and health data. Some
+                // legacy routes such as /stat/event vary by controller.
                 let mut headers = HeaderMap::new();
                 let mut key_value =
                     HeaderValue::from_str(api_key.expose_secret()).map_err(|e| {
@@ -78,6 +79,7 @@ impl Controller {
                     config.url.clone(),
                     config.site.clone(),
                     platform,
+                    crate::session::client::SessionAuth::ApiKey,
                 );
                 *self.inner.session_client.lock().await = Some(Arc::new(session));
             }

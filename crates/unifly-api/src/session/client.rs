@@ -30,6 +30,16 @@ struct UnifiOsErrorInner {
     message: Option<String>,
 }
 
+/// How this session client authenticates with the controller.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SessionAuth {
+    /// Real session cookie from username/password login.
+    Cookie,
+    /// API key passed via `X-API-KEY` header (no session cookie).
+    /// Some session endpoints (e.g. `stat/event`) are unavailable.
+    ApiKey,
+}
+
 /// Raw HTTP client for the UniFi controller's session API.
 ///
 /// Handles the `{ data: [], meta: { rc, msg } }` envelope, site-scoped
@@ -41,6 +51,7 @@ pub struct SessionClient {
     base_url: Url,
     site: String,
     platform: ControllerPlatform,
+    auth: SessionAuth,
     /// CSRF token for UniFi OS. Required on all POST/PUT/DELETE requests
     /// through the `/proxy/network/` path. Captured from login response
     /// headers and rotated via `X-Updated-CSRF-Token`.
@@ -74,6 +85,7 @@ impl SessionClient {
             base_url,
             site,
             platform,
+            auth: SessionAuth::Cookie,
             csrf_token: RwLock::new(None),
             cookie_jar,
         })
@@ -88,15 +100,22 @@ impl SessionClient {
         base_url: Url,
         site: String,
         platform: ControllerPlatform,
+        auth: SessionAuth,
     ) -> Self {
         Self {
             http,
             base_url,
             site,
             platform,
+            auth,
             csrf_token: RwLock::new(None),
             cookie_jar: None,
         }
+    }
+
+    /// The authentication method used by this client.
+    pub fn auth(&self) -> SessionAuth {
+        self.auth
     }
 
     /// The current site identifier.
@@ -191,14 +210,12 @@ impl SessionClient {
 
     /// Classify a session 401 based on the active auth strategy.
     ///
-    /// Session-backed clients carry a cookie jar and should surface the
-    /// failure as an expired session. API-key clients never have a jar,
-    /// so the same 401 means the key was rejected.
+    /// Cookie-backed session clients surface 401s as an expired session.
+    /// API-key clients surface the same status as a rejected key.
     fn unauthorized_error(&self) -> Error {
-        if self.cookie_jar.is_some() {
-            Error::SessionExpired
-        } else {
-            Error::InvalidApiKey
+        match self.auth {
+            SessionAuth::Cookie => Error::SessionExpired,
+            SessionAuth::ApiKey => Error::InvalidApiKey,
         }
     }
 
@@ -411,9 +428,7 @@ impl SessionClient {
         let status = resp.status();
 
         if status == reqwest::StatusCode::UNAUTHORIZED {
-            return Err(Error::Authentication {
-                message: "session expired or invalid credentials".into(),
-            });
+            return Err(self.unauthorized_error());
         }
         if !status.is_success() {
             let body = resp.text().await.unwrap_or_default();
@@ -530,5 +545,39 @@ impl SessionClient {
                     .unwrap_or_else(|| format!("rc={}", envelope.meta.rc)),
             }),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use url::Url;
+
+    use super::{SessionAuth, SessionClient};
+    use crate::{ControllerPlatform, Error};
+
+    fn client(auth: SessionAuth) -> SessionClient {
+        SessionClient::with_client(
+            reqwest::Client::new(),
+            Url::parse("https://controller.example").expect("valid test URL"),
+            "default".into(),
+            ControllerPlatform::ClassicController,
+            auth,
+        )
+    }
+
+    #[test]
+    fn unauthorized_cookie_client_reports_session_expired() {
+        assert!(matches!(
+            client(SessionAuth::Cookie).unauthorized_error(),
+            Error::SessionExpired
+        ));
+    }
+
+    #[test]
+    fn unauthorized_api_key_client_reports_invalid_api_key() {
+        assert!(matches!(
+            client(SessionAuth::ApiKey).unauthorized_error(),
+            Error::InvalidApiKey
+        ));
     }
 }
