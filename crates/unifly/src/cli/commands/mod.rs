@@ -40,10 +40,10 @@ pub async fn dispatch(
     global: &GlobalOpts,
 ) -> Result<(), CliError> {
     match cmd {
-        Command::Api(args) => api::handle(controller, args, global).await,
         Command::Acl(args) => acl::handle(controller, args, global).await,
         Command::Admin(args) => admin::handle(controller, args, global).await,
         Command::Alarms(args) => alarms::handle(controller, args, global).await,
+        Command::Api(args) => api::handle(controller, args, global).await,
         Command::Clients(args) => clients::handle(controller, args, global).await,
         Command::Countries => countries::handle(controller, global).await,
         Command::Devices(args) => devices::handle(controller, args, global).await,
@@ -53,20 +53,32 @@ pub async fn dispatch(
         Command::Firewall(args) => firewall::handle(controller, args, global).await,
         Command::Hotspot(args) => hotspot::handle(controller, args, global).await,
         Command::Nat(args) => nat::handle(controller, args, global).await,
+        other => dispatch_extended(other, controller, global).await,
+    }
+}
+
+#[allow(clippy::future_not_send)]
+async fn dispatch_extended(
+    cmd: Command,
+    controller: &Controller,
+    global: &GlobalOpts,
+) -> Result<(), CliError> {
+    match cmd {
         Command::Networks(args) => networks::handle(controller, args, global).await,
         Command::Radius(args) => radius::handle(controller, args, global).await,
         Command::Settings(args) => settings::handle(controller, args, global).await,
         Command::Sites(args) => sites::handle(controller, args, global).await,
         Command::Stats(args) => stats::handle(controller, args, global).await,
         Command::System(args) => system::handle(controller, args, global).await,
+        Command::Topology => topology::handle(controller, global).await,
         Command::TrafficLists(args) => traffic_lists::handle(controller, args, global).await,
         Command::Vpn(args) => vpn::handle(controller, args, global).await,
         Command::Wans(args) => wans::handle(controller, args, global).await,
-        Command::Topology => topology::handle(controller, global).await,
         Command::Wifi(args) => wifi::handle(controller, args, global).await,
         // Config, Completions, and Tui are handled before dispatch
         Command::Config(_) | Command::Completions(_) => unreachable!(),
         #[cfg(feature = "tui")]
         Command::Tui(_) => unreachable!(),
+        _ => unreachable!(),
     }
 }
