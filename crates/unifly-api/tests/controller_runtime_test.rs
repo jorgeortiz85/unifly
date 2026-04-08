@@ -975,3 +975,49 @@ async fn read_request(stream: &mut TcpStream) -> std::io::Result<Option<HttpRequ
 fn find_header_end(buf: &[u8]) -> Option<usize> {
     buf.windows(4).position(|window| window == b"\r\n\r\n")
 }
+
+#[tokio::test]
+async fn api_key_mode_reports_unsupported_when_integration_api_missing() {
+    let server = MockServer::start().await;
+
+    // Platform detection: respond to /api/auth/login so detect_platform
+    // identifies a UniFi OS controller.
+    Mock::given(method("GET"))
+        .and(path("/api/auth/login"))
+        .respond_with(ResponseTemplate::new(401))
+        .mount(&server)
+        .await;
+
+    // Integration API sites endpoint returns 404 — the controller
+    // doesn't have it (older self-hosted UNA).
+    Mock::given(method("GET"))
+        .and(path("/proxy/network/integration/v1/sites"))
+        .respond_with(ResponseTemplate::new(404))
+        .mount(&server)
+        .await;
+
+    let controller = Controller::new(base_config(
+        Url::parse(&server.uri()).unwrap(),
+        AuthCredentials::ApiKey(secret("the-key")),
+        "default",
+        false,
+    ));
+
+    let err = controller.connect().await.unwrap_err();
+    match err {
+        CoreError::Unsupported {
+            ref operation,
+            ref required,
+        } => {
+            assert!(
+                operation.contains("API-key"),
+                "operation should mention API-key auth, got: {operation}"
+            );
+            assert!(
+                required.contains("Integration API"),
+                "required should mention Integration API, got: {required}"
+            );
+        }
+        other => panic!("expected CoreError::Unsupported, got: {other:?}"),
+    }
+}

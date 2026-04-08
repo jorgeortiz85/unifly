@@ -52,8 +52,28 @@ impl Controller {
                     platform,
                 )?;
 
-                // Resolve site UUID from Integration API
-                let site_id = resolve_site_id(&integration, &config.site).await?;
+                // Resolve site UUID from Integration API.
+                // A 404 here usually means the controller doesn't expose
+                // the Integration API (older or self-hosted UNA without
+                // Settings > Integrations). Surface a targeted hint.
+                let site_id = resolve_site_id(&integration, &config.site)
+                    .await
+                    .map_err(|e| match &e {
+                        CoreError::Api {
+                            status: Some(404), ..
+                        } => {
+                            debug!(error = %e, "Integration API returned 404 during site resolution");
+                            CoreError::Unsupported {
+                                operation: "API-key authentication".into(),
+                                required: "a controller with the Integration API \
+                                     (Settings > Integrations).\n\
+                                     For older UniFi Network Application installs, \
+                                     use --username/--password instead"
+                                    .into(),
+                            }
+                        }
+                        _ => e,
+                    })?;
                 debug!(site_id = %site_id, "resolved Integration API site UUID");
 
                 *self.inner.integration_client.lock().await = Some(Arc::new(integration));
@@ -126,7 +146,24 @@ impl Controller {
                     platform,
                 )?;
 
-                let site_id = resolve_site_id(&integration, &config.site).await?;
+                let site_id = resolve_site_id(&integration, &config.site)
+                    .await
+                    .map_err(|e| match &e {
+                        CoreError::Api {
+                            status: Some(404), ..
+                        } => {
+                            debug!(error = %e, "Integration API returned 404 during site resolution");
+                            CoreError::Unsupported {
+                                operation: "API-key authentication".into(),
+                                required: "a controller with the Integration API \
+                                     (Settings > Integrations).\n\
+                                     For older UniFi Network Application installs, \
+                                     use --username/--password instead"
+                                    .into(),
+                            }
+                        }
+                        _ => e,
+                    })?;
                 debug!(site_id = %site_id, "resolved Integration API site UUID");
 
                 *self.inner.integration_client.lock().await = Some(Arc::new(integration));
