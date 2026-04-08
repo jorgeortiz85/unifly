@@ -1,7 +1,10 @@
 use serde_json::json;
+use tracing::debug;
 
 use crate::command::{Command, CommandResult};
 use crate::core_error::CoreError;
+use crate::model::EntityId;
+use crate::session::SessionClient;
 
 use super::super::{CommandContext, require_session};
 
@@ -28,6 +31,9 @@ pub(super) async fn route(ctx: &CommandContext, cmd: Command) -> Result<CommandR
                     _ => "all",
                 });
 
+            // Determine the next available rule_index from existing rules.
+            let rule_index = next_rule_index(session).await?;
+
             // Build v2 API body matching the controller's expected format
             let mut body = json!({
                 "description": req.name,
@@ -35,7 +41,7 @@ pub(super) async fn route(ctx: &CommandContext, cmd: Command) -> Result<CommandR
                 "type": nat_type,
                 "ip_version": "IPV4",
                 "is_predefined": false,
-                "rule_index": 0,
+                "rule_index": rule_index,
                 "setting_preference": "manual",
                 "logging": false,
                 "exclude": false,
@@ -60,12 +66,13 @@ pub(super) async fn route(ctx: &CommandContext, cmd: Command) -> Result<CommandR
             // DNAT matches traffic entering an interface (in_interface);
             // SNAT/masquerade matches traffic leaving one (out_interface).
             if let Some(iface) = &req.interface_id {
+                let session_id = resolve_interface_id(session, iface).await?;
                 let key = if nat_type == "DNAT" {
                     "in_interface"
                 } else {
                     "out_interface"
                 };
-                body[key] = json!(iface.to_string());
+                body[key] = json!(session_id);
             }
 
             // Source filter
@@ -89,35 +96,84 @@ pub(super) async fn route(ctx: &CommandContext, cmd: Command) -> Result<CommandR
 }
 
 /// Build a v2 NAT filter object (source_filter or destination_filter).
+///
+/// The UniFi v2 API only accepts `NONE` and `ADDRESS_AND_PORT` as
+/// `filter_type` values.  `ADDRESS` and `PORT` alone are rejected with a
+/// deserialization error, so we always use `ADDRESS_AND_PORT` when either
+/// field is present and include only the fields that were supplied.
 fn build_filter(address: Option<&str>, port: Option<&str>) -> serde_json::Value {
-    match (address, port) {
-        (Some(addr), Some(p)) => json!({
-            "filter_type": "ADDRESS_AND_PORT",
-            "address": addr,
-            "port": p,
-            "firewall_group_ids": [],
-            "invert_address": false,
-            "invert_port": false,
-        }),
-        (Some(addr), None) => json!({
-            "filter_type": "ADDRESS",
-            "address": addr,
-            "firewall_group_ids": [],
-            "invert_address": false,
-            "invert_port": false,
-        }),
-        (None, Some(p)) => json!({
-            "filter_type": "PORT",
-            "port": p,
-            "firewall_group_ids": [],
-            "invert_address": false,
-            "invert_port": false,
-        }),
-        (None, None) => json!({
+    if address.is_none() && port.is_none() {
+        return json!({
             "filter_type": "NONE",
             "firewall_group_ids": [],
             "invert_address": false,
             "invert_port": false,
-        }),
+        });
+    }
+
+    let mut filter = json!({
+        "filter_type": "ADDRESS_AND_PORT",
+        "firewall_group_ids": [],
+        "invert_address": false,
+        "invert_port": false,
+    });
+
+    if let Some(addr) = address {
+        filter["address"] = json!(addr);
+    }
+    if let Some(p) = port {
+        filter["port"] = json!(p);
+    }
+
+    filter
+}
+
+/// Determine the next available `rule_index` by querying existing NAT rules.
+async fn next_rule_index(session: &SessionClient) -> Result<u64, CoreError> {
+    let rules = session.list_nat_rules().await.map_err(CoreError::from)?;
+    let max_idx = rules
+        .iter()
+        .filter_map(|r| r.get("rule_index").and_then(serde_json::Value::as_u64))
+        .max()
+        .unwrap_or(0);
+    Ok(max_idx + 1)
+}
+
+/// Resolve an interface ID for the v2 NAT API.
+///
+/// The NAT v2 API expects Session API `_id` strings (hex) for
+/// `in_interface` / `out_interface`, but users provide Integration API
+/// UUIDs (from `networks list`).  This function queries Session
+/// `rest/networkconf` and matches on the `external_id` field to find
+/// the corresponding Session `_id`.  If the provided ID is already a
+/// legacy (non-UUID) string, it is passed through as-is.
+async fn resolve_interface_id(
+    session: &SessionClient,
+    iface: &EntityId,
+) -> Result<String, CoreError> {
+    match iface {
+        // Already a Session-style hex ID — pass through.
+        EntityId::Legacy(id) => Ok(id.clone()),
+        // Integration UUID — look up the matching Session _id.
+        EntityId::Uuid(uuid) => {
+            let uuid_str = uuid.to_string();
+            debug!(uuid = %uuid_str, "resolving Integration network UUID to Session _id");
+            let records = session.list_network_conf().await.map_err(CoreError::from)?;
+            for record in &records {
+                if record
+                    .get("external_id")
+                    .and_then(serde_json::Value::as_str)
+                    == Some(&uuid_str)
+                    && let Some(id) = record.get("_id").and_then(serde_json::Value::as_str)
+                {
+                    debug!(session_id = id, "resolved interface ID");
+                    return Ok(id.to_owned());
+                }
+            }
+            Err(CoreError::NotFound {
+                entity_type: "network".into(),
+                identifier: uuid_str,
+            })
+        }
     }
 }
