@@ -236,7 +236,7 @@ pub(super) fn store_profile_secrets(profile_name: &str, auth_mode: &str) -> Resu
             store_secret(&format!("{profile_name}/api-key"), "API key: ")?;
             store_secret(&format!("{profile_name}/password"), "Password: ")?;
         }
-        "integration" => {
+        "integration" | "cloud" => {
             store_secret(&format!("{profile_name}/api-key"), "API key: ")?;
         }
         _ => {

@@ -37,7 +37,7 @@
 
 ## 💜 What is unifly?
 
-A complete command-line toolkit for managing Ubiquiti UniFi network controllers. One binary with 27 top-level commands for scripting and a built-in TUI dashboard for real-time monitoring, powered by a shared async engine that speaks every UniFi API dialect, including Site Manager cloud fleet APIs and the cloud connector.
+A complete command-line toolkit for managing Ubiquiti UniFi network controllers. One binary with 28 top-level commands for scripting and a built-in TUI dashboard for real-time monitoring, powered by a shared async engine that speaks every UniFi API dialect, including Site Manager cloud fleet APIs and the cloud connector.
 
 > _Manage devices, monitor clients, inspect VLANs, stream events, and watch bandwidth charts, all without leaving your terminal._
 
@@ -65,7 +65,7 @@ UniFi controllers expose multiple APIs with different capabilities. unifly unifi
 | --- | --- |
 | 🔮 **Triple-Path API Engine** | Integration API + Session API via a single API key on UniFi OS, plus Site Manager cloud fleet and connector support. Hybrid mode adds WebSocket for live event streaming |
 | ⚡ **Real-Time TUI** | 10-screen dashboard with area-fill traffic charts, CPU/MEM gauges, live client counts, zoomable topology |
-| 🦋 **27 Top-Level Commands** | Devices, clients, networks, WiFi, firewall policies, zones, ACLs, NAT, DNS, VPN, DPI, RADIUS, topology, cloud fleet, raw API passthrough, `tui`... |
+| 🦋 **28 Top-Level Commands** | Devices, clients, networks, WiFi, firewall policies, zones, ACLs, NAT, DNS, VPN, DPI, RADIUS, topology, cloud fleet, raw API passthrough, `tui`... |
 | 📡 **Wi-Fi Observability** | Neighboring APs, regulatory channels, per-client Wi-Fi experience scores, roam timelines |
 | 💎 **Flexible Output** | Table, JSON, compact JSON, YAML, and plain text. Pipe-friendly for scripting |
 | 🔒 **Secure Credentials** | OS keyring storage for API keys and passwords, with plaintext config support when you choose it |
