@@ -48,6 +48,7 @@ tui = [
     "dep:futures",
     "dep:tokio-util",
 ]
+e2e = []
 
 [[bin]]
 name = "unifly"

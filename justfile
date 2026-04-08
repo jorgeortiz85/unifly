@@ -66,6 +66,32 @@ test-verbose:
 test-crate crate:
     cargo test -p {{crate}}
 
+# Start the local UniFi controller used for e2e testing
+e2e-up:
+    docker compose -f tests/e2e/docker-compose.yml up -d
+
+# Stop and remove the local e2e controller
+e2e-down:
+    docker compose -f tests/e2e/docker-compose.yml down -v --remove-orphans
+
+# Wait until the local e2e controller is ready
+e2e-wait:
+    tests/e2e/wait-for-controller.sh
+
+# Run the gated e2e test suite against a running controller
+e2e-test:
+    cargo test -p unifly --features e2e --test e2e_test -- --test-threads=1
+
+# Full e2e lifecycle: start controller, wait, test, tear down
+e2e:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cleanup() { just e2e-down; }
+    trap cleanup EXIT
+    just e2e-up
+    just e2e-wait
+    just e2e-test
+
 # Update insta snapshots
 snap-review:
     cargo insta review

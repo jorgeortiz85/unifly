@@ -94,6 +94,48 @@ async fn test_login_failure() {
     );
 }
 
+#[tokio::test]
+async fn detect_platform_prefers_classic_login_probe() {
+    let server = MockServer::start().await;
+    let base_url = Url::parse(&server.uri()).unwrap();
+
+    Mock::given(method("GET"))
+        .and(path("/api/login"))
+        .respond_with(ResponseTemplate::new(400))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("GET"))
+        .and(path("/api/auth/login"))
+        .respond_with(ResponseTemplate::new(401))
+        .mount(&server)
+        .await;
+
+    let platform = SessionClient::detect_platform(&base_url).await.unwrap();
+    assert_eq!(platform, ControllerPlatform::ClassicController);
+}
+
+#[tokio::test]
+async fn detect_platform_falls_back_to_unifi_os_when_classic_path_missing() {
+    let server = MockServer::start().await;
+    let base_url = Url::parse(&server.uri()).unwrap();
+
+    Mock::given(method("GET"))
+        .and(path("/api/login"))
+        .respond_with(ResponseTemplate::new(404))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("GET"))
+        .and(path("/api/auth/login"))
+        .respond_with(ResponseTemplate::new(401))
+        .mount(&server)
+        .await;
+
+    let platform = SessionClient::detect_platform(&base_url).await.unwrap();
+    assert_eq!(platform, ControllerPlatform::UnifiOs);
+}
+
 // ── Device tests ────────────────────────────────────────────────────
 
 #[tokio::test]

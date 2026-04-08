@@ -273,6 +273,11 @@ impl From<SessionDevice> for Device {
     fn from(d: SessionDevice) -> Self {
         let device_type = infer_device_type(&d.device_type, d.model.as_ref());
         let state = map_device_state(d.state);
+        let entity_id = if d.id.is_empty() {
+            d.mac.clone()
+        } else {
+            d.id.clone()
+        };
 
         // Build device_stats from sys_stats + uptime
         let device_stats = {
@@ -299,7 +304,7 @@ impl From<SessionDevice> for Device {
         };
 
         Device {
-            id: EntityId::from(d.id),
+            id: EntityId::from(entity_id),
             mac: MacAddress::new(&d.mac),
             ip: parse_ip(d.ip.as_ref()),
             wan_ipv6: parse_legacy_wan_ipv6(&d.extra),
@@ -1836,6 +1841,24 @@ mod tests {
         };
         let converted: Site = site.into();
         assert_eq!(converted.name, "branch-1");
+    }
+
+    #[test]
+    fn legacy_device_falls_back_to_mac_when_id_missing() {
+        let raw = json!({
+            "mac": "dc:9f:db:00:00:01",
+            "type": "ugw",
+            "name": "USG 3P",
+            "state": 2
+        });
+
+        let session_device: SessionDevice =
+            serde_json::from_value(raw).expect("session device should deserialize");
+        let device: Device = session_device.into();
+
+        assert_eq!(device.id.to_string(), "dc:9f:db:00:00:01");
+        assert_eq!(device.mac.to_string(), "dc:9f:db:00:00:01");
+        assert_eq!(device.state, DeviceState::PendingAdoption);
     }
 
     #[test]

@@ -36,7 +36,7 @@ pub struct Meta {
 /// commonly needed ones explicitly; everything else lands in `extra`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionDevice {
-    #[serde(rename = "_id")]
+    #[serde(default, rename = "_id")]
     pub id: String,
     pub mac: String,
     #[serde(rename = "type")]

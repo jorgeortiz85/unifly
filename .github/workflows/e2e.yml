@@ -1,0 +1,50 @@
+name: E2E
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 9 * * 1"
+
+jobs:
+  e2e:
+    name: Controller E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      UNIFLY_E2E_TIMEOUT_SECS: "300"
+      UNIFLY_E2E_API_KEY: ${{ secrets.UNIFLY_E2E_API_KEY }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: taiki-e/install-action@just
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Start controller
+        run: just e2e-up
+
+      - name: Wait for controller readiness
+        run: just e2e-wait
+
+      - name: Run e2e tests
+        run: just e2e-test
+
+      - name: Capture controller logs
+        if: failure()
+        run: docker compose -f tests/e2e/docker-compose.yml logs > tests/e2e/controller.log
+
+      - name: Upload controller logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-controller-logs
+          path: tests/e2e/controller.log
+          if-no-files-found: ignore
+
+      - name: Tear down controller
+        if: always()
+        run: just e2e-down

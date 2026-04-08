@@ -92,6 +92,12 @@ async fn mock_legacy_connect_with_events(
     event_envelope: serde_json::Value,
 ) {
     Mock::given(method("GET"))
+        .and(path("/api/login"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({})))
+        .mount(server)
+        .await;
+
+    Mock::given(method("GET"))
         .and(path("/api/auth/login"))
         .respond_with(ResponseTemplate::new(404))
         .mount(server)
@@ -165,7 +171,7 @@ fn session_legacy_client(base_url: Url, site: &str) -> SessionClient {
 
 async fn mount_api_key_integration_routes(server: &MockServer) {
     Mock::given(method("GET"))
-        .and(path("/integration/v1/sites"))
+        .and(path("/proxy/network/integration/v1/sites"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
             "offset": 0,
             "limit": 50,
@@ -182,11 +188,11 @@ async fn mount_api_key_integration_routes(server: &MockServer) {
 
     for (route, body) in [
         (
-            format!("/integration/v1/sites/{API_KEY_SITE_ID}/devices"),
+            format!("/proxy/network/integration/v1/sites/{API_KEY_SITE_ID}/devices"),
             empty_integration_page(200),
         ),
         (
-            format!("/integration/v1/sites/{API_KEY_SITE_ID}/clients"),
+            format!("/proxy/network/integration/v1/sites/{API_KEY_SITE_ID}/clients"),
             json!({
                 "offset": 0,
                 "limit": 200,
@@ -204,35 +210,35 @@ async fn mount_api_key_integration_routes(server: &MockServer) {
             }),
         ),
         (
-            format!("/integration/v1/sites/{API_KEY_SITE_ID}/networks"),
+            format!("/proxy/network/integration/v1/sites/{API_KEY_SITE_ID}/networks"),
             empty_integration_page(200),
         ),
         (
-            format!("/integration/v1/sites/{API_KEY_SITE_ID}/wifi/broadcasts"),
+            format!("/proxy/network/integration/v1/sites/{API_KEY_SITE_ID}/wifi/broadcasts"),
             empty_integration_page(200),
         ),
         (
-            format!("/integration/v1/sites/{API_KEY_SITE_ID}/firewall/policies"),
+            format!("/proxy/network/integration/v1/sites/{API_KEY_SITE_ID}/firewall/policies"),
             empty_integration_page(200),
         ),
         (
-            format!("/integration/v1/sites/{API_KEY_SITE_ID}/firewall/zones"),
+            format!("/proxy/network/integration/v1/sites/{API_KEY_SITE_ID}/firewall/zones"),
             empty_integration_page(200),
         ),
         (
-            format!("/integration/v1/sites/{API_KEY_SITE_ID}/acl-rules"),
+            format!("/proxy/network/integration/v1/sites/{API_KEY_SITE_ID}/acl-rules"),
             empty_integration_page(200),
         ),
         (
-            format!("/integration/v1/sites/{API_KEY_SITE_ID}/dns/policies"),
+            format!("/proxy/network/integration/v1/sites/{API_KEY_SITE_ID}/dns/policies"),
             empty_integration_page(200),
         ),
         (
-            format!("/integration/v1/sites/{API_KEY_SITE_ID}/vouchers"),
+            format!("/proxy/network/integration/v1/sites/{API_KEY_SITE_ID}/vouchers"),
             empty_integration_page(200),
         ),
         (
-            format!("/integration/v1/sites/{API_KEY_SITE_ID}/traffic-matching-lists"),
+            format!("/proxy/network/integration/v1/sites/{API_KEY_SITE_ID}/traffic-matching-lists"),
             empty_integration_page(200),
         ),
     ] {
@@ -262,14 +268,14 @@ async fn mount_api_key_legacy_routes_with_event_response(
     use wiremock::matchers::header;
 
     Mock::given(method("GET"))
-        .and(path("/api/s/default/stat/device"))
+        .and(path("/proxy/network/api/s/default/stat/device"))
         .and(header("X-API-KEY", "the-key"))
         .respond_with(ResponseTemplate::new(200).set_body_json(empty_legacy_envelope()))
         .mount(server)
         .await;
 
     Mock::given(method("GET"))
-        .and(path("/api/s/default/stat/sta"))
+        .and(path("/proxy/network/api/s/default/stat/sta"))
         .and(header("X-API-KEY", "the-key"))
         .respond_with(
             ResponseTemplate::new(200).set_body_json(legacy_envelope(&json!([{
@@ -286,28 +292,28 @@ async fn mount_api_key_legacy_routes_with_event_response(
         .await;
 
     Mock::given(method("GET"))
-        .and(path("/api/s/default/stat/event"))
+        .and(path("/proxy/network/api/s/default/stat/event"))
         .and(header("X-API-KEY", "the-key"))
         .respond_with(event_response)
         .mount(server)
         .await;
 
     Mock::given(method("GET"))
-        .and(path("/api/s/default/stat/health"))
+        .and(path("/proxy/network/api/s/default/stat/health"))
         .and(header("X-API-KEY", "the-key"))
         .respond_with(ResponseTemplate::new(200).set_body_json(empty_legacy_envelope()))
         .mount(server)
         .await;
 
     Mock::given(method("GET"))
-        .and(path("/api/s/default/rest/user"))
+        .and(path("/proxy/network/api/s/default/rest/user"))
         .and(header("X-API-KEY", "the-key"))
         .respond_with(ResponseTemplate::new(200).set_body_json(empty_legacy_envelope()))
         .mount(server)
         .await;
 
     Mock::given(method("GET"))
-        .and(path("/v2/api/site/default/nat"))
+        .and(path("/proxy/network/v2/api/site/default/nat"))
         .and(header("X-API-KEY", "the-key"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!([])))
         .mount(server)
@@ -328,7 +334,7 @@ async fn mock_api_key_with_legacy_event_response(
 ) {
     Mock::given(method("GET"))
         .and(path("/api/auth/login"))
-        .respond_with(ResponseTemplate::new(404))
+        .respond_with(ResponseTemplate::new(401))
         .mount(server)
         .await;
 
@@ -438,8 +444,8 @@ async fn api_key_mode_has_legacy_and_integration_access() {
     let legacy_reqs: Vec<_> = received
         .iter()
         .filter(|req| {
-            req.url.path().starts_with("/api/s/default/")
-                || req.url.path().starts_with("/v2/api/site/default/")
+            req.url.path().contains("/api/s/default/")
+                || req.url.path().contains("/v2/api/site/default/")
         })
         .collect();
     assert!(

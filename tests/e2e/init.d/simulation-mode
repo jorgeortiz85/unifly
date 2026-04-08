@@ -1,0 +1,37 @@
+#!/bin/sh
+set -eu
+
+TARGET=""
+
+for path in \
+    /unifi/data/system.properties \
+    /unifi/system.properties \
+    /var/lib/unifi/system.properties \
+    /usr/lib/unifi/data/system.properties
+do
+    dir=$(dirname "$path")
+    if [ -e "$path" ] || [ -d "$dir" ]; then
+        TARGET="$path"
+        break
+    fi
+done
+
+if [ -z "$TARGET" ]; then
+    TARGET=/unifi/data/system.properties
+fi
+
+mkdir -p "$(dirname "$TARGET")"
+touch "$TARGET"
+
+for key in is_simulation demo.num_uap demo.num_ugw demo.num_usw; do
+    sed -i "/^${key}=.*/d" "$TARGET"
+done
+
+cat >>"$TARGET" <<'EOF'
+is_simulation=true
+demo.num_uap=2
+demo.num_ugw=1
+demo.num_usw=3
+EOF
+
+printf 'configured simulation mode in %s\n' "$TARGET"
