@@ -6,7 +6,7 @@ use url::Url;
 use wiremock::matchers::{body_json, method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use unifly_api::{ControllerPlatform, Error, SessionClient, TransportConfig};
+use unifly_api::{ControllerPlatform, Error, SessionClient, TransportConfig, session::SessionAuth};
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
@@ -18,6 +18,20 @@ async fn setup() -> (MockServer, SessionClient) {
         base_url,
         "default".into(),
         ControllerPlatform::ClassicController,
+        SessionAuth::Cookie,
+    );
+    (server, client)
+}
+
+async fn setup_api_key() -> (MockServer, SessionClient) {
+    let server = MockServer::start().await;
+    let base_url = Url::parse(&server.uri()).unwrap();
+    let client = SessionClient::with_client(
+        reqwest::Client::new(),
+        base_url,
+        "default".into(),
+        ControllerPlatform::ClassicController,
+        SessionAuth::ApiKey,
     );
     (server, client)
 }
@@ -407,7 +421,7 @@ async fn test_list_ipsec_sa_404_returns_empty() {
 
 #[tokio::test]
 async fn test_unauthorized_without_cookie_jar_reports_invalid_api_key() {
-    let (server, client) = setup().await;
+    let (server, client) = setup_api_key().await;
 
     Mock::given(method("GET"))
         .respond_with(ResponseTemplate::new(401))

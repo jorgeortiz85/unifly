@@ -21,4 +21,4 @@ pub mod vpn;
 pub mod wifi;
 pub mod wireguard;
 
-pub use client::SessionClient;
+pub use client::{SessionAuth, SessionClient};

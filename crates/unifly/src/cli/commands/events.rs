@@ -66,7 +66,7 @@ pub async fn handle(
         }
 
         EventsCommand::Watch { types } => {
-            ensure_session_access(controller, "events watch").await?;
+            ensure_live_event_access(controller, "events watch").await?;
             watch_events(controller, &global.output, types.as_deref()).await
         }
     }
@@ -80,6 +80,20 @@ async fn ensure_session_access(controller: &Controller, operation: &str) -> Resu
     Err(CliError::Unsupported {
         operation: operation.into(),
         required: "session or hybrid authentication".into(),
+    })
+}
+
+async fn ensure_live_event_access(
+    controller: &Controller,
+    operation: &str,
+) -> Result<(), CliError> {
+    if controller.has_live_event_access().await {
+        return Ok(());
+    }
+
+    Err(CliError::Unsupported {
+        operation: operation.into(),
+        required: "session authentication (use password or hybrid mode)".into(),
     })
 }
 
