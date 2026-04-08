@@ -48,11 +48,15 @@ impl App {
             });
         }
 
+        if let Ok(Some(action)) = self.forward_key_to_active_screen(key) {
+            return Ok(Some(action));
+        }
+
         if let Some(action) = self.handle_global_key_event(key) {
             return Ok(Some(action));
         }
 
-        self.forward_key_to_active_screen(key)
+        Ok(None)
     }
 
     /// Handle mouse events — check donate button first, then delegate to active screen.

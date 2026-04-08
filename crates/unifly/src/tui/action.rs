@@ -6,7 +6,9 @@ use std::sync::Arc;
 use unifly_api::model::{
     AclRule, EventCategory, FirewallPolicy, FirewallZone, NatPolicy, WifiBroadcast,
 };
-use unifly_api::{Client, Device, EntityId, Event, Network, Site, UpdateNetworkRequest};
+use unifly_api::{
+    Client, Device, EntityId, Event, MacAddress, Network, Site, UpdateNetworkRequest,
+};
 
 use crate::tui::screen::ScreenId;
 
@@ -167,6 +169,7 @@ impl Notification {
 #[derive(Debug, Clone)]
 pub enum ConfirmAction {
     RestartDevice { id: EntityId, name: String },
+    UpgradeDevice { mac: MacAddress, name: String },
     UnadoptDevice { id: EntityId, name: String },
     AdoptDevice { mac: String },
     PowerCyclePort { device_id: EntityId, port_idx: u32 },
@@ -180,6 +183,7 @@ impl fmt::Display for ConfirmAction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::RestartDevice { name, .. } => write!(f, "Restart {name}?"),
+            Self::UpgradeDevice { name, .. } => write!(f, "Upgrade firmware on {name}?"),
             Self::UnadoptDevice { name, .. } => {
                 write!(f, "Remove {name}? This cannot be undone.")
             }
@@ -253,6 +257,7 @@ pub enum Action {
     // ── Device Commands ───────────────────────────────────────────
     RequestRestart(EntityId),
     RequestLocate(EntityId),
+    RequestUpgrade(EntityId),
     RequestAdopt(String),
     RequestUnadopt(EntityId),
     RequestPortPowerCycle(EntityId, u32),

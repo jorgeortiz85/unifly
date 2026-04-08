@@ -89,6 +89,7 @@ pub struct Radio {
     pub channel_width_mhz: Option<u32>,
     pub wlan_standard: Option<String>,
     pub tx_retries_pct: Option<f64>,
+    pub channel_utilization_pct: Option<f64>,
 }
 
 /// Real-time device statistics.

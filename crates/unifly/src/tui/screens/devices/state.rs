@@ -3,7 +3,7 @@ use std::sync::Arc;
 use super::DevicesScreen;
 
 use ratatui::widgets::TableState;
-use unifly_api::{Device, EntityId};
+use unifly_api::{Client, Device, EntityId};
 
 impl DevicesScreen {
     pub fn new() -> Self {
@@ -11,6 +11,7 @@ impl DevicesScreen {
             focused: false,
             action_tx: None,
             devices: Arc::new(Vec::new()),
+            clients: Arc::new(Vec::new()),
             table_state: TableState::default(),
             selected_device_id: None,
             detail_open: false,
@@ -157,6 +158,18 @@ impl DevicesScreen {
         } else {
             self.selected_device_id.clone()
         }
+    }
+
+    pub(super) fn device_clients(&self, device: &Device) -> Vec<&Arc<Client>> {
+        let device_mac = device.mac.to_string().to_lowercase();
+        self.clients
+            .iter()
+            .filter(|c| {
+                c.uplink_device_mac
+                    .as_ref()
+                    .is_some_and(|mac| mac.to_string().to_lowercase() == device_mac)
+            })
+            .collect()
     }
 
     pub(super) fn apply_devices_update(&mut self, devices: Arc<Vec<Arc<Device>>>) {

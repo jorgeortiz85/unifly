@@ -13,7 +13,7 @@ use ratatui::layout::Rect;
 use ratatui::widgets::TableState;
 use tokio::sync::mpsc::UnboundedSender;
 
-use unifly_api::{Device, EntityId};
+use unifly_api::{Client, Device, EntityId};
 
 use crate::tui::action::{Action, DeviceDetailTab};
 use crate::tui::component::Component;
@@ -22,6 +22,7 @@ pub struct DevicesScreen {
     focused: bool,
     action_tx: Option<UnboundedSender<Action>>,
     devices: Arc<Vec<Arc<Device>>>,
+    clients: Arc<Vec<Arc<Client>>>,
     table_state: TableState,
     selected_device_id: Option<EntityId>,
     detail_open: bool,

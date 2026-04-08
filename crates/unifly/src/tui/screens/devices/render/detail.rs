@@ -1,10 +1,12 @@
+use std::sync::Arc;
+
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Borders, Paragraph};
 
-use unifly_api::Device;
+use unifly_api::{Client, Device};
 
 use crate::tui::action::DeviceDetailTab;
 use crate::tui::theme;
@@ -49,7 +51,10 @@ pub(super) fn render_detail(
         DeviceDetailTab::Overview => render_overview_tab(frame, tabs_layout[1], device),
         DeviceDetailTab::Performance => render_performance_tab(frame, tabs_layout[1], device),
         DeviceDetailTab::Radios => render_radios_tab(frame, tabs_layout[1], device),
-        DeviceDetailTab::Clients => render_clients_tab(frame, tabs_layout[1], device),
+        DeviceDetailTab::Clients => {
+            let clients = screen.device_clients(device);
+            render_clients_tab(frame, tabs_layout[1], device, &clients);
+        }
         DeviceDetailTab::Ports => render_ports_tab(frame, tabs_layout[1], device),
     }
 
@@ -72,11 +77,13 @@ fn render_detail_tabs(screen: &DevicesScreen, frame: &mut Frame, area: Rect) {
 fn render_detail_hints(frame: &mut Frame, area: Rect) {
     let hints = Line::from(vec![
         Span::styled("  h/l ", theme::key_hint_key()),
-        Span::styled("switch tabs  ", theme::key_hint()),
+        Span::styled("tabs  ", theme::key_hint()),
         Span::styled("R ", theme::key_hint_key()),
         Span::styled("restart  ", theme::key_hint()),
         Span::styled("L ", theme::key_hint_key()),
         Span::styled("locate  ", theme::key_hint()),
+        Span::styled("U ", theme::key_hint_key()),
+        Span::styled("upgrade  ", theme::key_hint()),
         Span::styled("Esc ", theme::key_hint_key()),
         Span::styled("back", theme::key_hint()),
     ]);
@@ -224,6 +231,18 @@ fn render_performance_tab(frame: &mut Frame, area: Rect, device: &Device) {
     frame.render_widget(Paragraph::new(lines), area);
 }
 
+fn radio_band_label(freq: f32) -> &'static str {
+    if freq < 3.0 {
+        "2.4 GHz"
+    } else if freq < 5.9 {
+        "5 GHz"
+    } else if freq < 7.0 {
+        "6 GHz"
+    } else {
+        "60 GHz"
+    }
+}
+
 fn render_radios_tab(frame: &mut Frame, area: Rect, device: &Device) {
     let mut lines = vec![Line::from("")];
 
@@ -233,26 +252,68 @@ fn render_radios_tab(frame: &mut Frame, area: Rect, device: &Device) {
             Style::default().fg(theme::border_unfocused()),
         )));
     } else {
+        lines.push(Line::from(Span::styled(
+            "  Band      Channel    Width      Standard       Ch Util    TX Retry",
+            theme::table_header(),
+        )));
+
         for radio in &device.radios {
-            let freq = format!("{:.1} GHz", radio.frequency_ghz);
-            let channel = radio
-                .channel
-                .map_or_else(|| "─".into(), |value| format!("ch {value}"));
+            let band = radio_band_label(radio.frequency_ghz);
+            let channel = radio.channel.map_or_else(|| "─".into(), |v| v.to_string());
             let width = radio
                 .channel_width_mhz
-                .map_or_else(|| "─".into(), |value| format!("{value} MHz"));
+                .map_or_else(|| "─".into(), |v| format!("{v} MHz"));
+            let standard = radio.wlan_standard.as_deref().unwrap_or("─");
+
+            let util = radio
+                .channel_utilization_pct
+                .map_or_else(|| "─".into(), |v| format!("{v:.0}%"));
+            let util_color = radio
+                .channel_utilization_pct
+                .map_or(theme::text_secondary(), |v| {
+                    if v < 30.0 {
+                        theme::success()
+                    } else if v < 60.0 {
+                        theme::warning()
+                    } else {
+                        theme::error()
+                    }
+                });
+
+            let retries = radio
+                .tx_retries_pct
+                .map_or_else(|| "─".into(), |v| format!("{v:.1}%"));
+            let retries_color = radio.tx_retries_pct.map_or(theme::text_secondary(), |v| {
+                if v < 5.0 {
+                    theme::success()
+                } else if v < 15.0 {
+                    theme::warning()
+                } else {
+                    theme::error()
+                }
+            });
 
             lines.push(Line::from(vec![
                 Span::styled(
-                    format!("  {freq:<10}"),
+                    format!("  {band:<10}"),
                     Style::default()
                         .fg(theme::accent_secondary())
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
-                    format!("{channel:<8} {width}"),
+                    format!("{channel:<11}"),
+                    Style::default().fg(theme::text_primary()),
+                ),
+                Span::styled(
+                    format!("{width:<11}"),
                     Style::default().fg(theme::text_secondary()),
                 ),
+                Span::styled(
+                    format!("{standard:<15}"),
+                    Style::default().fg(theme::accent_tertiary()),
+                ),
+                Span::styled(format!("{util:<11}"), Style::default().fg(util_color)),
+                Span::styled(retries, Style::default().fg(retries_color)),
             ]));
         }
     }
@@ -260,9 +321,130 @@ fn render_radios_tab(frame: &mut Frame, area: Rect, device: &Device) {
     frame.render_widget(Paragraph::new(lines), area);
 }
 
-fn render_clients_tab(frame: &mut Frame, area: Rect, device: &Device) {
-    let text = format!("  Connected clients: {}", device.client_count.unwrap_or(0));
-    frame.render_widget(Paragraph::new(text).style(theme::table_row()), area);
+fn render_clients_tab(frame: &mut Frame, area: Rect, device: &Device, clients: &[&Arc<Client>]) {
+    let mut lines = vec![Line::from("")];
+
+    let count = device.client_count.unwrap_or(0);
+    lines.push(Line::from(vec![
+        Span::styled(
+            "  Connected: ",
+            Style::default().fg(theme::text_secondary()),
+        ),
+        Span::styled(
+            count.to_string(),
+            Style::default()
+                .fg(theme::accent_secondary())
+                .add_modifier(Modifier::BOLD),
+        ),
+    ]));
+    lines.push(Line::from(""));
+
+    if clients.is_empty() {
+        if count > 0 {
+            lines.push(Line::from(Span::styled(
+                "  Client details not yet available",
+                Style::default().fg(theme::border_unfocused()),
+            )));
+        }
+    } else {
+        lines.push(Line::from(Span::styled(
+            "  Name                 IP               MAC                Type      Signal",
+            theme::table_header(),
+        )));
+
+        for client in clients {
+            let name = client
+                .name
+                .as_deref()
+                .or(client.hostname.as_deref())
+                .unwrap_or("─");
+            let display_name: String = {
+                let chars: Vec<char> = name.chars().collect();
+                if chars.len() > 20 {
+                    format!("{}…", chars[..19].iter().collect::<String>())
+                } else {
+                    name.to_owned()
+                }
+            };
+            let ip = client
+                .ip
+                .map_or_else(|| "─".into(), |addr| addr.to_string());
+            let mac = client.mac.to_string();
+            let client_type = match client.client_type {
+                unifly_api::model::ClientType::Wired => "Wired",
+                unifly_api::model::ClientType::Wireless => "WiFi",
+                unifly_api::model::ClientType::Vpn => "VPN",
+                unifly_api::model::ClientType::Teleport => "Teleport",
+                _ => "─",
+            };
+
+            let signal = client
+                .wireless
+                .as_ref()
+                .and_then(|w| w.signal_dbm)
+                .map_or_else(
+                    || Span::styled("─", Style::default().fg(theme::text_secondary())),
+                    |dbm| {
+                        let color = if dbm > -50 {
+                            theme::success()
+                        } else if dbm > -70 {
+                            theme::accent_secondary()
+                        } else if dbm > -80 {
+                            theme::warning()
+                        } else {
+                            theme::error()
+                        };
+                        Span::styled(format!("{dbm} dBm"), Style::default().fg(color))
+                    },
+                );
+
+            lines.push(Line::from(vec![
+                Span::styled(
+                    format!("  {display_name:<21}"),
+                    Style::default().fg(theme::text_primary()),
+                ),
+                Span::styled(
+                    format!("{ip:<17}"),
+                    Style::default().fg(theme::accent_tertiary()),
+                ),
+                Span::styled(
+                    format!("{mac:<19}"),
+                    Style::default().fg(theme::text_secondary()),
+                ),
+                Span::styled(
+                    format!("{client_type:<10}"),
+                    Style::default().fg(theme::text_secondary()),
+                ),
+                signal,
+            ]));
+        }
+    }
+
+    frame.render_widget(Paragraph::new(lines), area);
+}
+
+fn fmt_speed(mbps: Option<u32>) -> String {
+    mbps.map_or_else(
+        || "─".into(),
+        |v| {
+            if v >= 1000 {
+                format!("{}G", v / 1000)
+            } else {
+                format!("{v}M")
+            }
+        },
+    )
+}
+
+fn fmt_connector(c: Option<&unifly_api::model::PortConnector>) -> &'static str {
+    match c {
+        Some(unifly_api::model::PortConnector::Rj45) => "RJ45",
+        Some(unifly_api::model::PortConnector::Sfp) => "SFP",
+        Some(unifly_api::model::PortConnector::SfpPlus) => "SFP+",
+        Some(unifly_api::model::PortConnector::Sfp28) => "SFP28",
+        Some(unifly_api::model::PortConnector::Qsfp28) => "QSFP28",
+        None => "─",
+    }
 }
 
 fn render_ports_tab(frame: &mut Frame, area: Rect, device: &Device) {
@@ -275,7 +457,7 @@ fn render_ports_tab(frame: &mut Frame, area: Rect, device: &Device) {
         )));
     } else {
         lines.push(Line::from(Span::styled(
-            "  Port  State   Speed      PoE",
+            "  Port    State   Speed   Max     Type    PoE",
             theme::table_header(),
         )));
 
@@ -288,32 +470,42 @@ fn render_ports_tab(frame: &mut Frame, area: Rect, device: &Device) {
                 unifly_api::model::PortState::Unknown => theme::text_secondary(),
             };
             let state_str = format!("{:?}", port.state);
-            let speed = port.speed_mbps.map_or_else(
-                || "─".into(),
-                |value| {
-                    if value >= 1000 {
-                        format!("{}G", value / 1000)
-                    } else {
-                        format!("{value}M")
-                    }
-                },
-            );
-            let poe = port
-                .poe
-                .as_ref()
-                .map_or("─", |poe| if poe.enabled { "✓" } else { "✗" });
+            let speed = fmt_speed(port.speed_mbps);
+            let max_speed = fmt_speed(port.max_speed_mbps);
+            let connector = fmt_connector(port.connector.as_ref());
+
+            let poe_span = match &port.poe {
+                Some(poe) if poe.enabled => {
+                    let label = poe.standard.as_deref().unwrap_or("PoE");
+                    let poe_color = match poe.state {
+                        unifly_api::model::PortState::Up => theme::success(),
+                        _ => theme::warning(),
+                    };
+                    Span::styled(format!("✓ {label}"), Style::default().fg(poe_color))
+                }
+                Some(_) => Span::styled("✗", Style::default().fg(theme::text_secondary())),
+                None => Span::styled("─", Style::default().fg(theme::text_secondary())),
+            };
 
             lines.push(Line::from(vec![
                 Span::styled(
-                    format!("  {name:<6}"),
+                    format!("  {name:<8}"),
                     Style::default().fg(theme::accent_secondary()),
                 ),
                 Span::styled(format!("{state_str:<8}"), Style::default().fg(state_color)),
                 Span::styled(
-                    format!("{speed:<11}"),
+                    format!("{speed:<8}"),
+                    Style::default().fg(theme::text_primary()),
+                ),
+                Span::styled(
+                    format!("{max_speed:<8}"),
                     Style::default().fg(theme::text_secondary()),
                 ),
-                Span::styled(poe, Style::default().fg(theme::text_secondary())),
+                Span::styled(
+                    format!("{connector:<8}"),
+                    Style::default().fg(theme::text_secondary()),
+                ),
+                poe_span,
             ]));
         }
     }

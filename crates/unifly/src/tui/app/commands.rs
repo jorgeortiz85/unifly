@@ -39,6 +39,12 @@ impl App {
                     );
                 }
             }
+            Action::RequestUpgrade(id) => {
+                let name = self.resolve_device_name(id);
+                if let Some(mac) = self.resolve_device_mac(id) {
+                    self.queue_confirm(ConfirmAction::UpgradeDevice { mac, name })?;
+                }
+            }
             Action::RequestPortPowerCycle(device_id, port_idx) => {
                 self.queue_confirm(ConfirmAction::PowerCyclePort {
                     device_id: device_id.clone(),
@@ -156,6 +162,15 @@ impl App {
         match action {
             ConfirmAction::RestartDevice { id, name } => {
                 self.execute_command(Command::RestartDevice { id }, format!("Restarting {name}"));
+            }
+            ConfirmAction::UpgradeDevice { mac, name } => {
+                self.execute_command(
+                    Command::UpgradeDevice {
+                        mac,
+                        firmware_url: None,
+                    },
+                    format!("Upgrading {name}"),
+                );
             }
             ConfirmAction::UnadoptDevice { id, name } => {
                 self.execute_command(Command::RemoveDevice { id }, format!("Removed {name}"));

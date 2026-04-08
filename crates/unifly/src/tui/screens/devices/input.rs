@@ -38,6 +38,7 @@ impl DevicesScreen {
             KeyCode::Enter => self.open_selected_detail().map(Action::OpenDeviceDetail),
             KeyCode::Char('R') => self.current_action_device_id().map(Action::RequestRestart),
             KeyCode::Char('L') => self.current_action_device_id().map(Action::RequestLocate),
+            KeyCode::Char('U') => self.current_action_device_id().map(Action::RequestUpgrade),
             _ => None,
         }
     }
@@ -46,6 +47,9 @@ impl DevicesScreen {
         match action {
             Action::DevicesUpdated(devices) => {
                 self.apply_devices_update(std::sync::Arc::clone(devices));
+            }
+            Action::ClientsUpdated(clients) => {
+                self.clients = std::sync::Arc::clone(clients);
             }
             Action::CloseDetail => {
                 self.close_detail();
@@ -79,6 +83,7 @@ impl DevicesScreen {
             }
             KeyCode::Char('R') => self.current_action_device_id().map(Action::RequestRestart),
             KeyCode::Char('L') => self.current_action_device_id().map(Action::RequestLocate),
+            KeyCode::Char('U') => self.current_action_device_id().map(Action::RequestUpgrade),
             _ => None,
         }
     }

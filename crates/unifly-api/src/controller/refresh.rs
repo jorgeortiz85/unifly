@@ -9,7 +9,8 @@ use tracing::{debug, info, warn};
 use crate::core_error::CoreError;
 use crate::model::{
     AclRule, Client, Device, DnsPolicy, EntityId, Event, FirewallPolicy, FirewallZone,
-    HealthSummary, NatPolicy, Network, Site, TrafficMatchingList, Voucher, WifiBroadcast,
+    HealthSummary, MacAddress, NatPolicy, Network, Site, TrafficMatchingList, Voucher,
+    WifiBroadcast,
 };
 use crate::store::{DataStore, event_storage_key};
 
@@ -125,6 +126,10 @@ impl Controller {
                                 Ok(stats_resp) => {
                                     device.stats =
                                         crate::convert::device_stats_from_integration(&stats_resp);
+                                    crate::convert::enrich_radios_from_stats(
+                                        &mut device.radios,
+                                        &stats_resp.interfaces,
+                                    );
                                 }
                                 Err(error) => {
                                     warn!(device = ?device.name, error = %error, "device stats fetch failed");
@@ -275,9 +280,14 @@ impl Controller {
                         if client.wireless.is_none() {
                             let session_client: Client = Client::from((*session_client).clone());
                             client.wireless = session_client.wireless;
-                            if client.uplink_device_mac.is_none() {
-                                client.uplink_device_mac = session_client.uplink_device_mac;
-                            }
+                        }
+                        if client.uplink_device_mac.is_none() {
+                            let uplink = if session_client.is_wired.unwrap_or(true) {
+                                session_client.sw_mac.as_deref()
+                            } else {
+                                session_client.ap_mac.as_deref()
+                            };
+                            client.uplink_device_mac = uplink.map(MacAddress::new);
                         }
                         merged += 1;
                     }
@@ -340,6 +350,15 @@ impl Controller {
                         }
                         if device.wan_ipv6.is_none() {
                             device.wan_ipv6 = parse_session_device_wan_ipv6(&legacy_device.extra);
+                        }
+                        if device.ports.is_empty() || device.radios.is_empty() {
+                            let session_dev: Device = Device::from((*legacy_device).clone());
+                            if device.ports.is_empty() && !session_dev.ports.is_empty() {
+                                device.ports = session_dev.ports;
+                            }
+                            if device.radios.is_empty() && !session_dev.radios.is_empty() {
+                                device.radios = session_dev.radios;
+                            }
                         }
                     }
                 }
