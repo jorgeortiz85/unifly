@@ -25,7 +25,7 @@ Devices, clients, networks, WiFi (WLANs), firewall policies, firewall zones, ACL
 
 Legacy still owns the live and historical monitoring surfaces: event streaming, stats/reporting, and admin workflows.
 
-## Legacy API
+## Session API
 
 The original UniFi controller API, session-based with cookie authentication.
 
@@ -82,10 +82,10 @@ When configured with both an API key and credentials, unifly uses each API for w
 | Operation                               | API Used                      |
 | --------------------------------------- | ----------------------------- |
 | List/get/create/update/delete resources | Integration API (NAT uses v2) |
-| Stream events                           | Legacy API (WebSocket)        |
-| Query statistics                        | Legacy API                    |
-| Device commands                         | Legacy API                    |
-| System health (ISP, DNS, gateway)       | Legacy API                    |
+| Stream events                           | Session API (WebSocket)        |
+| Query statistics                        | Session API                    |
+| Device commands                         | Session API                    |
+| System health (ISP, DNS, gateway)       | Session API                    |
 
 This provides the most complete feature set while using the cleanest API surface available for each operation.
 
@@ -94,6 +94,6 @@ This provides the most complete feature set while using the cleanest API surface
 UniFi controllers return errors in different formats depending on the API:
 
 - **Integration API**: Standard HTTP status codes with JSON error body
-- **Legacy API**: Sometimes HTTP 200 with an error wrapper: `{"error":{"code":N,"message":"..."}}`
+- **Session API**: Sometimes HTTP 200 with an error wrapper: `{"error":{"code":N,"message":"..."}}`
 
 Unifly normalizes both into a unified `Error` type with 14 variants covering authentication failures, not-found, validation errors, rate limiting, and transport issues.

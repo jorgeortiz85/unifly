@@ -95,7 +95,7 @@ Navigate detail tabs with `h`/`l`. Press `Esc` to close.
 
 ```mermaid
 graph LR
-    API["Integration + Legacy APIs"] -->|"Every 10s"| DS["DataStore"]
+    API["Integration + Session APIs"] -->|"Every 10s"| DS["DataStore"]
     WS["WebSocket"] -->|"Real-time push"| DS
     DS -->|"watch channels"| TUI["TUI Screens"]
 
@@ -119,12 +119,12 @@ The TUI works with all authentication modes, but some screens degrade gracefully
 | **Hybrid**        | **Full**  | **Full** | **Full** | **Full** | **Full** |
 
 ::: tip
-Use **Hybrid mode** for the best TUI experience. It provides access to all features including events and statistics that require the Legacy API.
+**API Key mode** works for most TUI screens on UniFi OS. Use **Hybrid mode** only when you need live WebSocket event streaming (the Events screen). Statistics and device data are available via Session HTTP endpoints that API Key mode can reach.
 :::
 
 ## Graceful Degradation
 
-When data is unavailable (e.g., API-key-only mode without Legacy access), panels show placeholder lines instead of crashing. The dashboard adapts to whatever data sources are available. Missing data is indicated with dim placeholder text.
+When data is unavailable (e.g., API-key-only mode without Session access), panels show placeholder lines instead of crashing. The dashboard adapts to whatever data sources are available. Missing data is indicated with dim placeholder text.
 
 ## Theme
 

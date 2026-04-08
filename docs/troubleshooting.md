@@ -118,7 +118,7 @@ unifly config set-password
 
 **Cause**: Events require the Session API (WebSocket connection).
 
-- Verify your profile has `auth_mode = "hybrid"` or `auth_mode = "session"`
+- Verify your profile has `auth_mode = "hybrid"` or `auth_mode = "session"` (`"legacy"` also works as a backwards-compatible alias for `"session"`)
 - Check that the controller's WebSocket port is accessible
 - Try `unifly events list` first to confirm Session API access works
 

@@ -16,7 +16,7 @@ hero:
 features:
   - icon: ⚡
     title: Dual API Engine
-    details: Speaks both Integration API (REST, API key) and Legacy API (session, cookie/CSRF). You never think about which endpoint to hit.
+    details: Speaks both Integration API (REST, API key) and Session API (session, cookie/CSRF). You never think about which endpoint to hit.
   - icon: 📊
     title: 10-Screen TUI
     details: btop-inspired dashboard with Braille traffic charts, CPU/MEM bars, zoomable topology, and live event streaming.

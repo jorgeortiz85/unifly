@@ -70,7 +70,7 @@ The `EntityId` enum handles this transparently:
 ```rust
 enum EntityId {
     Uuid(Uuid),      // Integration API entities
-    Legacy(String),  // Legacy API entities (MAC-based)
+    Legacy(String),  // Session API entities (MAC-based)
 }
 ```
 

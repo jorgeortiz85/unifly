@@ -18,7 +18,7 @@ Open a [GitHub Issue](https://github.com/hyperb1iss/unifly/issues) describing:
 
 - The use case: what problem does this solve?
 - How you'd expect it to work (CLI syntax, TUI behavior, etc.)
-- Whether it relates to the Integration API, Legacy API, or both
+- Whether it relates to the Integration API, Session API, or both
 
 Check the [ROADMAP.md](ROADMAP.md) first; it might already be planned.
 
@@ -108,11 +108,12 @@ See `Cargo.toml` `[workspace.lints]` for the full configuration.
 ```
 crates/unifly-api/tests/
   integration_client_test.rs     # wiremock-based Integration API tests
-  legacy_client_test.rs          # wiremock-based Legacy API tests
+  session_client_test.rs         # wiremock-based Session API tests
   controller_runtime_test.rs     # Controller lifecycle + refresh loop
 
 crates/unifly/tests/
-  cli_test.rs                    # assert_cmd-based end-to-end CLI tests
+  cli_test.rs                    # assert_cmd-based CLI tests
+  e2e_test.rs                    # end-to-end tests with simulation controller
 ```
 
 Unit tests are inline in source files under `#[cfg(test)] mod tests`.
@@ -121,7 +122,7 @@ Unit tests are inline in source files under `#[cfg(test)] mod tests`.
 
 | Library | Purpose |
 | --- | --- |
-| **wiremock** | Mock HTTP servers for Integration/Legacy API tests |
+| **wiremock** | Mock HTTP servers for Integration/Session API tests and e2e simulation |
 | **insta** | Snapshot tests for output formatting (`just snap-review` to approve) |
 | **assert_cmd** + **predicates** | End-to-end CLI tests that spawn the built binary |
 | **tempfile** | Per-test config dir isolation |

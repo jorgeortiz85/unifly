@@ -24,7 +24,7 @@ The `DataStore` uses `DashMap` for lock-free concurrent reads and `tokio::watch`
 
 ### Dual API Transparency
 
-`unifly-api`'s `Controller` transparently routes requests to the correct API backend. Callers don't need to know whether a feature uses the Integration API or the Legacy API. The controller handles routing, authentication, and response normalization.
+`unifly-api`'s `Controller` transparently routes requests to the correct API backend. Callers don't need to know whether a feature uses the Integration API or the Session API. The controller handles routing, authentication, and response normalization.
 
 ## Key Types
 
@@ -40,4 +40,4 @@ The `DataStore` uses `DashMap` for lock-free concurrent reads and `tokio::watch`
 
 - [Crate Structure](/architecture/crates): what each crate does
 - [Data Flow](/architecture/data-flow): how data moves through the system
-- [API Surface](/architecture/api-surface): Integration API vs Legacy API
+- [API Surface](/architecture/api-surface): Integration API vs Session API

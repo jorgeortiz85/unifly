@@ -312,9 +312,10 @@ UNIFI_PROFILE=warehouse unifly system health
    for the TUI.
 3. **`--yes` / `-y`** skips confirmation prompts for mutations. Required for
    non-interactive use.
-4. **Hybrid auth is recommended** even if the task only needs configuration
-   CRUD. Client lists and device stats silently omit fields in
-   integration-only mode because the enrichment happens via the Session API.
+4. **API key mode covers most commands** on UniFi OS, including Session API
+   endpoints (stats, device commands, Wi-Fi observability, client enrichment).
+   Use **Hybrid only when live WebSocket streaming is needed** (`events watch`,
+   TUI live refresh). Client and device enrichment fields work in API key mode.
 5. **Local controllers only.** unifly targets on-prem controllers. The Site
    Manager cloud API (`api.ui.com`) is not yet implemented.
 6. **Exit codes are meaningful.** `0` on success, non-zero on error. Capture
@@ -351,5 +352,10 @@ UNIFI_PROFILE=warehouse unifly system health
 - **`examples/config.toml`**: Multi-profile config template
 - **`examples/network-iot-vlan.json`**: VLAN creation payload for `--from-file`
 - **`examples/firewall-block-iot.json`**: Firewall policy payload
-- **`examples/nat-masquerade.json`**: NAT policy payload
+- **`examples/nat-masquerade.json`**: NAT masquerade policy payload
+- **`examples/nat-port-forward.json`**: Destination NAT (port forward) payload
 - **`examples/wifi-iot.json`**: WiFi SSID payload
+- **`examples/vpn-remote-access-wireguard.json`**: WireGuard remote-access VPN payload
+- **`examples/vpn-site-to-site-ipsec.json`**: IPsec site-to-site tunnel payload
+- **`examples/vpn-client-openvpn.json`**: OpenVPN client payload
+- **`examples/vpn-wireguard-peer.json`**: WireGuard peer configuration payload

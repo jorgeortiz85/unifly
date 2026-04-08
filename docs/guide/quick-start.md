@@ -95,9 +95,9 @@ Navigate screens with number keys `1`-`8`. Press `,` for settings, `?` for help,
 
 ::: tip Heads Up
 
-- `events watch` requires Legacy or Hybrid auth (won't work with API key alone)
+- `events watch` requires Session or Hybrid auth (WebSocket needs a cookie session)
 - List commands default to 25 rows. Pass `--all` or `--limit 200` for full results
-- Some TUI panels show placeholders in API-key-only mode. Use Hybrid for the full experience
+- Use Hybrid only when you need live event streaming (`events watch`). API Key mode covers most commands on UniFi OS
   :::
 
 ## Multiple Controllers

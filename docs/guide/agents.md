@@ -19,7 +19,7 @@ npx skills add hyperb1iss/unifly -a claude-code
 
 ```mermaid
 graph TD
-    SKILL["unifly Skill Bundle"] --> REF["Command Reference<br/><i>26 commands, flags, gotchas</i>"]
+    SKILL["unifly Skill Bundle"] --> REF["Command Reference<br/><i>27 commands, flags, gotchas</i>"]
     SKILL --> AGENT["Network Manager Agent<br/><i>Autonomous provisioning</i>"]
     SKILL --> CONCEPTS["Networking Concepts<br/><i>Dual-API architecture, auth</i>"]
     SKILL --> WORKFLOWS["Workflow Patterns<br/><i>Automation recipes</i>"]
@@ -86,5 +86,5 @@ The agent will use `unifly` commands with `-o json` output, parse the results, a
 ## 🎯 Next Steps
 
 - [Quick Start](/guide/quick-start): make sure unifly is configured before using the skill
-- [Authentication](/guide/authentication): the agent needs Hybrid mode for full access
+- [Authentication](/guide/authentication): API Key mode is the recommended default on UniFi OS. Hybrid is only needed for WebSocket features like `events watch`
 - [CLI Commands](/reference/cli): the commands the agent will use under the hood

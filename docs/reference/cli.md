@@ -77,6 +77,8 @@ unifly clients kick <MAC>                       # Force reconnection
 unifly clients authorize <MAC> --minutes 60     # Authorize guest access
 unifly clients unauthorize <MAC>                # Revoke guest access
 unifly clients forget <MAC>                     # Remove from client history
+unifly clients roams <MAC>                      # Roaming history for a client
+unifly clients wifi <MAC>                       # WiFi experience details for a client
 ```
 
 Gotchas: `list` returns enriched data in Hybrid mode (traffic bytes, hostname, wireless, VLAN). `block`/`unblock`/`kick`/`forget` and DHCP reservation commands require Session API.
@@ -104,9 +106,11 @@ unifly wifi create --name "Guest" --network <ID> --security wpa2-personal --pass
 unifly wifi create -F wifi.json                 # Create from JSON file
 unifly wifi update <ID> --enabled false
 unifly wifi delete <ID>
+unifly wifi neighbors                           # Scan nearby APs (RF environment)
+unifly wifi channels                            # Channel utilization analysis
 ```
 
-Gotchas: Serde defaults to PascalCase for enums in `--from-file` JSON. Use `"Wpa2Personal"` not `"wpa2_personal"`. The `--security` flag on the CLI accepts kebab-case (`wpa2-personal`).
+Gotchas: Serde defaults to PascalCase for enums in `--from-file` JSON. Use `"Wpa2Personal"` not `"wpa2_personal"`. The `--security` flag on the CLI accepts kebab-case (`wpa2-personal`). `neighbors` and `channels` are read-only observability commands that query Session API data.
 
 ## Firewall
 

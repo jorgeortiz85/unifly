@@ -9,7 +9,7 @@ Published on [crates.io](https://crates.io/crates/unifly-api). The engine poweri
 ### Transport Layer
 
 - **Integration API client**: RESTful endpoints with API key authentication
-- **Legacy API client**: Session-based with cookie and CSRF token handling
+- **Session API client**: Session-based with cookie and CSRF token handling
 - **WebSocket client**: Real-time event streaming
 - **TLS**: Custom `rustls` configuration for self-signed certificates
 
@@ -25,7 +25,7 @@ Key design decisions:
 - **DataStore**: `DashMap`-based entity storage with `tokio::watch` channels
 - **Entity models**: Strongly-typed Rust structs for all 20+ UniFi resource types
 - **Background tasks**: Periodic refresh (10s in TUI, configurable) and command processing
-- **Data merging**: Integration API + Legacy API data combined per entity
+- **Data merging**: Integration API + Session API data combined per entity
 
 Provides two connection modes:
 

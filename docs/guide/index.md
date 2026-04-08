@@ -19,10 +19,10 @@ graph LR
         I2["DNS, ACL, NAT, Traffic Lists"]
     end
 
-    subgraph "Legacy API"
-        L["Cookie + CSRF"]
-        L1["Events, Stats, DPI"]
-        L2["Device Commands, Admin"]
+    subgraph "Session API"
+        S["Cookie + CSRF"]
+        S1["Events, Stats, DPI"]
+        S2["Device Commands, Admin"]
     end
 
     subgraph unifly
@@ -30,13 +30,13 @@ graph LR
     end
 
     I --> U
-    L --> U
+    S --> U
     U --> CLI["CLI Output"]
     U --> TUI["TUI Dashboard"]
 ```
 
 - **Integration API**: RESTful, API-key authenticated, covers CRUD for most resources
-- **Legacy API**: Session-based with cookie/CSRF, required for events, statistics, and device commands
+- **Session API**: Session-based with cookie/CSRF, required for events, statistics, and device commands
 
 Most tools only speak one dialect. The web dashboard is slow and can't be scripted. Unifly handles the routing, authentication, and data merging automatically.
 
@@ -47,7 +47,7 @@ Most tools only speak one dialect. The web dashboard is slow and can't be script
 | **Device Management**     | List, inspect, restart, upgrade, and provision devices                |
 | **Client Monitoring**     | See connected clients with signal, traffic, and VLAN info             |
 | **Network Configuration** | Manage VLANs, subnets, DHCP, and IPv6 settings                        |
-| **WiFi Management**       | Create and modify SSIDs, view radio stats                             |
+| **WiFi Management**       | Create and modify SSIDs, scan neighbors, analyze channels, track client roams and WiFi experience |
 | **Firewall**              | Manage policies, zones, and ACL rules                                 |
 | **NAT**                   | Masquerade, source NAT, and destination NAT rules (via Legacy v2 API) |
 | **Events & Alarms**       | Stream live events, acknowledge and archive alarms                    |
@@ -65,7 +65,7 @@ graph TD
     UNIFLY --> API
 
     API --> INT["Integration Client<br/>REST + API Key"]
-    API --> LEG["Legacy Client<br/>Cookie + CSRF"]
+    API --> SES["Session Client<br/>Cookie + CSRF"]
     API --> WS["WebSocket<br/>Live Events"]
     API --> DS["DataStore<br/>DashMap + watch channels"]
 ```

@@ -15,9 +15,10 @@ For end-user documentation see `README.md`. For contributor workflow see
 unifly is a Rust CLI and TUI for managing Ubiquiti UniFi network
 infrastructure. A single `unifly` binary ships three user-facing surfaces:
 
-- **CLI commands** (`unifly devices list`, etc.): 26 top-level commands
+- **CLI commands** (`unifly devices list`, etc.): 27 top-level commands
   covering devices, clients, networks, WiFi, firewall, NAT, DNS, ACL,
-  traffic-lists, hotspot, events, stats, DPI, and a raw `api` escape hatch.
+  traffic-lists, hotspot, events, stats, DPI, VPN, Wi-Fi observability
+  (neighbors, channels, roams, experience), and a raw `api` escape hatch.
 - **TUI dashboard** (`unifly tui`) -- 10-screen Ratatui interface for real-time
   monitoring and interactive management.
 - **Agent skill** at `skills/unifly/SKILL.md`: bundled documentation that
@@ -342,26 +343,30 @@ Two error types, composed via `From` impls:
 ```
 crates/unifly-api/tests/
   integration_client_test.rs     # wiremock-based Integration API tests
-  legacy_client_test.rs          # wiremock-based Session API tests
+  session_client_test.rs         # wiremock-based Session API tests
   controller_runtime_test.rs     # Controller lifecycle + refresh loop
 
 crates/unifly/tests/
-  cli_test.rs                    # assert_cmd-based end-to-end CLI tests
+  cli_test.rs                    # assert_cmd-based CLI tests (fast, no controller)
+  e2e_test.rs                    # end-to-end tests against a simulation controller
 
 tests/fixtures/                  # repo-root shared test data
 ```
 
 Unit tests are inline in source files under `#[cfg(test)] mod tests`.
+The e2e suite (`e2e_test.rs`) spins up a wiremock-backed simulation
+controller and runs full command flows including auth, refresh, and
+output validation.
 
 ### Libraries
 
-- **wiremock**: mock HTTP servers for Integration/Session tests. Serve
-  static JSON fixtures from `tests/fixtures/`.
+- **wiremock**: mock HTTP servers for Integration/Session tests and the
+  e2e simulation controller. Serves static JSON fixtures from
+  `tests/fixtures/`.
 - **insta**: snapshot tests for output formatting. `just snap-review`
   opens the interactive UI to approve changes. Snapshot files live next to
   the test as `.snap` or `.snap.new`.
-- **assert_cmd** + **predicates**: end-to-end CLI tests that spawn the
-  built binary.
+- **assert_cmd** + **predicates**: CLI tests that spawn the built binary.
 - **tempfile**: per-test config dir isolation so tests don't touch
   `~/.config/unifly/`.
 - **tokio-test**: poll-based async unit tests.
@@ -375,8 +380,8 @@ snapshot diffing is fast even in debug builds.
 - Unit tests should be pure and deterministic. No real network calls.
 - Integration tests use wiremock or assert_cmd, never a real controller.
 - Tests must not require a specific UniFi hardware or firmware version.
-- Coverage is thin in `unifly/tests/` and the TUI has no test coverage yet.
-  Adding tests here is welcomed.
+- The TUI has no automated test coverage yet. Adding tests here is
+  welcomed.
 
 ---
 
@@ -685,7 +690,7 @@ workflow.
 2. Add the implementation to `unifly-api/src/controller/commands/<group>.rs`
 3. Add wiremock-based tests in
    `crates/unifly-api/tests/integration_client_test.rs` or
-   `legacy_client_test.rs`
+   `session_client_test.rs`
 4. Re-export from `unifly-api/src/lib.rs` if it is part of the public API
 5. Update the CLI surface if the endpoint needs a command
 

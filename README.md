@@ -37,7 +37,7 @@
 
 ## 💜 What is unifly?
 
-A complete command-line toolkit for managing Ubiquiti UniFi network controllers. One binary with 26 top-level commands for scripting and a built-in TUI dashboard for real-time monitoring, powered by a shared async engine that speaks every UniFi API dialect.
+A complete command-line toolkit for managing Ubiquiti UniFi network controllers. One binary with 27 top-level commands for scripting and a built-in TUI dashboard for real-time monitoring, powered by a shared async engine that speaks every UniFi API dialect.
 
 > _Manage devices, monitor clients, inspect VLANs, stream events, and watch bandwidth charts, all without leaving your terminal._
 
@@ -63,9 +63,10 @@ UniFi controllers expose multiple APIs with different capabilities. unifly unifi
 
 | Capability | What You Get |
 | --- | --- |
-| 🔮 **Dual API Engine** | Integration API (REST, API key) + Session API (session, cookie/CSRF) with automatic Hybrid negotiation |
+| 🔮 **Dual API Engine** | Integration API + Session API via a single API key on UniFi OS — no password needed for most commands. Hybrid mode adds WebSocket for live event streaming |
 | ⚡ **Real-Time TUI** | 10-screen dashboard with area-fill traffic charts, CPU/MEM gauges, live client counts, zoomable topology |
-| 🦋 **26 Top-Level Commands** | Devices, clients, networks, WiFi, firewall policies, zones, ACLs, NAT, DNS, VPN, DPI, RADIUS, topology, raw API passthrough, `tui`... |
+| 🦋 **27 Top-Level Commands** | Devices, clients, networks, WiFi, firewall policies, zones, ACLs, NAT, DNS, VPN, DPI, RADIUS, topology, raw API passthrough, `tui`... |
+| 📡 **Wi-Fi Observability** | Neighboring APs, regulatory channels, per-client Wi-Fi experience scores, roam timelines |
 | 💎 **Flexible Output** | Table, JSON, compact JSON, YAML, and plain text. Pipe-friendly for scripting |
 | 🔒 **Secure Credentials** | OS keyring storage for API keys and passwords, with plaintext config support when you choose it |
 | 🌐 **Multi-Profile** | Named profiles for multiple controllers. Switch with a single flag |
@@ -114,10 +115,12 @@ The wizard walks you through controller URL, authentication method, and site sel
 Once configured:
 
 ```bash
-unifly devices list          # All adopted devices
-unifly clients list          # Connected clients
-unifly networks list         # VLANs and subnets
-unifly events watch          # Live event feed (requires session auth or Hybrid)
+unifly devices list              # All adopted devices
+unifly clients list              # Connected clients
+unifly networks list             # VLANs and subnets
+unifly wifi neighbors            # Nearby APs your radios can see
+unifly clients wifi 10.0.0.42    # Per-client Wi-Fi experience score
+unifly events watch              # Live event feed (requires Hybrid auth)
 ```
 
 ```
@@ -137,7 +140,8 @@ unifly events watch          # Live event feed (requires session auth or Hybrid)
 Generate a key on your controller under **Settings > Integrations**. On UniFi
 OS controllers, the same key also authenticates session HTTP endpoints, so API
 key mode covers most CLI automation: CRUD, device commands, stats, DHCP
-reservations, admin operations, and `events list`.
+reservations, admin operations, Wi-Fi observability (`wifi neighbors`,
+`wifi channels`, `clients roams`, `clients wifi`), and `events list`.
 
 ```bash
 unifly config init                     # Select "API Key" during setup

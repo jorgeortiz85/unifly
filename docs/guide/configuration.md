@@ -82,7 +82,7 @@ timeout = 45
 | ------------- | --------------------------------- | ------------------------------------------------- |
 | `controller`  | URL                               | Controller address (include port if non-standard) |
 | `site`        | string                            | Site name or UUID. Default: `default`             |
-| `auth_mode`   | `integration`, `session`, `hybrid` | Which APIs to authenticate against                |
+| `auth_mode`   | `integration`, `session`, `hybrid` | Which APIs to authenticate against. `"legacy"` is accepted as a backwards-compatible alias for `"session"` |
 | `username`    | string                            | Session/Hybrid login username                      |
 | `api_key`     | string                            | Integration API key (prefer `api_key_env`)        |
 | `api_key_env` | string                            | Env var name containing the API key               |

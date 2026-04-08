@@ -47,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 The `IntegrationClient` gives you direct control over individual API calls. Use it when you need to target specific endpoints or build custom query patterns.
 
-For Legacy API access (events, stats, device commands), use `LegacyClient` with cookie/CSRF auth instead.
+For Session API access (events, stats, device commands), use `SessionClient` with cookie/CSRF auth instead.
 
 ## High-Level Controller
 
@@ -87,7 +87,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 | Approach                | Use Case                                                                 |
 | ----------------------- | ------------------------------------------------------------------------ |
 | `IntegrationClient`     | Direct REST calls, custom query patterns, Integration API only           |
-| `LegacyClient`          | Events, stats, device commands, Legacy API only                          |
+| `SessionClient`         | Events, stats, device commands, Session API only                         |
 | `Controller`            | Full lifecycle with both APIs, automatic refresh, reactive subscriptions |
 | `Controller::oneshot()` | Single CLI-style fetch with no background tasks                          |
 
@@ -97,17 +97,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 graph TD
     subgraph "unifly-api"
         IC["IntegrationClient<br/><i>REST + API Key</i>"]
-        LC["LegacyClient<br/><i>Cookie + CSRF</i>"]
+        SC["SessionClient<br/><i>Cookie + CSRF</i>"]
         WS["WebSocket<br/><i>Live Events</i>"]
         CTRL["Controller<br/><i>Lifecycle + Routing</i>"]
         DS["DataStore<br/><i>DashMap + watch</i>"]
     end
 
     CTRL --> IC
-    CTRL --> LC
+    CTRL --> SC
     CTRL --> WS
     IC --> DS
-    LC --> DS
+    SC --> DS
     WS --> DS
     DS --> ES["EntityStream&lt;T&gt;<br/><i>Reactive subscriptions</i>"]
 ```
@@ -117,7 +117,7 @@ graph TD
 | `Controller`      | Main entry point. Wraps `Arc<ControllerInner>` for cheap cloning across async tasks                                                      |
 | `DataStore`       | Entity storage. `DashMap` + `watch` channels for lock-free reactive updates                                                              |
 | `EntityStream<T>` | Reactive subscription. `current()` for a snapshot, `changed()` to await the next update (returns `None` when the controller disconnects) |
-| `EntityId`        | Dual-identity enum: `Uuid(Uuid)` for Integration API or `Legacy(String)` for Legacy API                                                  |
+| `EntityId`        | Dual-identity enum: `Uuid(Uuid)` for Integration API or `Legacy(String)` for Session API                                                  |
 | `AuthCredentials` | Auth mode: `ApiKey`, `Credentials`, `Hybrid`, or `Cloud` variants                                                                        |
 
 ## Connection Modes
@@ -135,4 +135,4 @@ See [docs.rs/unifly-api](https://docs.rs/unifly-api) for the complete API refere
 
 - [Architecture Overview](/architecture/): how the crates fit together
 - [Data Flow](/architecture/data-flow): connection lifecycle and DataStore design
-- [API Surface](/architecture/api-surface): Integration API vs Legacy API endpoints
+- [API Surface](/architecture/api-surface): Integration API vs Session API endpoints
