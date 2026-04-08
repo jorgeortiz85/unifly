@@ -62,6 +62,10 @@ pub struct Config {
     /// Named controller profiles.
     #[serde(default)]
     pub profiles: HashMap<String, Profile>,
+
+    /// Demo mode configuration for PII sanitization.
+    #[serde(default)]
+    pub demo: DemoConfig,
 }
 
 impl Default for Config {
@@ -70,8 +74,66 @@ impl Default for Config {
             default_profile: Some("default".into()),
             defaults: Defaults::default(),
             profiles: HashMap::new(),
+            demo: DemoConfig::default(),
         }
     }
+}
+
+/// Demo mode settings for PII sanitization in recordings and demos.
+///
+/// Activated by `[demo] enabled = true` in config, `--demo` CLI flag,
+/// or `UNIFI_DEMO=1` environment variable.
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[allow(clippy::struct_excessive_bools)]
+pub struct DemoConfig {
+    #[serde(default)]
+    pub enabled: bool,
+
+    /// Names to redact (case-insensitive substring match across all text).
+    #[serde(default)]
+    pub redact_names: Vec<String>,
+
+    /// Names to keep visible even if they'd otherwise match a redact pattern.
+    #[serde(default)]
+    pub keep_names: Vec<String>,
+
+    /// Replace WiFi SSID names with generic alternatives.
+    #[serde(default)]
+    pub redact_ssids: bool,
+
+    /// Replace public/WAN IP addresses with RFC 5737 documentation IPs.
+    #[serde(default = "default_true")]
+    pub redact_wan_ips: bool,
+
+    /// Replace MAC addresses with locally-administered fakes.
+    #[serde(default)]
+    pub redact_macs: bool,
+
+    /// Replace ISP name and upstream DNS in health data.
+    #[serde(default)]
+    pub redact_isp: bool,
+
+    /// Fixed seed for deterministic replacements across sessions.
+    pub seed: Option<String>,
+}
+
+impl Default for DemoConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            redact_names: Vec::new(),
+            keep_names: Vec::new(),
+            redact_ssids: false,
+            redact_wan_ips: true,
+            redact_macs: false,
+            redact_isp: false,
+            seed: None,
+        }
+    }
+}
+
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Debug, Deserialize, Serialize)]

@@ -1,0 +1,632 @@
+use std::collections::HashSet;
+use std::net::{IpAddr, Ipv4Addr};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
+
+use dashmap::DashMap;
+use regex::Regex;
+
+use unifly_api::model::{AclRule, FirewallPolicy, FirewallZone, NatPolicy, WifiBroadcast};
+use unifly_api::{Client, Device, Event, HealthSummary, MacAddress, Network};
+
+use crate::config::DemoConfig;
+
+const CUTE_NAMES: &[&str] = &[
+    "Starling", "Moonbeam", "Pixel", "Cosmo", "Mochi", "Nimbus", "Wren", "Ziggy", "Sprocket",
+    "Quasar", "Clover", "Ember", "Tinker", "Velvet", "Cricket", "Biscuit", "Phantom", "Stardust",
+    "Marble", "Glimmer", "Waffle", "Pebble", "Fizz", "Comet",
+];
+
+const CUTE_SSIDS: &[&str] = &[
+    "SilkNet",
+    "NeonWave",
+    "PixelStream",
+    "StarLink-ish",
+    "WiFi Fairy",
+    "Cloud Nine",
+    "Byte Me",
+    "LAN of Enchantment",
+    "The Promised LAN",
+];
+
+#[allow(clippy::struct_excessive_bools)]
+pub struct Sanitizer {
+    redact_patterns: Vec<String>,
+    keep_patterns: HashSet<String>,
+    name_regex: Option<Regex>,
+    ip_regex: Regex,
+    ipv6_regex: Regex,
+    redact_ssids: bool,
+    redact_wan_ips: bool,
+    redact_macs: bool,
+    redact_isp: bool,
+    name_map: DashMap<String, String>,
+    ssid_map: DashMap<String, String>,
+    ip_map: DashMap<IpAddr, IpAddr>,
+    mac_map: DashMap<String, String>,
+    name_counter: AtomicUsize,
+    ssid_counter: AtomicUsize,
+    wan_ip_counter: AtomicU8,
+}
+
+impl Sanitizer {
+    pub fn new(config: &DemoConfig) -> Self {
+        let redact_patterns: Vec<String> = config
+            .redact_names
+            .iter()
+            .map(|n| n.to_lowercase())
+            .collect();
+
+        let keep_patterns: HashSet<String> =
+            config.keep_names.iter().map(|n| n.to_lowercase()).collect();
+
+        let name_regex = if redact_patterns.is_empty() {
+            None
+        } else {
+            let escaped: Vec<String> = config
+                .redact_names
+                .iter()
+                .map(|n| regex::escape(n))
+                .collect();
+            let pattern = format!("(?i)({})", escaped.join("|"));
+            Regex::new(&pattern).ok()
+        };
+
+        let ip_regex =
+            Regex::new(r"\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b").expect("valid regex");
+
+        let ipv6_regex = Regex::new(
+            r"(?i)\b([0-9a-f]{1,4}:){2,7}[0-9a-f]{1,4}\b|(?i)\b([0-9a-f]{1,4}:)*::[0-9a-f:]*\b",
+        )
+        .expect("valid regex");
+
+        Self {
+            redact_patterns,
+            keep_patterns,
+            name_regex,
+            ip_regex,
+            ipv6_regex,
+            redact_ssids: config.redact_ssids,
+            redact_wan_ips: config.redact_wan_ips,
+            redact_macs: config.redact_macs,
+            redact_isp: config.redact_isp,
+            name_map: DashMap::new(),
+            ssid_map: DashMap::new(),
+            ip_map: DashMap::new(),
+            mac_map: DashMap::new(),
+            name_counter: AtomicUsize::new(1),
+            ssid_counter: AtomicUsize::new(1),
+            wan_ip_counter: AtomicU8::new(1),
+        }
+    }
+
+    // ── Primitive sanitizers ───────────────────────────────────────
+
+    pub fn sanitize_name(&self, name: &str) -> String {
+        if self.redact_patterns.is_empty() {
+            return name.to_owned();
+        }
+
+        let lower = name.to_lowercase();
+
+        if self
+            .keep_patterns
+            .iter()
+            .any(|k| lower.contains(k.as_str()))
+        {
+            return name.to_owned();
+        }
+
+        if self
+            .redact_patterns
+            .iter()
+            .any(|p| lower.contains(p.as_str()))
+        {
+            return self.deterministic_name(name);
+        }
+
+        name.to_owned()
+    }
+
+    pub fn sanitize_name_opt(&self, name: &Option<String>) -> Option<String> {
+        name.as_ref().map(|n| self.sanitize_name(n))
+    }
+
+    pub fn sanitize_wan_ip(&self, ip: IpAddr) -> IpAddr {
+        if !self.redact_wan_ips || !is_public_ip(ip) {
+            return ip;
+        }
+
+        if let Some(mapped) = self.ip_map.get(&ip) {
+            return *mapped;
+        }
+
+        let idx = self.wan_ip_counter.fetch_add(1, Ordering::Relaxed);
+        let replacement = IpAddr::V4(Ipv4Addr::new(198, 51, 100, idx.wrapping_add(1)));
+        self.ip_map.insert(ip, replacement);
+        replacement
+    }
+
+    pub fn sanitize_ip_opt(&self, ip: &Option<IpAddr>) -> Option<IpAddr> {
+        ip.map(|addr| self.sanitize_wan_ip(addr))
+    }
+
+    pub fn sanitize_ssid(&self, ssid: &str) -> String {
+        if !self.redact_ssids {
+            return ssid.to_owned();
+        }
+
+        if let Some(mapped) = self.ssid_map.get(ssid) {
+            return mapped.clone();
+        }
+
+        let idx = self.ssid_counter.fetch_add(1, Ordering::Relaxed);
+        let cute = CUTE_SSIDS[idx % CUTE_SSIDS.len()];
+        let replacement = if idx < CUTE_SSIDS.len() {
+            cute.to_owned()
+        } else {
+            format!("{cute} {}", idx / CUTE_SSIDS.len() + 1)
+        };
+        self.ssid_map.insert(ssid.to_owned(), replacement.clone());
+        replacement
+    }
+
+    pub fn sanitize_mac(&self, mac: &MacAddress) -> MacAddress {
+        if !self.redact_macs {
+            return mac.clone();
+        }
+
+        let key = mac.as_str().to_owned();
+        if let Some(mapped) = self.mac_map.get(&key) {
+            return MacAddress::new(mapped.value());
+        }
+
+        let hash = simple_hash(mac.as_str());
+        let bytes = hash.to_le_bytes();
+        let replacement = format!(
+            "02:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
+            bytes[0], bytes[1], bytes[2], bytes[3], bytes[4]
+        );
+        self.mac_map.insert(key, replacement.clone());
+        MacAddress::new(replacement)
+    }
+
+    pub fn sanitize_mac_opt(&self, mac: &Option<MacAddress>) -> Option<MacAddress> {
+        mac.as_ref().map(|m| self.sanitize_mac(m))
+    }
+
+    pub fn sanitize_text(&self, text: &str) -> String {
+        let mut result = text.to_owned();
+
+        if let Some(ref re) = self.name_regex {
+            result = re
+                .replace_all(&result, |caps: &regex::Captures| {
+                    self.deterministic_name(&caps[0])
+                })
+                .into_owned();
+        }
+
+        if self.redact_wan_ips {
+            result = self
+                .ip_regex
+                .replace_all(&result, |caps: &regex::Captures| {
+                    let ip_str = &caps[0];
+                    if let Ok(ip) = ip_str.parse::<IpAddr>()
+                        && is_public_ip(ip)
+                    {
+                        return self.sanitize_wan_ip(ip).to_string();
+                    }
+                    ip_str.to_owned()
+                })
+                .into_owned();
+
+            result = self
+                .ipv6_regex
+                .replace_all(&result, "2001:db8::cafe")
+                .into_owned();
+        }
+
+        result
+    }
+
+    pub fn sanitize_wan_ip_str(&self, ip_str: &str) -> String {
+        if !self.redact_wan_ips {
+            return ip_str.to_owned();
+        }
+        if let Ok(ip) = ip_str.parse::<IpAddr>()
+            && is_public_ip(ip)
+        {
+            return self.sanitize_wan_ip(ip).to_string();
+        }
+        if self.ipv6_regex.is_match(ip_str) {
+            return "2001:db8::cafe".to_owned();
+        }
+        ip_str.to_owned()
+    }
+
+    fn deterministic_name(&self, original: &str) -> String {
+        let key = original.to_lowercase();
+        if let Some(mapped) = self.name_map.get(&key) {
+            return mapped.clone();
+        }
+
+        let idx = self.name_counter.fetch_add(1, Ordering::Relaxed);
+        let cute = CUTE_NAMES[idx % CUTE_NAMES.len()];
+        let replacement = if idx < CUTE_NAMES.len() {
+            cute.to_owned()
+        } else {
+            format!("{cute}-{}", idx / CUTE_NAMES.len() + 1)
+        };
+        self.name_map.insert(key, replacement.clone());
+        replacement
+    }
+
+    // ── Entity-level sanitizers ────────────────────────────────────
+
+    pub fn sanitize_device(&self, device: &Device) -> Device {
+        let mut d = device.clone();
+        d.name = self.sanitize_name_opt(&d.name);
+        d.ip = self.sanitize_ip_opt(&d.ip);
+        if self.redact_wan_ips {
+            d.wan_ipv6 = d.wan_ipv6.as_ref().map(|_| "2001:db8::cafe".to_owned());
+        }
+        if self.redact_macs {
+            d.mac = self.sanitize_mac(&d.mac);
+            d.uplink_device_mac = self.sanitize_mac_opt(&d.uplink_device_mac);
+        }
+        d
+    }
+
+    pub fn sanitize_client(&self, client: &Client) -> Client {
+        let mut c = client.clone();
+        c.name = self.sanitize_name_opt(&c.name);
+        c.hostname = self.sanitize_name_opt(&c.hostname);
+        c.ip = self.sanitize_ip_opt(&c.ip);
+        if let Some(ref mut wi) = c.wireless {
+            wi.ssid = wi.ssid.as_ref().map(|s| self.sanitize_ssid(s));
+        }
+        if self.redact_macs {
+            c.mac = self.sanitize_mac(&c.mac);
+            c.uplink_device_mac = self.sanitize_mac_opt(&c.uplink_device_mac);
+        }
+        c
+    }
+
+    pub fn sanitize_network(&self, network: &Network) -> Network {
+        let mut n = network.clone();
+        n.name = self.sanitize_name(&n.name);
+        n
+    }
+
+    pub fn sanitize_event(&self, event: &Event) -> Event {
+        let mut e = event.clone();
+        e.message = self.sanitize_text(&e.message);
+        if self.redact_macs {
+            e.device_mac = self.sanitize_mac_opt(&e.device_mac);
+            e.client_mac = self.sanitize_mac_opt(&e.client_mac);
+        }
+        e
+    }
+
+    pub fn sanitize_wifi(&self, wifi: &WifiBroadcast) -> WifiBroadcast {
+        let mut w = wifi.clone();
+        w.name = self.sanitize_ssid(&w.name);
+        w
+    }
+
+    pub fn sanitize_health(&self, health: &HealthSummary) -> HealthSummary {
+        let mut h = health.clone();
+        h.wan_ip = h.wan_ip.as_ref().map(|ip| self.sanitize_wan_ip_str(ip));
+        h.gateways = h
+            .gateways
+            .as_ref()
+            .map(|gws| gws.iter().map(|g| self.sanitize_wan_ip_str(g)).collect());
+        if self.redact_isp {
+            h.extra = self.sanitize_health_extra(&h.extra);
+        }
+        h
+    }
+
+    pub fn sanitize_firewall_policy(&self, policy: &FirewallPolicy) -> FirewallPolicy {
+        let mut p = policy.clone();
+        p.name = self.sanitize_name(&p.name);
+        p.description = p.description.as_ref().map(|d| self.sanitize_text(d));
+        p.source_summary = p.source_summary.as_ref().map(|s| self.sanitize_text(s));
+        p.destination_summary = p
+            .destination_summary
+            .as_ref()
+            .map(|s| self.sanitize_text(s));
+        p
+    }
+
+    pub fn sanitize_firewall_zone(&self, zone: &FirewallZone) -> FirewallZone {
+        let mut z = zone.clone();
+        z.name = self.sanitize_name(&z.name);
+        z
+    }
+
+    pub fn sanitize_acl_rule(&self, rule: &AclRule) -> AclRule {
+        let mut r = rule.clone();
+        r.name = self.sanitize_name(&r.name);
+        r.source_summary = r.source_summary.as_ref().map(|s| self.sanitize_text(s));
+        r.destination_summary = r
+            .destination_summary
+            .as_ref()
+            .map(|s| self.sanitize_text(s));
+        r
+    }
+
+    pub fn sanitize_nat_policy(&self, policy: &NatPolicy) -> NatPolicy {
+        let mut p = policy.clone();
+        p.name = self.sanitize_name(&p.name);
+        p.description = p.description.as_ref().map(|d| self.sanitize_text(d));
+        p.dst_address = p.dst_address.as_ref().map(|a| self.sanitize_text(a));
+        p.src_address = p.src_address.as_ref().map(|a| self.sanitize_text(a));
+        p.translated_address = p.translated_address.as_ref().map(|a| self.sanitize_text(a));
+        p
+    }
+
+    // ── Collection wrappers (for data bridge) ──────────────────────
+
+    pub fn sanitize_devices(&self, v: &[Arc<Device>]) -> Arc<Vec<Arc<Device>>> {
+        Arc::new(
+            v.iter()
+                .map(|d| Arc::new(self.sanitize_device(d)))
+                .collect(),
+        )
+    }
+
+    pub fn sanitize_clients(&self, v: &[Arc<Client>]) -> Arc<Vec<Arc<Client>>> {
+        Arc::new(
+            v.iter()
+                .map(|c| Arc::new(self.sanitize_client(c)))
+                .collect(),
+        )
+    }
+
+    pub fn sanitize_networks(&self, v: &[Arc<Network>]) -> Arc<Vec<Arc<Network>>> {
+        Arc::new(
+            v.iter()
+                .map(|n| Arc::new(self.sanitize_network(n)))
+                .collect(),
+        )
+    }
+
+    pub fn sanitize_events_vec(&self, v: &[Arc<Event>]) -> Vec<Arc<Event>> {
+        v.iter().map(|e| Arc::new(self.sanitize_event(e))).collect()
+    }
+
+    pub fn sanitize_wifi_broadcasts(
+        &self,
+        v: &[Arc<WifiBroadcast>],
+    ) -> Arc<Vec<Arc<WifiBroadcast>>> {
+        Arc::new(v.iter().map(|w| Arc::new(self.sanitize_wifi(w))).collect())
+    }
+
+    pub fn sanitize_firewall_policies(
+        &self,
+        v: &[Arc<FirewallPolicy>],
+    ) -> Arc<Vec<Arc<FirewallPolicy>>> {
+        Arc::new(
+            v.iter()
+                .map(|p| Arc::new(self.sanitize_firewall_policy(p)))
+                .collect(),
+        )
+    }
+
+    pub fn sanitize_firewall_zones(&self, v: &[Arc<FirewallZone>]) -> Arc<Vec<Arc<FirewallZone>>> {
+        Arc::new(
+            v.iter()
+                .map(|z| Arc::new(self.sanitize_firewall_zone(z)))
+                .collect(),
+        )
+    }
+
+    pub fn sanitize_acl_rules(&self, v: &[Arc<AclRule>]) -> Arc<Vec<Arc<AclRule>>> {
+        Arc::new(
+            v.iter()
+                .map(|r| Arc::new(self.sanitize_acl_rule(r)))
+                .collect(),
+        )
+    }
+
+    pub fn sanitize_nat_policies(&self, v: &[Arc<NatPolicy>]) -> Arc<Vec<Arc<NatPolicy>>> {
+        Arc::new(
+            v.iter()
+                .map(|p| Arc::new(self.sanitize_nat_policy(p)))
+                .collect(),
+        )
+    }
+
+    pub fn sanitize_health_vec(&self, v: &[HealthSummary]) -> Arc<Vec<HealthSummary>> {
+        Arc::new(v.iter().map(|h| self.sanitize_health(h)).collect())
+    }
+
+    // ── JSON sanitization for HealthSummary.extra ──────────────────
+
+    fn sanitize_health_extra(&self, value: &serde_json::Value) -> serde_json::Value {
+        match value {
+            serde_json::Value::String(s) => serde_json::Value::String(self.sanitize_text(s)),
+            serde_json::Value::Array(arr) => serde_json::Value::Array(
+                arr.iter().map(|v| self.sanitize_health_extra(v)).collect(),
+            ),
+            serde_json::Value::Object(map) => {
+                let mut out = serde_json::Map::new();
+                for (k, v) in map {
+                    let new_v = match k.as_str() {
+                        "isp_name" | "isp_organization" => {
+                            serde_json::Value::String("Demo ISP".to_owned())
+                        }
+                        "nameservers" => self.sanitize_nameservers(v),
+                        _ => self.sanitize_health_extra(v),
+                    };
+                    out.insert(k.clone(), new_v);
+                }
+                serde_json::Value::Object(out)
+            }
+            other => other.clone(),
+        }
+    }
+
+    fn sanitize_nameservers(&self, value: &serde_json::Value) -> serde_json::Value {
+        match value {
+            serde_json::Value::Array(arr) => serde_json::Value::Array(
+                arr.iter()
+                    .map(|v| match v {
+                        serde_json::Value::String(s) => {
+                            serde_json::Value::String(self.sanitize_wan_ip_str(s))
+                        }
+                        other => other.clone(),
+                    })
+                    .collect(),
+            ),
+            other => other.clone(),
+        }
+    }
+}
+
+// ── Helpers ────────────────────────────────────────────────────────
+
+fn is_public_ip(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(v4) => {
+            !v4.is_private()
+                && !v4.is_loopback()
+                && !v4.is_link_local()
+                && !v4.is_broadcast()
+                && !v4.is_unspecified()
+                && !is_cgnat(v4)
+                && !is_documentation(v4)
+        }
+        IpAddr::V6(_) => false,
+    }
+}
+
+fn is_cgnat(ip: Ipv4Addr) -> bool {
+    let octets = ip.octets();
+    octets[0] == 100 && (64..=127).contains(&octets[1])
+}
+
+fn is_documentation(ip: Ipv4Addr) -> bool {
+    let octets = ip.octets();
+    matches!(
+        (octets[0], octets[1], octets[2]),
+        (192, 0, 2) | (198, 51, 100) | (203, 0, 113)
+    )
+}
+
+fn simple_hash(input: &str) -> u64 {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for byte in input.bytes() {
+        hash ^= u64::from(byte);
+        hash = hash.wrapping_mul(0x0100_0000_01b3);
+    }
+    hash
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::DemoConfig;
+
+    fn test_config() -> DemoConfig {
+        DemoConfig {
+            enabled: true,
+            redact_names: vec!["Alice".into(), "Bob".into()],
+            keep_names: vec!["Bliss".into()],
+            redact_ssids: true,
+            redact_wan_ips: true,
+            redact_macs: false,
+            redact_isp: false,
+            seed: None,
+        }
+    }
+
+    #[test]
+    fn redacted_name_is_replaced() {
+        let s = Sanitizer::new(&test_config());
+        let result = s.sanitize_name("Alice's iPhone");
+        assert_ne!(result, "Alice's iPhone");
+        assert!(CUTE_NAMES.iter().any(|&n| result.starts_with(n)));
+    }
+
+    #[test]
+    fn kept_name_is_preserved() {
+        let s = Sanitizer::new(&test_config());
+        assert_eq!(s.sanitize_name("Bliss"), "Bliss");
+    }
+
+    #[test]
+    fn unmatched_name_is_preserved() {
+        let s = Sanitizer::new(&test_config());
+        assert_eq!(s.sanitize_name("Living Room AP"), "Living Room AP");
+    }
+
+    #[test]
+    fn deterministic_name_mapping() {
+        let s = Sanitizer::new(&test_config());
+        let first = s.sanitize_name("Alice");
+        let second = s.sanitize_name("Alice");
+        assert_eq!(first, second);
+    }
+
+    #[test]
+    fn public_ip_is_replaced() {
+        let s = Sanitizer::new(&test_config());
+        let public = "8.8.8.8".parse().expect("valid IP");
+        let result = s.sanitize_wan_ip(public);
+        assert_ne!(result, public);
+        match result {
+            IpAddr::V4(v4) => {
+                assert_eq!(v4.octets()[0], 198);
+                assert_eq!(v4.octets()[1], 51);
+                assert_eq!(v4.octets()[2], 100);
+            }
+            IpAddr::V6(_) => panic!("expected IPv4"),
+        }
+    }
+
+    #[test]
+    fn private_ip_is_kept() {
+        let s = Sanitizer::new(&test_config());
+        let private: IpAddr = "192.168.1.1".parse().expect("valid IP");
+        assert_eq!(s.sanitize_wan_ip(private), private);
+    }
+
+    #[test]
+    fn ssid_is_replaced_when_enabled() {
+        let s = Sanitizer::new(&test_config());
+        let result = s.sanitize_ssid("MyHomeWifi");
+        assert_ne!(result, "MyHomeWifi");
+        assert!(CUTE_SSIDS.iter().any(|&n| result.starts_with(n)));
+    }
+
+    #[test]
+    fn text_sanitization_replaces_names_and_ips() {
+        let s = Sanitizer::new(&test_config());
+        let text = "Alice connected from 73.45.67.89 to the network";
+        let result = s.sanitize_text(text);
+        assert!(!result.contains("Alice"));
+        assert!(!result.contains("73.45.67.89"));
+        assert!(result.contains("198.51.100."));
+    }
+
+    #[test]
+    fn text_preserves_private_ips() {
+        let s = Sanitizer::new(&test_config());
+        let text = "Client at 192.168.1.50";
+        let result = s.sanitize_text(text);
+        assert!(result.contains("192.168.1.50"));
+    }
+
+    #[test]
+    fn is_public_ip_classification() {
+        assert!(is_public_ip("8.8.8.8".parse().expect("valid")));
+        assert!(is_public_ip("1.1.1.1".parse().expect("valid")));
+        assert!(!is_public_ip("192.168.1.1".parse().expect("valid")));
+        assert!(!is_public_ip("10.0.0.1".parse().expect("valid")));
+        assert!(!is_public_ip("172.16.0.1".parse().expect("valid")));
+        assert!(!is_public_ip("127.0.0.1".parse().expect("valid")));
+        assert!(!is_public_ip("100.64.0.1".parse().expect("valid")));
+    }
+}

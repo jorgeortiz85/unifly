@@ -224,7 +224,7 @@ mod tests {
 
     #[test]
     fn request_adopt_queues_confirmation() {
-        let mut app = App::new(None);
+        let mut app = App::new(None, None);
 
         app.process_action(&Action::RequestAdopt("aa-bb-cc-dd-ee-ff".into()))
             .expect("request handling should succeed");
@@ -242,7 +242,7 @@ mod tests {
 
     #[test]
     fn request_port_power_cycle_queues_confirmation() {
-        let mut app = App::new(None);
+        let mut app = App::new(None, None);
         let device_id = EntityId::from("507f1f77bcf86cd799439011");
 
         app.process_action(&Action::RequestPortPowerCycle(device_id.clone(), 7))

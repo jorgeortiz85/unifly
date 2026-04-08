@@ -11,6 +11,8 @@ pub mod terminal;
 pub mod theme;
 pub mod widgets;
 
+use std::sync::Arc;
+
 use color_eyre::eyre::Result;
 use secrecy::SecretString;
 use tracing::info;
@@ -21,6 +23,7 @@ use unifly_api::{AuthCredentials, Controller, ControllerConfig, TlsVerification}
 
 use crate::cli::args::{GlobalOpts, TuiArgs};
 use crate::config;
+use crate::sanitizer::Sanitizer;
 
 /// Launch the real-time terminal dashboard.
 ///
@@ -45,7 +48,9 @@ pub async fn launch(global: &GlobalOpts, args: TuiArgs) -> Result<()> {
     let controller = build_controller_direct(global)
         .or_else(|| build_controller_from_config(global.profile.as_deref()));
 
-    let mut app = app::App::new(controller);
+    let sanitizer = resolve_sanitizer(global);
+
+    let mut app = app::App::new(controller, sanitizer);
     app.run().await?;
 
     Ok(())
@@ -167,5 +172,20 @@ fn build_controller_from_config(profile_name: Option<&str>) -> Option<Controller
             tracing::warn!("failed to build controller from profile '{profile_name}': {e}");
             None
         }
+    }
+}
+
+fn resolve_sanitizer(global: &GlobalOpts) -> Option<Arc<Sanitizer>> {
+    let mut demo_config = config::load_config().map(|c| c.demo).unwrap_or_default();
+
+    if global.demo {
+        demo_config.enabled = true;
+    }
+
+    if demo_config.enabled {
+        info!("demo mode active — PII will be sanitized");
+        Some(Arc::new(Sanitizer::new(&demo_config)))
+    } else {
+        None
     }
 }

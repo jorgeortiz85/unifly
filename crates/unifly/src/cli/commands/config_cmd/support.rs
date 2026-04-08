@@ -168,6 +168,7 @@ mod tests {
             default_profile: Some("home".into()),
             defaults: Defaults::default(),
             profiles,
+            demo: crate::config::DemoConfig::default(),
         });
 
         assert!(rendered.contains("default_profile = \"home\""));

@@ -124,6 +124,7 @@ impl OnboardingScreen {
                                     profiles.insert("default".to_string(), profile);
                                     profiles
                                 },
+                                demo: crate::config::DemoConfig::default(),
                             };
                             if let Err(error) = crate::config::save_config(&cfg) {
                                 Err(format!("Connected, but failed to save config: {error}"))

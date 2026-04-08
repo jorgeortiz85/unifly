@@ -5,6 +5,7 @@
 //! - `unifly tui` subcommand (feature `tui`) — real-time terminal dashboard
 
 pub mod config;
+pub mod sanitizer;
 
 #[cfg(feature = "cli")]
 pub mod cli;

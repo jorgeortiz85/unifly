@@ -216,6 +216,7 @@ pub(super) fn run_init() -> Result<(), CliError> {
         default_profile: Some(profile_name.clone()),
         defaults: Defaults::default(),
         profiles,
+        demo: crate::config::DemoConfig::default(),
     };
 
     save_config(&cfg)?;

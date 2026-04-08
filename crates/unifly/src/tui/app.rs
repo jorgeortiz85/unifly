@@ -9,6 +9,7 @@ mod screens;
 mod stats;
 
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use color_eyre::eyre::Result;
@@ -18,6 +19,7 @@ use tracing::info;
 
 use unifly_api::Controller;
 
+use crate::sanitizer::Sanitizer;
 use crate::tui::action::{Action, ConfirmAction, Notification, StatsPeriod};
 use crate::tui::component::Component;
 use crate::tui::event::{Event, EventReader};
@@ -65,6 +67,8 @@ pub struct App {
     action_rx: mpsc::UnboundedReceiver<Action>,
     /// Optional controller for live data.
     controller: Option<Controller>,
+    /// PII sanitizer for demo mode (None when demo mode is off).
+    sanitizer: Option<Arc<Sanitizer>>,
     /// Cancellation token for the data bridge task.
     data_cancel: CancellationToken,
     /// Pending confirmation dialog (blocks other input while active).
@@ -85,7 +89,7 @@ pub struct App {
 impl App {
     /// Create a new App with all screens. Optionally accepts a [`Controller`]
     /// for live data — if `None`, the TUI shows the onboarding wizard.
-    pub fn new(controller: Option<Controller>) -> Self {
+    pub fn new(controller: Option<Controller>, sanitizer: Option<Arc<Sanitizer>>) -> Self {
         let show_donate = crate::config::load_config().map_or(true, |c| c.defaults.show_donate);
 
         let (action_tx, action_rx) = mpsc::unbounded_channel();
@@ -118,6 +122,7 @@ impl App {
             action_tx,
             action_rx,
             controller,
+            sanitizer,
             data_cancel: CancellationToken::new(),
             pending_confirm: None,
             notification: None,
@@ -151,8 +156,9 @@ impl App {
         if let Some(controller) = self.controller.clone() {
             let cancel = self.data_cancel.clone();
             let tx = self.action_tx.clone();
+            let sanitizer = self.sanitizer.clone();
             tokio::spawn(async move {
-                crate::tui::data_bridge::spawn_data_bridge(controller, tx, cancel).await;
+                crate::tui::data_bridge::spawn_data_bridge(controller, tx, cancel, sanitizer).await;
             });
         }
 

@@ -66,8 +66,9 @@ impl App {
     fn spawn_data_bridge(&self, controller: Controller) {
         let cancel = self.data_cancel.clone();
         let tx = self.action_tx.clone();
+        let sanitizer = self.sanitizer.clone();
         tokio::spawn(async move {
-            crate::tui::data_bridge::spawn_data_bridge(controller, tx, cancel).await;
+            crate::tui::data_bridge::spawn_data_bridge(controller, tx, cancel, sanitizer).await;
         });
     }
 
@@ -83,7 +84,7 @@ mod tests {
 
     #[test]
     fn settings_overlay_round_trips_focus_and_history() {
-        let mut app = App::new(None);
+        let mut app = App::new(None, None);
         app.active_screen = ScreenId::Dashboard;
         app.screens
             .get_mut(&ScreenId::Dashboard)

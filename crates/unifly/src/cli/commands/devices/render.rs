@@ -220,6 +220,7 @@ mod tests {
             api_key: None,
             totp: None,
             no_cache: false,
+            demo: false,
             output: OutputFormat::Plain,
             color: ColorMode::Never,
             verbose: 0,

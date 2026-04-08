@@ -10,8 +10,9 @@ use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, warn};
 
-use unifly_api::{ConnectionState, Controller};
+use unifly_api::{ConnectionState, Controller, Event};
 
+use crate::sanitizer::Sanitizer;
 use crate::tui::action::Action;
 
 /// Spawn the data bridge connecting [`Controller`] reactive streams to the TUI.
@@ -19,10 +20,15 @@ use crate::tui::action::Action;
 /// Connects to the controller, sends initial data snapshots, then loops
 /// forwarding every entity change and connection-state transition as an
 /// [`Action`]. Shuts down cleanly on cancellation.
+///
+/// When `sanitizer` is `Some`, all entity payloads are sanitized before
+/// being sent to the TUI, replacing PII with deterministic fakes.
+#[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
 pub async fn spawn_data_bridge(
     controller: Controller,
     action_tx: mpsc::UnboundedSender<Action>,
     cancel: CancellationToken,
+    sanitizer: Option<Arc<Sanitizer>>,
 ) {
     // Signal connecting state
     let _ = action_tx.send(Action::Reconnecting);
@@ -56,27 +62,68 @@ pub async fn spawn_data_bridge(
     let mut conn_state = controller.connection_state();
     let mut site_health = controller.site_health();
 
-    // Push initial snapshots so screens have data immediately
-    let _ = action_tx.send(Action::DevicesUpdated(devices.current().clone()));
-    let _ = action_tx.send(Action::ClientsUpdated(clients.current().clone()));
-    let _ = action_tx.send(Action::NetworksUpdated(networks.current().clone()));
-    let _ = action_tx.send(Action::FirewallPoliciesUpdated(
-        fw_policies.current().clone(),
-    ));
-    let _ = action_tx.send(Action::FirewallZonesUpdated(fw_zones.current().clone()));
-    let _ = action_tx.send(Action::AclRulesUpdated(acl_rules.current().clone()));
-    let _ = action_tx.send(Action::NatPoliciesUpdated(nat_policies.current().clone()));
-    let _ = action_tx.send(Action::WifiBroadcastsUpdated(wifi.current().clone()));
+    // Push initial snapshots so screens have data immediately.
+    // When demo mode is active, every payload passes through the sanitizer.
+    macro_rules! san_vec {
+        ($snap:expr, $method:ident) => {
+            match &sanitizer {
+                Some(s) => s.$method(&$snap),
+                None => $snap.clone(),
+            }
+        };
+    }
+
+    let _ = action_tx.send(Action::DevicesUpdated(san_vec!(
+        devices.current(),
+        sanitize_devices
+    )));
+    let _ = action_tx.send(Action::ClientsUpdated(san_vec!(
+        clients.current(),
+        sanitize_clients
+    )));
+    let _ = action_tx.send(Action::NetworksUpdated(san_vec!(
+        networks.current(),
+        sanitize_networks
+    )));
+    let _ = action_tx.send(Action::FirewallPoliciesUpdated(san_vec!(
+        fw_policies.current(),
+        sanitize_firewall_policies
+    )));
+    let _ = action_tx.send(Action::FirewallZonesUpdated(san_vec!(
+        fw_zones.current(),
+        sanitize_firewall_zones
+    )));
+    let _ = action_tx.send(Action::AclRulesUpdated(san_vec!(
+        acl_rules.current(),
+        sanitize_acl_rules
+    )));
+    let _ = action_tx.send(Action::NatPoliciesUpdated(san_vec!(
+        nat_policies.current(),
+        sanitize_nat_policies
+    )));
+    let _ = action_tx.send(Action::WifiBroadcastsUpdated(san_vec!(
+        wifi.current(),
+        sanitize_wifi_broadcasts
+    )));
 
     // Push initial events from the DataStore snapshot (the broadcast channel
     // fires during connect(), before we subscribe, so those are lost).
-    for evt in controller.events_snapshot().iter() {
-        let _ = action_tx.send(Action::EventReceived(Arc::clone(evt)));
+    let events_snap: Vec<Arc<Event>> = controller.events_snapshot().to_vec();
+    let events_snap = match &sanitizer {
+        Some(s) => s.sanitize_events_vec(&events_snap),
+        None => events_snap,
+    };
+    for evt in events_snap {
+        let _ = action_tx.send(Action::EventReceived(evt));
     }
 
     // Push initial health snapshot
     let health_snap = site_health.borrow_and_update().clone();
     if !health_snap.is_empty() {
+        let health_snap = match &sanitizer {
+            Some(s) => s.sanitize_health_vec(&health_snap),
+            None => health_snap,
+        };
         let _ = action_tx.send(Action::HealthUpdated(health_snap));
     }
 
@@ -88,34 +135,50 @@ pub async fn spawn_data_bridge(
             () = cancel.cancelled() => break,
 
             Some(d) = devices.changed() => {
+                let d = san_vec!(d, sanitize_devices);
                 let _ = action_tx.send(Action::DevicesUpdated(d));
             }
             Some(c) = clients.changed() => {
+                let c = san_vec!(c, sanitize_clients);
                 let _ = action_tx.send(Action::ClientsUpdated(c));
             }
             Some(n) = networks.changed() => {
+                let n = san_vec!(n, sanitize_networks);
                 let _ = action_tx.send(Action::NetworksUpdated(n));
             }
             Some(p) = fw_policies.changed() => {
+                let p = san_vec!(p, sanitize_firewall_policies);
                 let _ = action_tx.send(Action::FirewallPoliciesUpdated(p));
             }
             Some(z) = fw_zones.changed() => {
+                let z = san_vec!(z, sanitize_firewall_zones);
                 let _ = action_tx.send(Action::FirewallZonesUpdated(z));
             }
             Some(a) = acl_rules.changed() => {
+                let a = san_vec!(a, sanitize_acl_rules);
                 let _ = action_tx.send(Action::AclRulesUpdated(a));
             }
             Some(n) = nat_policies.changed() => {
+                let n = san_vec!(n, sanitize_nat_policies);
                 let _ = action_tx.send(Action::NatPoliciesUpdated(n));
             }
             Some(w) = wifi.changed() => {
+                let w = san_vec!(w, sanitize_wifi_broadcasts);
                 let _ = action_tx.send(Action::WifiBroadcastsUpdated(w));
             }
             Ok(event) = events.recv() => {
+                let event = match &sanitizer {
+                    Some(s) => Arc::new(s.sanitize_event(&event)),
+                    None => event,
+                };
                 let _ = action_tx.send(Action::EventReceived(event));
             }
             Ok(()) = site_health.changed() => {
                 let h = site_health.borrow_and_update().clone();
+                let h = match &sanitizer {
+                    Some(s) => s.sanitize_health_vec(&h),
+                    None => h,
+                };
                 let _ = action_tx.send(Action::HealthUpdated(h));
             }
             Ok(()) = conn_state.changed() => {

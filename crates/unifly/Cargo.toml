@@ -75,6 +75,10 @@ toml               = { workspace = true }
 keyring            = { workspace = true }
 directories        = { workspace = true }
 
+# Demo mode sanitization
+regex              = { workspace = true }
+dashmap            = { workspace = true }
+
 # ── CLI-only deps (optional) ─────────────────────────────────────
 clap_complete      = { workspace = true, optional = true }
 miette             = { workspace = true, optional = true }

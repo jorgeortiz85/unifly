@@ -76,7 +76,7 @@ mod tests {
 
     #[test]
     fn switching_to_stats_requests_default_period() {
-        let mut app = App::new(None);
+        let mut app = App::new(None, None);
         app.active_screen = ScreenId::Dashboard;
 
         app.switch_screen(ScreenId::Stats)
@@ -94,7 +94,7 @@ mod tests {
 
     #[test]
     fn set_active_screen_handles_missing_current_screen() {
-        let mut app = App::new(None);
+        let mut app = App::new(None, None);
         app.screens.remove(&ScreenId::Setup);
 
         app.set_active_screen(ScreenId::Dashboard);
