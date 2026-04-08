@@ -78,6 +78,10 @@ e2e-down:
 e2e-wait:
     tests/e2e/wait-for-controller.sh
 
+# Compile the gated e2e test binary without running it
+e2e-build:
+    cargo test -p unifly --features e2e --test e2e_test --no-run
+
 # Run the gated e2e test suite against a running controller
 e2e-test:
     cargo test -p unifly --features e2e --test e2e_test -- --test-threads=1
