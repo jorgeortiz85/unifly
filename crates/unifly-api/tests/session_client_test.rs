@@ -136,6 +136,27 @@ async fn detect_platform_falls_back_to_unifi_os_when_classic_path_missing() {
     assert_eq!(platform, ControllerPlatform::UnifiOs);
 }
 
+#[tokio::test]
+async fn detect_platform_treats_dual_401_login_probes_as_unifi_os() {
+    let server = MockServer::start().await;
+    let base_url = Url::parse(&server.uri()).unwrap();
+
+    Mock::given(method("GET"))
+        .and(path("/api/login"))
+        .respond_with(ResponseTemplate::new(401))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("GET"))
+        .and(path("/api/auth/login"))
+        .respond_with(ResponseTemplate::new(401))
+        .mount(&server)
+        .await;
+
+    let platform = SessionClient::detect_platform(&base_url).await.unwrap();
+    assert_eq!(platform, ControllerPlatform::UnifiOs);
+}
+
 // ── Device tests ────────────────────────────────────────────────────
 
 #[tokio::test]

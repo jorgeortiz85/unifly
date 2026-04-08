@@ -260,41 +260,80 @@ impl SessionClient {
 
     /// Auto-detect the controller platform by probing login endpoints.
     ///
-    /// Probe the classic controller endpoint first. Recent standalone
-    /// controllers can return a misleading 401 from `/api/auth/login`,
-    /// which looks like UniFi OS if we check that path first.
+    /// Recent standalone controllers can return a misleading 401 from
+    /// `/api/auth/login`, so we need both probes before deciding.
+    ///
+    /// Observed patterns:
+    /// - Classic standalone: `/api/login` responds with 200/400, while
+    ///   `/api/auth/login` is usually 404 and may occasionally be 401.
+    /// - UniFi OS: both `/api/login` and `/api/auth/login` can return 401.
     pub async fn detect_platform(base_url: &Url) -> Result<ControllerPlatform, Error> {
         let http = reqwest::Client::builder()
             .danger_accept_invalid_certs(true)
             .build()
             .map_err(Error::Transport)?;
 
-        // Probe standalone endpoint first.
         let standalone_url = base_url.join("/api/login").map_err(Error::InvalidUrl)?;
-
         debug!("probing standalone at {}", standalone_url);
-
-        if let Ok(resp) = http.get(standalone_url).send().await {
-            // Classic controllers return 200/400 here. UniFi OS returns 404.
-            if resp.status() != reqwest::StatusCode::NOT_FOUND {
-                debug!("detected standalone (classic) controller");
-                return Ok(ControllerPlatform::ClassicController);
-            }
-        }
-
-        // Probe UniFi OS endpoint.
         let unifi_os_url = base_url
             .join("/api/auth/login")
             .map_err(Error::InvalidUrl)?;
-
         debug!("probing UniFi OS at {}", unifi_os_url);
+        let standalone_status = http
+            .get(standalone_url)
+            .send()
+            .await
+            .map(|resp| resp.status());
+        let unifi_os_status = http
+            .get(unifi_os_url)
+            .send()
+            .await
+            .map(|resp| resp.status());
 
-        match http.get(unifi_os_url).send().await {
-            Ok(_) => {
-                debug!("detected UniFi OS platform");
-                Ok(ControllerPlatform::UnifiOs)
-            }
-            Err(e) => Err(Error::Transport(e)),
+        if matches!(
+            standalone_status.as_ref(),
+            Ok(&reqwest::StatusCode::OK | &reqwest::StatusCode::BAD_REQUEST)
+        ) {
+            debug!("detected standalone (classic) controller");
+            return Ok(ControllerPlatform::ClassicController);
         }
+
+        if matches!(
+            (standalone_status.as_ref(), unifi_os_status.as_ref()),
+            (
+                Ok(&reqwest::StatusCode::UNAUTHORIZED),
+                Ok(&reqwest::StatusCode::UNAUTHORIZED)
+            )
+        ) {
+            debug!("detected UniFi OS controller from dual-401 login probes");
+            return Ok(ControllerPlatform::UnifiOs);
+        }
+
+        if let Ok(status) = unifi_os_status.as_ref()
+            && *status != reqwest::StatusCode::NOT_FOUND
+        {
+            debug!(?status, "detected UniFi OS controller");
+            return Ok(ControllerPlatform::UnifiOs);
+        }
+
+        if let Ok(status) = standalone_status.as_ref()
+            && *status != reqwest::StatusCode::NOT_FOUND
+        {
+            debug!(?status, "detected standalone (classic) controller");
+            return Ok(ControllerPlatform::ClassicController);
+        }
+
+        if let Err(e) = standalone_status {
+            return Err(Error::Transport(e));
+        }
+
+        if let Err(e) = unifi_os_status {
+            return Err(Error::Transport(e));
+        }
+
+        Err(Error::Authentication {
+            message: "could not detect controller platform: both login probes returned 404"
+                .into(),
+        })
     }
 }
