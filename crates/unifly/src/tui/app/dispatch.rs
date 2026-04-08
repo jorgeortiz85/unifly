@@ -111,7 +111,7 @@ impl App {
                 self.notification = None;
             }
             Action::OpenDonate => {
-                open_url("https://www.paypal.com/donate/?hosted_button_id=ESL4HTFXW3J74");
+                open_url("https://github.com/sponsors/hyperb1iss");
             }
             Action::SetShowDonate(show) => {
                 self.show_donate = *show;

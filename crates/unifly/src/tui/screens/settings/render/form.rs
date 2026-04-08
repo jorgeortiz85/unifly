@@ -232,7 +232,7 @@ impl SettingsScreen {
                     SettingsField::ShowDonate => self.render_toggle(
                         frame,
                         chunk,
-                        "Show donate button",
+                        "Show sponsor button",
                         self.show_donate,
                         self.active_field == SettingsField::ShowDonate,
                     ),

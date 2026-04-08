@@ -69,7 +69,7 @@ impl App {
         Ok(None)
     }
 
-    /// Check if a click landed on the donate button in the status bar.
+    /// Check if a click landed on the sponsor button in the status bar.
     fn check_donate_click(&self, col: u16, row: u16) -> Option<Action> {
         if !self.show_donate || self.search_active {
             return None;
@@ -83,8 +83,8 @@ impl App {
             return None;
         }
 
-        let donate_width = 11u16;
-        let donate_x = w.saturating_sub(donate_width);
+        let button_width = 12u16;
+        let donate_x = w.saturating_sub(button_width);
         let status_y = h.saturating_sub(1);
 
         if row == status_y && col >= donate_x {
