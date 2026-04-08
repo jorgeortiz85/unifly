@@ -60,7 +60,9 @@ fn build_notable_summary(obj: Option<&serde_json::Map<String, serde_json::Value>
             continue;
         }
         let display = match v {
-            serde_json::Value::String(s) if s.len() > 24 => format!("{}...", &s[..24]),
+            serde_json::Value::String(s) if s.len() > 24 => {
+                format!("{}...", s.get(..24).unwrap_or(s))
+            }
             serde_json::Value::String(s) => s.clone(),
             other => other.to_string(),
         };
@@ -289,6 +291,17 @@ mod tests {
         assert!(detail.contains("***"));
         assert!(!detail.contains("secret"));
         assert!(detail.contains("led_enabled"));
+    }
+
+    #[test]
+    fn notable_truncates_long_strings_safely() {
+        let obj: serde_json::Value = serde_json::json!({
+            "key": "test",
+            "long_field": "this is a string that is definitely longer than twenty four characters"
+        });
+        let summary = build_notable_summary(obj.as_object());
+        assert!(summary.contains("..."));
+        assert!(summary.len() < 60);
     }
 
     #[test]

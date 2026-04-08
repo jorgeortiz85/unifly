@@ -18,7 +18,8 @@ pub enum SettingsCommand {
         key: String,
     },
 
-    /// Update a field in a setting section (session API)
+    /// Update a field in a setting section (session API).
+    /// Fields prefixed with `x_` contain credentials and internal secrets.
     Set(SettingsSetArgs),
 
     /// Export all settings as raw JSON (session API)
@@ -31,7 +32,7 @@ pub struct SettingsSetArgs {
     pub key: String,
 
     /// Field name within the section
-    #[arg(required_unless_present = "data")]
+    #[arg(required_unless_present = "data", requires = "value")]
     pub field: Option<String>,
 
     /// Field value (parsed as bool/number/string)

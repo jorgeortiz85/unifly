@@ -24,7 +24,7 @@ description: >-
 unifly is a Rust CLI for managing Ubiquiti UniFi network infrastructure. It
 unifies the modern Integration API (REST, API key) and the Session API (cookie
 plus CSRF) behind a single coherent interface, plus real-time WebSocket event
-streaming. 26 top-level commands cover devices, clients, networks, WiFi,
+streaming. 27 top-level commands cover devices, clients, networks, WiFi,
 firewall policies and zones, NAT policies, ACLs, DNS, traffic matching lists,
 hotspot vouchers, DPI, stats, backups, and a raw API escape hatch.
 
@@ -94,6 +94,7 @@ All commands follow `unifly [global-flags] <command> <action> [args]`.
 | `dpi`           |            | apps, categories, status, enable, disable                                                                      |
 | `topology`      | `topo`     | _(no subcommands)_                                                                                             |
 | `system`        | `sys`      | info, health, sysinfo, backup {create, list, download, delete}, reboot, poweroff                               |
+| `settings`      |            | list, get, set, export                                                                                         |
 | `sites`         |            | list, create, delete                                                                                           |
 | `admin`         |            | list, invite, revoke, update                                                                                   |
 | `wans`          |            | list                                                                                                           |

@@ -349,6 +349,32 @@ unifly dpi disable
   DPI subsystem itself. Use these to toggle DPI on/off without touching
   the web UI.
 
+## Settings `[L]`
+
+```bash
+unifly settings list
+unifly settings get <KEY>
+unifly settings set <KEY> <FIELD> <VALUE>
+unifly settings set <KEY> --data '{"field": "value"}'
+unifly settings export
+```
+
+**Gotchas:**
+
+- All subcommands use the Session API (`rest/setting` / `set/setting/{key}`).
+- `list` shows a summary table of all ~44 setting sections with key, field
+  count, enabled status, and notable values.
+- `get` masks `x_`-prefixed fields (credentials, internal secrets) in table
+  mode. Use `-o json` to see everything.
+- `set` performs a read-modify-write: fetches the current section, patches
+  the specified field, and PUTs the full section back. Values are parsed as
+  bool (`true`/`false`), number, or string fallback.
+- `set --data` merges a JSON object into the section. Mutually exclusive
+  with the positional `<FIELD> <VALUE>` form.
+- `export` always outputs full JSON regardless of `--output` flag.
+- The PUT endpoint replaces the entire section; the handler strips `_id`,
+  `site_id`, and `key` metadata before sending.
+
 ## System `[L]`
 
 ```bash
