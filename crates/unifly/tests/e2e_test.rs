@@ -707,6 +707,26 @@ fn session_profile_rejects_invalid_stats_time_range() {
 }
 
 #[test]
+fn session_profile_destructive_commands_require_yes_in_noninteractive_mode() {
+    let ctx = E2eContext::session();
+
+    for args in [
+        &["devices", "remove", "00:27:22:00:00:03", "-o", "json"][..],
+        &["clients", "forget", "aa:bb:cc:dd:ee:ff", "-o", "json"][..],
+        &["system", "backup", "delete", "fake.unf", "-o", "json"][..],
+    ] {
+        let output = ctx.run(args);
+        let context = args.join(" ");
+        assert_exit_code(&output, 2, &context);
+        assert!(
+            stderr_text(&output).contains("Use --yes (-y)"),
+            "expected '{context}' to require explicit confirmation, got:\n{}",
+            stderr_text(&output)
+        );
+    }
+}
+
+#[test]
 fn session_profile_wrong_credentials_fail_with_auth_exit_code() {
     let ctx = E2eContext::session_with_password("not-the-right-password");
     let output = ctx.run(&["system", "sysinfo", "-o", "json"]);

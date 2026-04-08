@@ -1,3 +1,4 @@
+use std::io::IsTerminal;
 use std::path::Path;
 
 use crate::cli::error::CliError;
@@ -5,6 +6,12 @@ use crate::cli::error::CliError;
 pub fn confirm(message: &str, yes_flag: bool) -> Result<bool, CliError> {
     if yes_flag {
         return Ok(true);
+    }
+
+    if !std::io::stdin().is_terminal() {
+        return Err(CliError::NonInteractiveRequiresYes {
+            action: message.into(),
+        });
     }
 
     let confirmed = dialoguer::Confirm::new()
