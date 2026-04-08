@@ -16,6 +16,7 @@ pub mod hotspot;
 pub mod nat;
 pub mod networks;
 pub mod radius;
+pub mod settings;
 pub mod sites;
 pub mod stats;
 pub mod system;
@@ -54,6 +55,7 @@ pub async fn dispatch(
         Command::Nat(args) => nat::handle(controller, args, global).await,
         Command::Networks(args) => networks::handle(controller, args, global).await,
         Command::Radius(args) => radius::handle(controller, args, global).await,
+        Command::Settings(args) => settings::handle(controller, args, global).await,
         Command::Sites(args) => sites::handle(controller, args, global).await,
         Command::Stats(args) => stats::handle(controller, args, global).await,
         Command::System(args) => system::handle(controller, args, global).await,

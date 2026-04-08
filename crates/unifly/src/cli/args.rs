@@ -37,6 +37,8 @@ mod nat;
 mod networks;
 #[path = "args/radius.rs"]
 mod radius;
+#[path = "args/settings.rs"]
+mod settings;
 #[path = "args/sites.rs"]
 mod sites;
 #[path = "args/stats.rs"]
@@ -68,6 +70,7 @@ pub use hotspot::*;
 pub use nat::*;
 pub use networks::*;
 pub use radius::*;
+pub use settings::*;
 pub use sites::*;
 pub use stats::*;
 pub use system::*;
@@ -155,6 +158,9 @@ pub enum Command {
 
     /// View RADIUS profiles
     Radius(RadiusArgs),
+
+    /// View and modify site settings (session API)
+    Settings(SettingsArgs),
 
     /// Manage sites
     Sites(SitesArgs),

@@ -575,6 +575,34 @@ impl Controller {
         self.get_vpn_setting(key).await
     }
 
+    pub async fn get_all_site_settings(&self) -> Result<Vec<serde_json::Value>, CoreError> {
+        let guard = self.inner.session_client.lock().await;
+        let session = require_session(guard.as_ref())?;
+        Ok(session.get_site_settings().await?)
+    }
+
+    pub async fn get_site_setting(&self, key: &str) -> Result<serde_json::Value, CoreError> {
+        self.get_all_site_settings()
+            .await?
+            .into_iter()
+            .find(|s| s.get("key").and_then(|v| v.as_str()) == Some(key))
+            .ok_or_else(|| CoreError::NotFound {
+                entity_type: "setting".into(),
+                identifier: key.into(),
+            })
+    }
+
+    pub async fn update_site_setting(
+        &self,
+        key: &str,
+        body: &serde_json::Value,
+    ) -> Result<(), CoreError> {
+        let guard = self.inner.session_client.lock().await;
+        let session = require_session(guard.as_ref())?;
+        session.set_site_setting(key, body).await?;
+        Ok(())
+    }
+
     /// Send a raw GET request to an arbitrary path on the controller.
     ///
     /// The `path` is appended to the controller base URL + platform prefix
