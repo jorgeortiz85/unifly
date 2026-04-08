@@ -69,7 +69,14 @@ async fn run(cli: Cli) -> Result<(), CliError> {
             let mut controller_config = build_controller_config(&cli.global)?;
             controller_config.websocket_enabled = command_uses_websocket(&cmd);
             let controller = Controller::new(controller_config);
-            controller.connect().await.map_err(CliError::from)?;
+            if command_needs_initial_refresh(&cmd) {
+                controller.connect().await.map_err(CliError::from)?;
+            } else {
+                controller
+                    .connect_lightweight()
+                    .await
+                    .map_err(CliError::from)?;
+            }
             for warning in controller.take_warnings().await {
                 if !cli.global.quiet {
                     eprintln!("warning: {warning}");
@@ -90,6 +97,10 @@ fn command_uses_websocket(command: &Command) -> bool {
         command,
         Command::Events(args) if matches!(args.command, EventsCommand::Watch { .. })
     )
+}
+
+fn command_needs_initial_refresh(command: &Command) -> bool {
+    !matches!(command, Command::System(_))
 }
 
 fn build_controller_config(global: &GlobalOpts) -> Result<unifly_api::ControllerConfig, CliError> {
@@ -148,8 +159,10 @@ fn build_controller_config(global: &GlobalOpts) -> Result<unifly_api::Controller
 
 #[cfg(test)]
 mod tests {
-    use super::command_uses_websocket;
-    use unifly::cli::args::{Command, EventsArgs, EventsCommand};
+    use super::{command_needs_initial_refresh, command_uses_websocket};
+    use unifly::cli::args::{
+        BackupArgs, BackupCommand, Command, EventsArgs, EventsCommand, SystemArgs, SystemCommand,
+    };
 
     #[test]
     fn only_events_watch_enables_websocket() {
@@ -165,5 +178,24 @@ mod tests {
 
         assert!(command_uses_websocket(&watch));
         assert!(!command_uses_websocket(&list));
+    }
+
+    #[test]
+    fn system_commands_skip_initial_refresh() {
+        let info = Command::System(SystemArgs {
+            command: SystemCommand::Info,
+        });
+        let sysinfo = Command::System(SystemArgs {
+            command: SystemCommand::Sysinfo,
+        });
+        let backup = Command::System(SystemArgs {
+            command: SystemCommand::Backup(BackupArgs {
+                command: BackupCommand::List,
+            }),
+        });
+
+        assert!(!command_needs_initial_refresh(&info));
+        assert!(!command_needs_initial_refresh(&sysinfo));
+        assert!(!command_needs_initial_refresh(&backup));
     }
 }

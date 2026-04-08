@@ -26,6 +26,19 @@ impl Controller {
     /// processor).
     #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
     pub async fn connect(&self) -> Result<(), CoreError> {
+        self.connect_with_refresh(true).await
+    }
+
+    /// Connect to the controller without eagerly loading snapshot data.
+    ///
+    /// Useful for one-shot commands that issue a direct API call and do
+    /// not read from the reactive `DataStore`.
+    pub async fn connect_lightweight(&self) -> Result<(), CoreError> {
+        self.connect_with_refresh(false).await
+    }
+
+    #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
+    async fn connect_with_refresh(&self, initial_refresh: bool) -> Result<(), CoreError> {
         let _ = self
             .inner
             .connection_state
@@ -242,8 +255,9 @@ impl Controller {
             }
         }
 
-        // Initial data load
-        self.full_refresh().await?;
+        if initial_refresh {
+            self.full_refresh().await?;
+        }
 
         // Spawn background tasks
         let mut handles = self.inner.task_handles.lock().await;
