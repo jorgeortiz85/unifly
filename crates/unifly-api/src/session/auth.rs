@@ -332,8 +332,7 @@ impl SessionClient {
         }
 
         Err(Error::Authentication {
-            message: "could not detect controller platform: both login probes returned 404"
-                .into(),
+            message: "could not detect controller platform: both login probes returned 404".into(),
         })
     }
 }
