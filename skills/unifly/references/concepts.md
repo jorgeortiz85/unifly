@@ -414,9 +414,11 @@ Common failures and how to diagnose them:
 
 ## Limits and Known Gaps
 
-- **Local controllers only.** The Site Manager cloud API (`api.ui.com/v1/`)
-  is not yet implemented. Do not attempt to use unifly against cloud-only
-  controllers.
+- **Cloud support is Integration-only.** `unifly cloud ...` talks to the Site
+  Manager fleet API at `api.ui.com/v1/`, and `auth_mode = "cloud"` tunnels
+  Integration-backed commands through the cloud connector. Session-only
+  surfaces such as `events watch`, Wi-Fi observability, and admin/session
+  workflows still require direct controller access.
 - **VPN coverage is broad but split across two APIs.** Integration API
   provides `unifly vpn servers` (with get/detail), `unifly vpn tunnels`
   (with get/detail), `unifly vpn status` (IPsec SA), and

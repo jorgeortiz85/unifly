@@ -90,14 +90,30 @@ fn setup_tracing(verbosity: u8, log_file: &std::path::Path) -> WorkerGuard {
 }
 
 fn build_controller_direct(global: &GlobalOpts) -> Option<Controller> {
-    let url_str = global.controller.as_deref()?;
+    let is_cloud = global.host_id.is_some();
+    let url_str = global.controller.as_deref().or({
+        if is_cloud {
+            Some(crate::config::DEFAULT_CLOUD_CONTROLLER_URL)
+        } else {
+            None
+        }
+    })?;
     let url = url_str.parse().expect("invalid controller URL");
 
     let api_key = SecretString::from(global.api_key.as_ref()?.clone());
 
-    let auth = try_hybrid_from_config(&api_key).unwrap_or(AuthCredentials::ApiKey(api_key));
+    let auth = if let Some(ref host_id) = global.host_id {
+        AuthCredentials::Cloud {
+            api_key,
+            host_id: host_id.clone(),
+        }
+    } else {
+        try_hybrid_from_config(&api_key).unwrap_or(AuthCredentials::ApiKey(api_key))
+    };
 
-    let tls = if global.insecure {
+    let tls = if is_cloud {
+        TlsVerification::SystemDefaults
+    } else if global.insecure {
         TlsVerification::DangerAcceptInvalid
     } else {
         TlsVerification::SystemDefaults
@@ -116,12 +132,12 @@ fn build_controller_direct(global: &GlobalOpts) -> Option<Controller> {
         site,
         tls,
         timeout: std::time::Duration::from_secs(global.timeout),
-        refresh_interval_secs: 10,
-        websocket_enabled: true,
-        polling_interval_secs: 10,
+        refresh_interval_secs: if is_cloud { 60 } else { 10 },
+        websocket_enabled: !is_cloud,
+        polling_interval_secs: if is_cloud { 30 } else { 10 },
         totp_token,
         profile_name: global.profile.clone(),
-        no_session_cache: global.no_cache,
+        no_session_cache: global.no_cache || is_cloud,
     };
 
     Some(Controller::new(controller_config))

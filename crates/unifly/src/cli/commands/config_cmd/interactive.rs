@@ -201,6 +201,8 @@ pub(super) fn run_init() -> Result<(), CliError> {
         auth_mode,
         api_key,
         api_key_env: None,
+        host_id: None,
+        host_id_env: None,
         username,
         password,
         totp_env: None,

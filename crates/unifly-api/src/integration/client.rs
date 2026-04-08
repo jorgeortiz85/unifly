@@ -43,6 +43,8 @@ struct ErrorResponse {
 pub struct IntegrationClient {
     http: reqwest::Client,
     base_url: Url,
+    platform: crate::ControllerPlatform,
+    cloud_host_id: Option<String>,
 }
 
 impl IntegrationClient {
@@ -69,8 +71,14 @@ impl IntegrationClient {
 
         let http = transport.build_client_with_headers(headers)?;
         let base_url = Self::normalize_base_url(base_url, platform)?;
+        let cloud_host_id = Self::extract_cloud_host_id(&base_url, platform);
 
-        Ok(Self { http, base_url })
+        Ok(Self {
+            http,
+            base_url,
+            platform,
+            cloud_host_id,
+        })
     }
 
     /// Wrap an existing `reqwest::Client` (caller manages auth headers).
@@ -80,7 +88,13 @@ impl IntegrationClient {
         platform: crate::ControllerPlatform,
     ) -> Result<Self, Error> {
         let base_url = Self::normalize_base_url(base_url, platform)?;
-        Ok(Self { http, base_url })
+        let cloud_host_id = Self::extract_cloud_host_id(&base_url, platform);
+        Ok(Self {
+            http,
+            base_url,
+            platform,
+            cloud_host_id,
+        })
     }
 
     /// Build the base URL with correct platform prefix + `/integration/`.
@@ -101,6 +115,44 @@ impl IntegrationClient {
         }
 
         Ok(url)
+    }
+
+    fn extract_cloud_host_id(
+        base_url: &Url,
+        platform: crate::ControllerPlatform,
+    ) -> Option<String> {
+        if platform != crate::ControllerPlatform::Cloud {
+            return None;
+        }
+
+        let mut segments = base_url.path_segments()?;
+        while let Some(segment) = segments.next() {
+            if segment == "consoles" {
+                return segments.next().map(str::to_owned);
+            }
+        }
+
+        None
+    }
+
+    fn parse_retry_after(value: &str) -> Option<u64> {
+        let trimmed = value.trim();
+        let numeric = trimmed.strip_suffix('s').unwrap_or(trimmed);
+        if let Ok(seconds) = numeric.parse::<u64>() {
+            return Some(seconds);
+        }
+
+        let (whole, fractional) = numeric.split_once('.')?;
+        let whole = whole.parse::<u64>().ok()?;
+        let has_fraction = fractional.chars().any(|ch| ch != '0');
+        Some(whole + u64::from(has_fraction))
+    }
+
+    fn retry_after_secs(resp: &reqwest::Response) -> Option<u64> {
+        resp.headers()
+            .get(reqwest::header::RETRY_AFTER)
+            .and_then(|value| value.to_str().ok())
+            .and_then(Self::parse_retry_after)
     }
 
     // ── URL builder ──────────────────────────────────────────────────
@@ -244,6 +296,27 @@ impl IntegrationClient {
     async fn parse_error(&self, status: reqwest::StatusCode, resp: reqwest::Response) -> Error {
         if status == reqwest::StatusCode::UNAUTHORIZED {
             return Error::InvalidApiKey;
+        }
+
+        if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+            return Error::RateLimited {
+                retry_after_secs: Self::retry_after_secs(&resp).unwrap_or(5),
+            };
+        }
+
+        if self.platform == crate::ControllerPlatform::Cloud {
+            let host_id = self
+                .cloud_host_id
+                .clone()
+                .unwrap_or_else(|| "<unknown>".into());
+
+            if status == reqwest::StatusCode::FORBIDDEN {
+                return Error::ConsoleAccessDenied { host_id };
+            }
+
+            if status == reqwest::StatusCode::REQUEST_TIMEOUT {
+                return Error::ConsoleOffline { host_id };
+            }
         }
 
         let raw = resp.text().await.unwrap_or_default();

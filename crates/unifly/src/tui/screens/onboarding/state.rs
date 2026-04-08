@@ -44,8 +44,11 @@ impl OnboardingScreen {
             }
             WizardStep::AuthMode => {
                 self.draft.auth_mode = AuthMode::ALL[self.auth_mode_index];
+                self.draft.apply_auth_mode_defaults();
                 self.cred_field = match self.draft.auth_mode {
-                    AuthMode::ApiKey | AuthMode::Hybrid => CredentialField::ApiKey,
+                    AuthMode::ApiKey | AuthMode::Hybrid | AuthMode::Cloud => {
+                        CredentialField::ApiKey
+                    }
                     AuthMode::Session => CredentialField::Username,
                 };
                 self.step = WizardStep::Credentials;
@@ -171,6 +174,7 @@ impl OnboardingScreen {
             WizardStep::Site => Some(&mut self.draft.site),
             WizardStep::Credentials => match self.cred_field {
                 CredentialField::ApiKey => Some(&mut self.draft.api_key),
+                CredentialField::HostId => Some(&mut self.draft.host_id),
                 CredentialField::Username => Some(&mut self.draft.username),
                 CredentialField::Password => Some(&mut self.draft.password),
             },
@@ -183,10 +187,14 @@ impl OnboardingScreen {
             (AuthMode::Session | AuthMode::Hybrid, CredentialField::Username) => {
                 CredentialField::Password
             }
-            (AuthMode::Hybrid, CredentialField::Password) | (AuthMode::ApiKey, _) => {
+            (AuthMode::Hybrid, CredentialField::Password) => CredentialField::ApiKey,
+            (AuthMode::Cloud, CredentialField::ApiKey) => CredentialField::HostId,
+            (AuthMode::Cloud, CredentialField::HostId) | (AuthMode::ApiKey, _) => {
                 CredentialField::ApiKey
             }
-            (AuthMode::Session, _) | (AuthMode::Hybrid, CredentialField::ApiKey) => {
+            (AuthMode::Session, _)
+            | (AuthMode::Hybrid, CredentialField::ApiKey | CredentialField::HostId)
+            | (AuthMode::Cloud, CredentialField::Username | CredentialField::Password) => {
                 CredentialField::Username
             }
         };
@@ -234,5 +242,21 @@ mod tests {
             screen.validate_credentials(),
             Err("Password cannot be empty".into())
         );
+    }
+
+    #[test]
+    fn cloud_auth_mode_starts_with_api_key_then_cycles_to_host_id() {
+        let mut screen = OnboardingScreen::new();
+        screen.step = WizardStep::AuthMode;
+        screen.auth_mode_index = 3;
+
+        screen.advance();
+
+        assert_eq!(screen.step, WizardStep::Credentials);
+        assert_eq!(screen.draft.auth_mode, AuthMode::Cloud);
+        assert_eq!(screen.cred_field, CredentialField::ApiKey);
+
+        screen.next_cred_field();
+        assert_eq!(screen.cred_field, CredentialField::HostId);
     }
 }

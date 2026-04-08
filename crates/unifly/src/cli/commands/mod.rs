@@ -5,6 +5,7 @@ pub mod admin;
 pub mod alarms;
 pub mod api;
 pub mod clients;
+pub mod cloud;
 pub mod config_cmd;
 pub mod countries;
 pub mod devices;
@@ -75,8 +76,8 @@ async fn dispatch_extended(
         Command::Vpn(args) => vpn::handle(controller, args, global).await,
         Command::Wans(args) => wans::handle(controller, args, global).await,
         Command::Wifi(args) => wifi::handle(controller, args, global).await,
-        // Config, Completions, and Tui are handled before dispatch
-        Command::Config(_) | Command::Completions(_) => unreachable!(),
+        // Cloud, Config, Completions, and Tui are handled before dispatch
+        Command::Cloud(_) | Command::Config(_) | Command::Completions(_) => unreachable!(),
         #[cfg(feature = "tui")]
         Command::Tui(_) => unreachable!(),
         _ => unreachable!(),

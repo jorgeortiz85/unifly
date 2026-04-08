@@ -42,16 +42,21 @@ pub(super) fn handle(args: ConfigArgs, global: &GlobalOpts) -> Result<(), CliErr
                     } else {
                         value
                     };
-                    if !matches!(normalized.as_str(), "integration" | "session" | "hybrid") {
+                    if !matches!(
+                        normalized.as_str(),
+                        "integration" | "session" | "hybrid" | "cloud"
+                    ) {
                         return Err(CliError::Validation {
                             field: "auth_mode".into(),
-                            reason: "must be 'integration', 'session', or 'hybrid'".into(),
+                            reason: "must be 'integration', 'session', 'hybrid', or 'cloud'".into(),
                         });
                     }
                     profile.auth_mode = normalized;
                 }
                 "api_key" | "api-key" => profile.api_key = Some(value),
                 "api_key_env" | "api-key-env" => profile.api_key_env = Some(value),
+                "host_id" | "host-id" => profile.host_id = Some(value),
+                "host_id_env" | "host-id-env" => profile.host_id_env = Some(value),
                 "username" => profile.username = Some(value),
                 "insecure" => {
                     profile.insecure = Some(value.parse().map_err(|_| CliError::Validation {
@@ -71,7 +76,8 @@ pub(super) fn handle(args: ConfigArgs, global: &GlobalOpts) -> Result<(), CliErr
                         field: other.into(),
                         reason: format!(
                             "unknown config key '{other}'. Valid keys: controller, site, \
-                             auth_mode, api_key, api_key_env, username, insecure, timeout, ca_cert"
+                             auth_mode, api_key, api_key_env, host_id, host_id_env, username, \
+                             insecure, timeout, ca_cert"
                         ),
                     });
                 }

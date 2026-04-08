@@ -159,7 +159,10 @@ pub(super) fn render_credentials(screen: &OnboardingScreen, frame: &mut Frame, a
 
     let mut y_offset = 0u16;
 
-    if matches!(screen.draft.auth_mode, AuthMode::ApiKey | AuthMode::Hybrid) {
+    if matches!(
+        screen.draft.auth_mode,
+        AuthMode::ApiKey | AuthMode::Hybrid | AuthMode::Cloud
+    ) {
         let input_area = Rect::new(
             fields_area.x,
             fields_area.y + y_offset,
@@ -173,6 +176,24 @@ pub(super) fn render_credentials(screen: &OnboardingScreen, frame: &mut Frame, a
             &screen.draft.api_key,
             screen.cred_field == CredentialField::ApiKey,
             true,
+        );
+        y_offset += 5;
+    }
+
+    if matches!(screen.draft.auth_mode, AuthMode::Cloud) {
+        let input_area = Rect::new(
+            fields_area.x,
+            fields_area.y + y_offset,
+            fields_area.width,
+            4,
+        );
+        render_input_field(
+            frame,
+            input_area,
+            "  Host ID",
+            &screen.draft.host_id,
+            screen.cred_field == CredentialField::HostId,
+            false,
         );
         y_offset += 5;
     }

@@ -27,6 +27,17 @@ async fn setup() -> (MockServer, IntegrationClient) {
     (server, client)
 }
 
+async fn setup_cloud(host_id: &str) -> (MockServer, IntegrationClient) {
+    let server = MockServer::start().await;
+    let client = IntegrationClient::from_reqwest(
+        &format!("{}/v1/connector/consoles/{host_id}", server.uri()),
+        reqwest::Client::new(),
+        ControllerPlatform::Cloud,
+    )
+    .unwrap();
+    (server, client)
+}
+
 // ── Happy-path tests ────────────────────────────────────────────────
 
 #[tokio::test]
@@ -477,6 +488,101 @@ async fn test_error_401_unauthorized() {
     assert!(
         matches!(result, Err(Error::InvalidApiKey)),
         "expected InvalidApiKey, got: {result:?}"
+    );
+}
+
+#[tokio::test]
+async fn test_cloud_connector_routes_integration_requests_through_proxy_path() {
+    let host_id = "console-123";
+    let (server, client) = setup_cloud(host_id).await;
+
+    let body = json!({
+        "offset": 0,
+        "limit": 25,
+        "count": 1,
+        "totalCount": 1,
+        "data": [
+            { "id": Uuid::new_v4(), "name": "Main", "internalReference": "default" },
+        ]
+    });
+
+    Mock::given(method("GET"))
+        .and(path(format!(
+            "/v1/connector/consoles/{host_id}/proxy/network/integration/v1/sites"
+        )))
+        .and(query_param("offset", "0"))
+        .and(query_param("limit", "25"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(&body))
+        .mount(&server)
+        .await;
+
+    let page: Page<SiteResponse> = client.list_sites(0, 25).await.unwrap();
+
+    assert_eq!(page.total_count, 1);
+    assert_eq!(page.data[0].name, "Main");
+}
+
+#[tokio::test]
+async fn test_cloud_error_429_uses_retry_after_header() {
+    let (server, client) = setup_cloud("console-123").await;
+
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(429).insert_header("Retry-After", "2.345s"))
+        .mount(&server)
+        .await;
+
+    let result = client.list_sites(0, 25).await;
+
+    assert!(
+        matches!(
+            result,
+            Err(Error::RateLimited {
+                retry_after_secs: 3
+            })
+        ),
+        "expected cloud rate limit error, got: {result:?}"
+    );
+}
+
+#[tokio::test]
+async fn test_cloud_error_403_maps_access_denied() {
+    let host_id = "console-403";
+    let (server, client) = setup_cloud(host_id).await;
+
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(403))
+        .mount(&server)
+        .await;
+
+    let result = client.list_sites(0, 25).await;
+
+    assert!(
+        matches!(
+            result,
+            Err(Error::ConsoleAccessDenied { ref host_id }) if host_id == "console-403"
+        ),
+        "expected cloud access denied error, got: {result:?}"
+    );
+}
+
+#[tokio::test]
+async fn test_cloud_error_408_maps_console_offline() {
+    let host_id = "console-408";
+    let (server, client) = setup_cloud(host_id).await;
+
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(408))
+        .mount(&server)
+        .await;
+
+    let result = client.list_sites(0, 25).await;
+
+    assert!(
+        matches!(
+            result,
+            Err(Error::ConsoleOffline { ref host_id }) if host_id == "console-408"
+        ),
+        "expected cloud offline error, got: {result:?}"
     );
 }
 

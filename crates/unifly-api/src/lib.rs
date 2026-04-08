@@ -37,6 +37,7 @@ pub mod auth;
 pub mod error;
 pub mod integration;
 pub mod session;
+pub mod site_manager;
 pub mod transport;
 pub mod websocket;
 
@@ -57,6 +58,8 @@ pub use integration::IntegrationClient;
 pub use integration::types as integration_types;
 pub use session::SessionClient;
 pub use session::models as session_models;
+pub use site_manager::SiteManagerClient;
+pub use site_manager::types as site_manager_types;
 pub use transport::{TlsMode, TransportConfig};
 
 // ── Domain re-exports ────────────────────────────────────────────

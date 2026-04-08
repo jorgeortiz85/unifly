@@ -197,6 +197,14 @@ impl SettingsScreen {
                         self.active_field == SettingsField::ApiKey,
                         true,
                     ),
+                    SettingsField::HostId => render_input_field(
+                        frame,
+                        chunk,
+                        "  Host ID",
+                        &self.draft.host_id,
+                        self.active_field == SettingsField::HostId,
+                        false,
+                    ),
                     SettingsField::Username => render_input_field(
                         frame,
                         chunk,

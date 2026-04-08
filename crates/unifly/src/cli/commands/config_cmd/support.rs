@@ -31,6 +31,12 @@ pub(super) fn format_config_redacted(cfg: &Config) -> String {
         if let Some(ref env) = profile.api_key_env {
             let _ = writeln!(out, "api_key_env = \"{env}\"");
         }
+        if let Some(ref host_id) = profile.host_id {
+            let _ = writeln!(out, "host_id = \"{host_id}\"");
+        }
+        if let Some(ref env) = profile.host_id_env {
+            let _ = writeln!(out, "host_id_env = \"{env}\"");
+        }
         if let Some(ref username) = profile.username {
             let _ = writeln!(out, "username = \"{username}\"");
         }
@@ -63,6 +69,8 @@ pub(super) fn empty_profile() -> Profile {
         auth_mode: "integration".into(),
         api_key: None,
         api_key_env: None,
+        host_id: None,
+        host_id_env: None,
         username: None,
         password: None,
         totp_env: None,
@@ -127,6 +135,8 @@ mod tests {
             auth_mode: "hybrid".into(),
             api_key: Some("super-secret-api-key".into()),
             api_key_env: Some("UNIFI_API_KEY".into()),
+            host_id: Some("host-123".into()),
+            host_id_env: Some("UNIFI_HOST_ID".into()),
             username: Some("bliss".into()),
             password: Some("super-secret-password".into()),
             totp_env: None,
@@ -176,6 +186,8 @@ mod tests {
         assert!(rendered.contains("api_key = \"****\""));
         assert!(rendered.contains("password = \"****\""));
         assert!(rendered.contains("api_key_env = \"UNIFI_API_KEY\""));
+        assert!(rendered.contains("host_id = \"host-123\""));
+        assert!(rendered.contains("host_id_env = \"UNIFI_HOST_ID\""));
         assert!(rendered.contains("username = \"bliss\""));
         assert!(!rendered.contains("super-secret-api-key"));
         assert!(!rendered.contains("super-secret-password"));

@@ -21,6 +21,8 @@ use thiserror::Error;
 
 use unifly_api::{AuthCredentials, ControllerConfig, TlsVerification};
 
+pub const DEFAULT_CLOUD_CONTROLLER_URL: &str = "https://api.ui.com";
+
 // ── Error ───────────────────────────────────────────────────────────
 
 #[derive(Debug, Error)]
@@ -186,16 +188,17 @@ fn default_show_donate() -> bool {
 }
 
 /// A named controller profile.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Profile {
     /// Controller base URL (e.g., "https://192.168.1.1").
+    #[serde(default)]
     pub controller: String,
 
     /// Site name or UUID.
     #[serde(default = "default_site")]
     pub site: String,
 
-    /// Auth mode: "integration", "session", or "hybrid".
+    /// Auth mode: "integration", "session", "hybrid", or "cloud".
     #[serde(default = "default_auth_mode")]
     pub auth_mode: String,
 
@@ -204,6 +207,12 @@ pub struct Profile {
 
     /// Environment variable name containing the API key.
     pub api_key_env: Option<String>,
+
+    /// Host/console ID for cloud connector mode.
+    pub host_id: Option<String>,
+
+    /// Environment variable name containing the host/console ID.
+    pub host_id_env: Option<String>,
 
     /// Username for session auth.
     pub username: Option<String>,
@@ -342,6 +351,27 @@ pub fn resolve_api_key(profile: &Profile, profile_name: &str) -> Result<SecretSt
     })
 }
 
+/// Resolve a cloud connector host ID without CLI flag overrides.
+pub fn resolve_host_id(profile: &Profile) -> Result<String, ConfigError> {
+    if let Some(ref env_name) = profile.host_id_env
+        && let Ok(val) = std::env::var(env_name)
+        && !val.trim().is_empty()
+    {
+        return Ok(val);
+    }
+
+    if let Some(ref host_id) = profile.host_id
+        && !host_id.trim().is_empty()
+    {
+        return Ok(host_id.clone());
+    }
+
+    Err(ConfigError::Validation {
+        field: "host_id".into(),
+        reason: "required when auth_mode is 'cloud'".into(),
+    })
+}
+
 /// Resolve session credentials (username + password) without CLI flags.
 pub fn resolve_session_credentials(
     profile: &Profile,
@@ -398,9 +428,16 @@ pub fn resolve_auth(profile: &Profile, profile_name: &str) -> Result<AuthCredent
                 password,
             })
         }
+        "cloud" => {
+            let api_key = resolve_api_key(profile, profile_name)?;
+            let host_id = resolve_host_id(profile)?;
+            Ok(AuthCredentials::Cloud { api_key, host_id })
+        }
         other => Err(ConfigError::Validation {
             field: "auth_mode".into(),
-            reason: format!("expected 'integration', 'session', or 'hybrid', got '{other}'"),
+            reason: format!(
+                "expected 'integration', 'session', 'hybrid', or 'cloud', got '{other}'"
+            ),
         }),
     }
 }
@@ -421,17 +458,25 @@ pub fn profile_to_controller_config(
     profile: &Profile,
     profile_name: &str,
 ) -> Result<ControllerConfig, ConfigError> {
-    let url: url::Url = profile
-        .controller
+    let is_cloud = profile.auth_mode == "cloud";
+    let controller_url = if is_cloud && profile.controller.trim().is_empty() {
+        DEFAULT_CLOUD_CONTROLLER_URL
+    } else {
+        profile.controller.as_str()
+    };
+
+    let url: url::Url = controller_url
         .parse()
         .map_err(|_| ConfigError::Validation {
             field: "controller".into(),
-            reason: format!("invalid URL: {}", profile.controller),
+            reason: format!("invalid URL: {controller_url}"),
         })?;
 
     let auth = resolve_auth(profile, profile_name)?;
 
-    let tls = if profile.insecure.unwrap_or(false) {
+    let tls = if is_cloud {
+        TlsVerification::SystemDefaults
+    } else if profile.insecure.unwrap_or(false) {
         TlsVerification::DangerAcceptInvalid
     } else if let Some(ref ca_path) = profile.ca_cert {
         TlsVerification::CustomCa(ca_path.clone())
@@ -449,11 +494,74 @@ pub fn profile_to_controller_config(
         site: profile.site.clone(),
         tls,
         timeout,
-        refresh_interval_secs: 10,
-        websocket_enabled: true,
-        polling_interval_secs: 10,
+        refresh_interval_secs: if is_cloud { 60 } else { 10 },
+        websocket_enabled: !is_cloud,
+        polling_interval_secs: if is_cloud { 30 } else { 10 },
         totp_token,
         profile_name: Some(profile_name.to_owned()),
-        no_session_cache: false,
+        no_session_cache: is_cloud,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        DEFAULT_CLOUD_CONTROLLER_URL, Profile, profile_to_controller_config, resolve_auth,
+    };
+    use unifly_api::{AuthCredentials, TlsVerification};
+
+    fn cloud_profile() -> Profile {
+        Profile {
+            controller: String::new(),
+            site: "default".into(),
+            auth_mode: "cloud".into(),
+            api_key: Some("cloud-key".into()),
+            api_key_env: None,
+            host_id: Some(
+                "70A7419783ED0000000006797F060000000006C719490000000062ABD4EA:1261206302".into(),
+            ),
+            host_id_env: None,
+            username: None,
+            password: None,
+            totp_env: None,
+            ca_cert: None,
+            insecure: Some(true),
+            timeout: Some(45),
+        }
+    }
+
+    #[test]
+    fn resolve_auth_supports_cloud_profiles() {
+        let profile = cloud_profile();
+
+        let auth = resolve_auth(&profile, "cloud").expect("cloud auth should resolve");
+
+        match auth {
+            AuthCredentials::Cloud { host_id, .. } => {
+                assert_eq!(
+                    host_id,
+                    "70A7419783ED0000000006797F060000000006C719490000000062ABD4EA:1261206302"
+                );
+            }
+            other => panic!("expected cloud auth, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn profile_to_controller_config_defaults_cloud_transport() {
+        let profile = cloud_profile();
+
+        let config =
+            profile_to_controller_config(&profile, "cloud").expect("cloud config should resolve");
+
+        assert_eq!(
+            config.url.as_str(),
+            format!("{DEFAULT_CLOUD_CONTROLLER_URL}/")
+        );
+        assert!(matches!(config.tls, TlsVerification::SystemDefaults));
+        assert!(!config.websocket_enabled);
+        assert_eq!(config.refresh_interval_secs, 60);
+        assert_eq!(config.polling_interval_secs, 30);
+        assert!(config.no_session_cache);
+    }
 }

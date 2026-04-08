@@ -132,6 +132,17 @@ impl From<crate::error::Error> for CoreError {
                 code: Some("rate_limited".into()),
                 status: Some(429),
             },
+            crate::error::Error::ConsoleOffline { host_id } => CoreError::ConnectionFailed {
+                url: format!("https://api.ui.com (host {host_id})"),
+                reason: "cloud console offline or unreachable".into(),
+            },
+            crate::error::Error::ConsoleAccessDenied { host_id } => {
+                CoreError::AuthenticationFailed {
+                    message: format!(
+                        "Not authorized to access cloud console {host_id} with this API key"
+                    ),
+                }
+            }
             crate::error::Error::Integration {
                 message,
                 code,

@@ -50,6 +50,14 @@ pub enum Error {
     #[error("Rate limited -- retry after {retry_after_secs}s")]
     RateLimited { retry_after_secs: u64 },
 
+    /// Cloud console is offline or unreachable through the connector.
+    #[error("Cloud console offline or unreachable: {host_id}")]
+    ConsoleOffline { host_id: String },
+
+    /// API key cannot access the requested cloud console.
+    #[error("Not authorized to access cloud console: {host_id}")]
+    ConsoleAccessDenied { host_id: String },
+
     // ── Integration API ─────────────────────────────────────────────
     /// Structured error from the Integration API.
     #[error("Integration API error (HTTP {status}): {message}")]
@@ -95,7 +103,10 @@ impl Error {
     pub fn is_transient(&self) -> bool {
         match self {
             Self::Transport(e) => e.is_timeout() || e.is_connect(),
-            Self::Timeout { .. } | Self::RateLimited { .. } | Self::WebSocketConnect(_) => true,
+            Self::Timeout { .. }
+            | Self::RateLimited { .. }
+            | Self::ConsoleOffline { .. }
+            | Self::WebSocketConnect(_) => true,
             _ => false,
         }
     }

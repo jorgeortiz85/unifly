@@ -42,6 +42,11 @@ fn init_tracing(verbosity: u8) {
 #[allow(clippy::future_not_send)]
 async fn run(cli: Cli) -> Result<(), CliError> {
     match cli.command {
+        Command::Cloud(args) => {
+            init_tracing(cli.global.verbose);
+            commands::cloud::handle(args, &cli.global).await
+        }
+
         Command::Config(args) => commands::config_cmd::handle(args, &cli.global),
 
         Command::Completions(args) => {
@@ -66,7 +71,7 @@ async fn run(cli: Cli) -> Result<(), CliError> {
 
         cmd => {
             init_tracing(cli.global.verbose);
-            let mut controller_config = build_controller_config(&cli.global)?;
+            let mut controller_config = build_controller_config(&cli.global).await?;
             controller_config.websocket_enabled = command_uses_websocket(&cmd);
             let controller = Controller::new(controller_config);
             if command_needs_initial_refresh(&cmd) {
@@ -103,20 +108,44 @@ fn command_needs_initial_refresh(command: &Command) -> bool {
     !matches!(command, Command::System(_))
 }
 
-fn build_controller_config(global: &GlobalOpts) -> Result<unifly_api::ControllerConfig, CliError> {
+fn controller_points_to_cloud(controller: Option<&str>) -> bool {
+    controller
+        .and_then(|controller| url::Url::parse(controller).ok())
+        .is_some_and(|url| url.host_str() == Some("api.ui.com"))
+}
+
+async fn build_controller_config(
+    global: &GlobalOpts,
+) -> Result<unifly_api::ControllerConfig, CliError> {
     let cfg = resolve::load_config_or_default();
     let profile_name = resolve::active_profile_name(global, &cfg);
 
     if let Some(profile) = cfg.profiles.get(&profile_name) {
+        if profile.auth_mode == "cloud"
+            && global.host_id.is_none()
+            && unifly::config::resolve_host_id(profile).is_err()
+        {
+            let mut resolved_profile = profile.clone();
+            resolved_profile.host_id = Some(commands::cloud::auto_resolve_host_id(global).await?);
+            resolved_profile.host_id_env = None;
+            return resolve::resolve_profile(&resolved_profile, &profile_name, global);
+        }
+
         return resolve::resolve_profile(profile, &profile_name, global);
     }
 
-    let url_str = global
-        .controller
-        .as_deref()
-        .ok_or_else(|| CliError::NoConfig {
-            path: unifly::config::config_path().display().to_string(),
-        })?;
+    let is_cloud =
+        global.host_id.is_some() || controller_points_to_cloud(global.controller.as_deref());
+    let url_str = global.controller.as_deref().or({
+        if is_cloud {
+            Some(unifly::config::DEFAULT_CLOUD_CONTROLLER_URL)
+        } else {
+            None
+        }
+    });
+    let url_str = url_str.ok_or_else(|| CliError::NoConfig {
+        path: unifly::config::config_path().display().to_string(),
+    })?;
 
     let url: url::Url = url_str.parse().map_err(|_| CliError::Validation {
         field: "controller".into(),
@@ -124,14 +153,28 @@ fn build_controller_config(global: &GlobalOpts) -> Result<unifly_api::Controller
     })?;
 
     let auth = if let Some(ref key) = global.api_key {
-        unifly_api::AuthCredentials::ApiKey(secrecy::SecretString::from(key.clone()))
+        let api_key = secrecy::SecretString::from(key.clone());
+
+        if is_cloud {
+            let host_id = if let Some(host_id) = &global.host_id {
+                host_id.clone()
+            } else {
+                commands::cloud::auto_resolve_host_id(global).await?
+            };
+
+            unifly_api::AuthCredentials::Cloud { api_key, host_id }
+        } else {
+            unifly_api::AuthCredentials::ApiKey(api_key)
+        }
     } else {
         return Err(CliError::NoCredentials {
             profile: profile_name,
         });
     };
 
-    let tls = if global.insecure {
+    let tls = if is_cloud {
+        unifly_api::TlsVerification::SystemDefaults
+    } else if global.insecure {
         unifly_api::TlsVerification::DangerAcceptInvalid
     } else {
         unifly_api::TlsVerification::SystemDefaults
@@ -153,13 +196,13 @@ fn build_controller_config(global: &GlobalOpts) -> Result<unifly_api::Controller
         polling_interval_secs: 30,
         totp_token,
         profile_name: None, // ad-hoc flags — no profile, no caching
-        no_session_cache: global.no_cache,
+        no_session_cache: global.no_cache || is_cloud,
     })
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{command_needs_initial_refresh, command_uses_websocket};
+    use super::{command_needs_initial_refresh, command_uses_websocket, controller_points_to_cloud};
     use unifly::cli::args::{
         BackupArgs, BackupCommand, Command, EventsArgs, EventsCommand, SystemArgs, SystemCommand,
     };
@@ -197,5 +240,12 @@ mod tests {
         assert!(!command_needs_initial_refresh(&info));
         assert!(!command_needs_initial_refresh(&sysinfo));
         assert!(!command_needs_initial_refresh(&backup));
+    }
+
+    #[test]
+    fn api_ui_url_is_detected_as_cloud() {
+        assert!(controller_points_to_cloud(Some("https://api.ui.com")));
+        assert!(!controller_points_to_cloud(Some("https://192.168.1.1")));
+        assert!(!controller_points_to_cloud(None));
     }
 }

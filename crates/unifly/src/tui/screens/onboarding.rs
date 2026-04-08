@@ -32,6 +32,7 @@ pub(super) enum WizardStep {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum CredentialField {
     ApiKey,
+    HostId,
     Username,
     Password,
 }

@@ -5,10 +5,11 @@ use super::{
 // ── Field metadata ──────────────────────────────────────────────────
 
 impl SettingsField {
-    pub(super) const ALL: [SettingsField; 9] = [
+    pub(super) const ALL: [SettingsField; 10] = [
         Self::Url,
         Self::AuthMode,
         Self::ApiKey,
+        Self::HostId,
         Self::Username,
         Self::Password,
         Self::Site,
@@ -23,6 +24,7 @@ impl SettingsField {
             Self::Url
             | Self::AuthMode
             | Self::ApiKey
+            | Self::HostId
             | Self::Username
             | Self::Password
             | Self::Site
@@ -43,13 +45,10 @@ impl SettingsField {
     /// Whether this field is visible given the current auth mode.
     pub(super) fn visible_for(self, mode: AuthMode) -> bool {
         match self {
-            Self::Url
-            | Self::AuthMode
-            | Self::Site
-            | Self::Insecure
-            | Self::Theme
-            | Self::ShowDonate => true,
-            Self::ApiKey => matches!(mode, AuthMode::ApiKey | AuthMode::Hybrid),
+            Self::Url | Self::AuthMode | Self::Site | Self::Theme | Self::ShowDonate => true,
+            Self::Insecure => mode != AuthMode::Cloud,
+            Self::ApiKey => matches!(mode, AuthMode::ApiKey | AuthMode::Hybrid | AuthMode::Cloud),
+            Self::HostId => mode == AuthMode::Cloud,
             Self::Username | Self::Password => {
                 matches!(mode, AuthMode::Session | AuthMode::Hybrid)
             }
@@ -167,6 +166,7 @@ impl SettingsScreen {
             self.auth_mode_index -= 1;
         }
         self.draft.auth_mode = AuthMode::ALL[self.auth_mode_index];
+        self.draft.apply_auth_mode_defaults();
         self.clamp_focus();
     }
 
@@ -177,6 +177,7 @@ impl SettingsScreen {
             self.auth_mode_index = 0;
         }
         self.draft.auth_mode = AuthMode::ALL[self.auth_mode_index];
+        self.draft.apply_auth_mode_defaults();
         self.clamp_focus();
     }
 
@@ -186,6 +187,7 @@ impl SettingsScreen {
         match self.active_field {
             SettingsField::Url => Some(&mut self.draft.url),
             SettingsField::ApiKey => Some(&mut self.draft.api_key),
+            SettingsField::HostId => Some(&mut self.draft.host_id),
             SettingsField::Username => Some(&mut self.draft.username),
             SettingsField::Password => Some(&mut self.draft.password),
             SettingsField::Site => Some(&mut self.draft.site),
@@ -308,6 +310,7 @@ mod tests {
         let mut screen = SettingsScreen::new();
         screen.draft.url = "https://console.example.com".into();
         screen.draft.api_key = "api-key".into();
+        screen.draft.host_id = "console-123".into();
         screen.draft.username = "bliss".into();
         screen.draft.password = "hunter2".into();
         screen.draft.site = "default".into();
@@ -332,6 +335,22 @@ mod tests {
     }
 
     #[test]
+    fn field_layout_shows_cloud_host_id_and_hides_insecure() {
+        let mut screen = test_screen();
+        screen.draft.auth_mode = AuthMode::Cloud;
+        screen.auth_mode_index = 3;
+        screen.draft.apply_auth_mode_defaults();
+
+        let fields = screen.visible_fields();
+
+        assert!(fields.contains(&SettingsField::ApiKey));
+        assert!(fields.contains(&SettingsField::HostId));
+        assert!(!fields.contains(&SettingsField::Username));
+        assert!(!fields.contains(&SettingsField::Password));
+        assert!(!fields.contains(&SettingsField::Insecure));
+    }
+
+    #[test]
     fn build_profile_omits_non_selected_auth_fields() {
         let mut screen = test_screen();
         screen.draft.auth_mode = AuthMode::ApiKey;
@@ -339,6 +358,20 @@ mod tests {
         let profile = screen.build_profile();
 
         assert_eq!(profile.api_key.as_deref(), Some("api-key"));
+        assert_eq!(profile.username, None);
+        assert_eq!(profile.password, None);
+    }
+
+    #[test]
+    fn build_profile_preserves_cloud_host_id() {
+        let mut screen = test_screen();
+        screen.draft.auth_mode = AuthMode::Cloud;
+        screen.draft.apply_auth_mode_defaults();
+
+        let profile = screen.build_profile();
+
+        assert_eq!(profile.auth_mode, "cloud");
+        assert_eq!(profile.host_id.as_deref(), Some("console-123"));
         assert_eq!(profile.username, None);
         assert_eq!(profile.password, None);
     }

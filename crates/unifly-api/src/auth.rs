@@ -64,11 +64,12 @@ impl ControllerPlatform {
     /// The path prefix for the Integration API.
     ///
     /// On UniFi OS devices: `/proxy/network/integration`
-    /// On standalone / cloud: `/integration`
+    /// On standalone controllers: `/integration`
+    /// On cloud connector: `/proxy/network/integration`
     pub fn integration_prefix(&self) -> &'static str {
         match self {
-            Self::UnifiOs => "/proxy/network/integration",
-            Self::ClassicController | Self::Cloud => "/integration",
+            Self::UnifiOs | Self::Cloud => "/proxy/network/integration",
+            Self::ClassicController => "/integration",
         }
     }
 
@@ -105,5 +106,18 @@ impl ControllerPlatform {
             Self::ClassicController => Some("/wss/s/{site}/events"),
             Self::Cloud => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ControllerPlatform;
+
+    #[test]
+    fn cloud_uses_unifi_os_integration_prefix() {
+        assert_eq!(
+            ControllerPlatform::Cloud.integration_prefix(),
+            "/proxy/network/integration"
+        );
     }
 }

@@ -37,7 +37,7 @@
 
 ## 💜 What is unifly?
 
-A complete command-line toolkit for managing Ubiquiti UniFi network controllers. One binary with 27 top-level commands for scripting and a built-in TUI dashboard for real-time monitoring, powered by a shared async engine that speaks every UniFi API dialect.
+A complete command-line toolkit for managing Ubiquiti UniFi network controllers. One binary with 27 top-level commands for scripting and a built-in TUI dashboard for real-time monitoring, powered by a shared async engine that speaks every UniFi API dialect, including Site Manager cloud fleet APIs and the cloud connector.
 
 > _Manage devices, monitor clients, inspect VLANs, stream events, and watch bandwidth charts, all without leaving your terminal._
 
@@ -63,9 +63,9 @@ UniFi controllers expose multiple APIs with different capabilities. unifly unifi
 
 | Capability | What You Get |
 | --- | --- |
-| 🔮 **Dual API Engine** | Integration API + Session API via a single API key on UniFi OS — no password needed for most commands. Hybrid mode adds WebSocket for live event streaming |
+| 🔮 **Triple-Path API Engine** | Integration API + Session API via a single API key on UniFi OS, plus Site Manager cloud fleet and connector support. Hybrid mode adds WebSocket for live event streaming |
 | ⚡ **Real-Time TUI** | 10-screen dashboard with area-fill traffic charts, CPU/MEM gauges, live client counts, zoomable topology |
-| 🦋 **27 Top-Level Commands** | Devices, clients, networks, WiFi, firewall policies, zones, ACLs, NAT, DNS, VPN, DPI, RADIUS, topology, raw API passthrough, `tui`... |
+| 🦋 **27 Top-Level Commands** | Devices, clients, networks, WiFi, firewall policies, zones, ACLs, NAT, DNS, VPN, DPI, RADIUS, topology, cloud fleet, raw API passthrough, `tui`... |
 | 📡 **Wi-Fi Observability** | Neighboring APs, regulatory channels, per-client Wi-Fi experience scores, roam timelines |
 | 💎 **Flexible Output** | Table, JSON, compact JSON, YAML, and plain text. Pipe-friendly for scripting |
 | 🔒 **Secure Credentials** | OS keyring storage for API keys and passwords, with plaintext config support when you choose it |
@@ -121,6 +121,7 @@ unifly networks list             # VLANs and subnets
 unifly wifi neighbors            # Nearby APs your radios can see
 unifly clients wifi 10.0.0.42    # Per-client Wi-Fi experience score
 unifly events watch              # Live event feed (requires Hybrid auth)
+unifly cloud hosts               # Consoles visible through Site Manager
 ```
 
 ```
@@ -167,11 +168,25 @@ Best of both worlds: API key for Integration API plus session HTTP, and
 username/password for the WebSocket cookie session. Choose this when you want
 full live monitoring plus maximum compatibility.
 
+### Cloud / Site Manager
+
+Use `auth_mode = "cloud"` when the controller is only reachable through
+Site Manager. unifly will route Integration-backed commands through the cloud
+connector and can auto-resolve `host_id` when exactly one console, or one
+owner console, is visible to the API key.
+
+```bash
+unifly cloud hosts
+unifly cloud sites
+unifly --profile cloud-home networks list
+```
+
 ### Environment Variables
 
 | Variable | Description |
 | --- | --- |
 | `UNIFI_API_KEY` | Integration API key |
+| `UNIFI_HOST_ID` | Site Manager console/host ID for cloud connector mode |
 | `UNIFI_URL` | Controller URL |
 | `UNIFI_PROFILE` | Profile name |
 | `UNIFI_SITE` | Site name or UUID |
@@ -191,6 +206,7 @@ full live monitoring plus maximum compatibility.
 | `admin` | | Administrator management |
 | `alarms` | | Manage alarms |
 | `clients` | `cl` | Manage clients and DHCP reservations |
+| `cloud` | | Query Site Manager hosts, sites, devices, ISP metrics, and SD-WAN |
 | `completions` | | Generate shell completions |
 | `config` | | Manage CLI configuration |
 | `countries` | | List available country codes |
@@ -215,6 +231,10 @@ full live monitoring plus maximum compatibility.
 | `tui` | | Launch the real-time terminal dashboard |
 
 Most resource groups support `list` and `get`; some also expose `create`, `update`, `delete`, `patch`, or specialized actions. Run `unifly <command> --help` for details.
+
+Cloud note: `unifly cloud ...` talks directly to Site Manager and does not
+require a controller connection. Session-only commands such as `events watch`
+still need direct Session API access.
 
 ### Global Flags
 

@@ -18,7 +18,8 @@ infrastructure. A single `unifly` binary ships three user-facing surfaces:
 - **CLI commands** (`unifly devices list`, etc.): 27 top-level commands
   covering devices, clients, networks, WiFi, firewall, NAT, DNS, ACL,
   traffic-lists, hotspot, events, stats, DPI, VPN, Wi-Fi observability
-  (neighbors, channels, roams, experience), and a raw `api` escape hatch.
+  (neighbors, channels, roams, experience), cloud fleet queries, and a raw
+  `api` escape hatch.
 - **TUI dashboard** (`unifly tui`) -- 10-screen Ratatui interface for real-time
   monitoring and interactive management.
 - **Agent skill** at `skills/unifly/SKILL.md`: bundled documentation that
@@ -28,10 +29,10 @@ The binary is powered by the `unifly-api` library crate, which is also
 published independently on crates.io for Rust developers building custom
 integrations.
 
-The moat is **dual-API coverage**: unifly speaks both the modern Integration
-API (REST, API key) and the Session API (cookie + CSRF) and reconciles
-data between them via Hybrid auth mode. Most competing tools are one or the
-other.
+The moat is **triple-path coverage**: unifly speaks the modern Integration
+API (REST, API key), the Session API (cookie + CSRF), and Site Manager cloud
+fleet/connector APIs. Most competing tools are one path or two; unifly can
+mix local and cloud workflows in one binary.
 
 ---
 
@@ -181,7 +182,7 @@ pub enum AuthCredentials {
     ApiKey(SecretString),
     Credentials { username: String, password: SecretString },
     Hybrid { api_key: SecretString, username: String, password: SecretString },
-    Cloud { api_key: SecretString },  // Site Manager API, not yet implemented
+    Cloud { api_key: SecretString, host_id: String },
 }
 ```
 
@@ -194,6 +195,12 @@ HTTP without a password. Use **Hybrid** when you need session WebSocket
 features such as `events watch`, or when you want maximum compatibility
 across controller variants. Merge still happens inline in `full_refresh()`
 in `controller/refresh.rs`.
+
+**Cloud mode now works for both fleet and connector paths.** `unifly cloud ...`
+talks directly to the Site Manager fleet API at `api.ui.com/v1/`, while
+regular Integration-backed commands can tunnel through the cloud connector
+when `auth_mode = "cloud"` or `--host-id` is set. Session-only commands still
+require direct controller/session access.
 
 ---
 

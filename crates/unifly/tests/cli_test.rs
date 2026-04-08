@@ -25,6 +25,7 @@ fn unifly_cmd() -> assert_cmd::Command {
         .env_remove("UNIFI_URL")
         .env_remove("UNIFI_SITE")
         .env_remove("UNIFI_API_KEY")
+        .env_remove("UNIFI_HOST_ID")
         .env_remove("UNIFI_OUTPUT")
         .env_remove("UNIFI_INSECURE")
         .env_remove("UNIFI_TIMEOUT")
@@ -45,6 +46,7 @@ fn unifly_cmd_in(config_home: &std::path::Path) -> assert_cmd::Command {
         .env_remove("UNIFI_URL")
         .env_remove("UNIFI_SITE")
         .env_remove("UNIFI_API_KEY")
+        .env_remove("UNIFI_HOST_ID")
         .env_remove("UNIFI_OUTPUT")
         .env_remove("UNIFI_INSECURE")
         .env_remove("UNIFI_TIMEOUT")
@@ -120,6 +122,39 @@ fn test_vpn_help_mentions_status_and_health() {
                 .and(predicate::str::contains("status"))
                 .and(predicate::str::contains("health")),
         );
+}
+
+#[test]
+fn test_cloud_help_mentions_fleet_subcommands() {
+    unifly_cmd()
+        .args(["cloud", "--help"])
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::contains("hosts")
+                .and(predicate::str::contains("sites"))
+                .and(predicate::str::contains("devices"))
+                .and(predicate::str::contains("isp"))
+                .and(predicate::str::contains("sdwan")),
+        );
+}
+
+#[test]
+fn test_cloud_hosts_help_mentions_get() {
+    unifly_cmd()
+        .args(["cloud", "hosts", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("get"));
+}
+
+#[test]
+fn test_cloud_isp_query_help_mentions_sites_flag() {
+    unifly_cmd()
+        .args(["cloud", "isp", "query", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--sites <SITES>"));
 }
 
 #[test]
@@ -385,6 +420,46 @@ fn test_global_flags_parsing() {
                 .or(predicate::str::contains("controller"))
                 .or(predicate::str::contains("profile")),
         );
+}
+
+#[test]
+fn test_host_id_flag_parses_as_global_option() {
+    unifly_cmd()
+        .args(["--host-id", "console-123", "config", "show"])
+        .assert()
+        .success();
+}
+
+#[test]
+fn test_config_set_accepts_cloud_auth_mode_and_host_fields() {
+    let tempdir = tempfile::tempdir().unwrap();
+
+    unifly_cmd_in(tempdir.path())
+        .args(["config", "set", "auth_mode", "cloud"])
+        .assert()
+        .success();
+    unifly_cmd_in(tempdir.path())
+        .args(["config", "set", "host_id", "console-123"])
+        .assert()
+        .success();
+    unifly_cmd_in(tempdir.path())
+        .args(["config", "set", "host_id_env", "UNIFI_HOST_ID"])
+        .assert()
+        .success();
+
+    let cfg = written_config(&tempdir);
+    assert!(
+        cfg.contains("auth_mode = \"cloud\""),
+        "Expected cloud auth:\n{cfg}"
+    );
+    assert!(
+        cfg.contains("host_id = \"console-123\""),
+        "Expected host_id:\n{cfg}"
+    );
+    assert!(
+        cfg.contains("host_id_env = \"UNIFI_HOST_ID\""),
+        "Expected host_id_env:\n{cfg}"
+    );
 }
 
 #[test]

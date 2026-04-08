@@ -36,6 +36,7 @@ pub(super) enum SettingsField {
     Url,
     AuthMode,
     ApiKey,
+    HostId,
     Username,
     Password,
     Site,

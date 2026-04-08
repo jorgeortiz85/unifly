@@ -29,6 +29,11 @@ by Hybrid. Consult `concepts.md` for the full gate matrix.
 All also accept the matching `UNIFI_*` environment variable (see
 concepts.md).
 
+Hidden but useful for cloud mode:
+
+- `--host-id <ID>` overrides the Site Manager console/host ID used for
+  connector-routed Integration commands.
+
 ## Devices `[H for list/get, L for commands]`
 
 ```bash
@@ -523,6 +528,34 @@ unifly api <path> [-m get|post|put|patch|delete] [-d '<json-body>']
 - `-d '<json>'` is used for `post`, `put`, and `patch`.
 - `delete` does not require a body.
 - Essential when unifly does not wrap a specific endpoint yet.
+
+## Cloud `[cloud fleet API]`
+
+```bash
+unifly cloud hosts
+unifly cloud hosts get <id>
+unifly cloud sites
+unifly cloud devices [--host <id>]...
+unifly cloud isp [--type 5m|1h]
+unifly cloud isp query --sites <site-1,site-2>
+unifly cloud sdwan
+unifly cloud sdwan get <id>
+unifly cloud sdwan status <id>
+```
+
+**Gotchas:**
+
+- `unifly cloud ...` talks directly to `api.ui.com/v1/`; it does **not**
+  create a `Controller` or use the local Session API.
+- `cloud devices --host` is repeatable. Omit it to list devices across all
+  accessible consoles.
+- `cloud isp query --sites` is comma-delimited and returns a warning if Site
+  Manager responds with `partialSuccess`.
+- `cloud` commands only need a Site Manager API key. They do **not** need
+  `host_id`.
+- Regular commands such as `networks list` or `firewall policies list` still
+  need `host_id` in cloud mode, but unifly will auto-resolve it when the API
+  key only exposes one console, or one owner console.
 
 ## Topology, TUI, Completions, Config, Countries
 

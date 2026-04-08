@@ -229,16 +229,20 @@ impl Controller {
                 }
             }
             AuthCredentials::Cloud { api_key, host_id } => {
+                let connector_base = format!(
+                    "{}/v1/connector/consoles/{}",
+                    config.url.as_str().trim_end_matches('/'),
+                    host_id,
+                );
+
                 let integration = IntegrationClient::from_api_key(
-                    config.url.as_str(),
+                    &connector_base,
                     api_key,
                     &transport,
                     crate::ControllerPlatform::Cloud,
                 )?;
 
                 let site_id = if let Ok(uuid) = uuid::Uuid::parse_str(&config.site) {
-                    uuid
-                } else if let Ok(uuid) = uuid::Uuid::parse_str(host_id) {
                     uuid
                 } else {
                     resolve_site_id(&integration, &config.site).await?

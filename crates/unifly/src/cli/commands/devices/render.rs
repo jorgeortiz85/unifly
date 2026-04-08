@@ -218,6 +218,7 @@ mod tests {
             controller: None,
             site: None,
             api_key: None,
+            host_id: None,
             totp: None,
             no_cache: false,
             demo: false,

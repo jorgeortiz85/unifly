@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`cloud` command group** for Site Manager fleet visibility: `hosts`,
+  `sites`, `devices`, `isp`, and `sdwan`
+- **Site Manager fleet client** in `unifly-api` with `nextToken` pagination
+  and cloud rate-limit handling
+- **Cloud host auto-resolution** for controller-bound Integration commands
+  when a profile omits `host_id` but the API key can unambiguously identify
+  a console
 - **`vpn servers get <id>`** and **`vpn tunnels get <id>`** for full VPN
   detail views with subnet, port, peer address, IKE version, and raw fields
 - **`vpn status`** for live IPsec security association status from the
@@ -26,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Cloud auth now works end-to-end in CLI, TUI settings, and onboarding:
+  `auth_mode = "cloud"` preserves `host_id`, `host_id_env`, `api_key_env`,
+  defaults the controller URL to `https://api.ui.com`, and forces strict TLS
 - Enriched `vpn servers` and `vpn tunnels` list output with subnet, port,
   protocol, peer, and IKE visibility where the controller returns those
   fields

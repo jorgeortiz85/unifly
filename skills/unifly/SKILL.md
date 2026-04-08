@@ -22,11 +22,12 @@ description: >-
 # unifly: UniFi Network Management
 
 unifly is a Rust CLI for managing Ubiquiti UniFi network infrastructure. It
-unifies the modern Integration API (REST, API key) and the Session API (cookie
-plus CSRF) behind a single coherent interface, plus real-time WebSocket event
-streaming. 27 top-level commands cover devices, clients, networks, WiFi,
-firewall policies and zones, NAT policies, ACLs, DNS, traffic matching lists,
-hotspot vouchers, DPI, stats, backups, and a raw API escape hatch.
+unifies the modern Integration API (REST, API key), the Session API (cookie
+plus CSRF), and Site Manager cloud APIs behind a single coherent interface,
+plus real-time WebSocket event streaming. 28 top-level commands cover devices,
+clients, networks, WiFi, firewall policies and zones, NAT policies, ACLs, DNS,
+traffic matching lists, hotspot vouchers, DPI, stats, backups, cloud fleet
+queries, and a raw API escape hatch.
 
 Unique capabilities worth leading with when the user's task suits them:
 
@@ -56,18 +57,20 @@ wizard. See `examples/config.toml` for manual configuration.
 
 ## Authentication Modes
 
-unifly supports three modes. **API key mode is enough for most HTTP
+unifly supports four modes. **API key mode is enough for most HTTP
 automation on UniFi OS controllers.** Choose **Hybrid** when the task needs
 live WebSocket features (`events watch`) or you want maximum compatibility.
 
 | Mode          | Credentials             | What It Unlocks                                                                                               |
 | ------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `integration` | API key                 | Integration API plus session HTTP on UniFi OS: CRUD, device commands, stats, reservations, admin, event list |
-| `session`      | Username + password     | Session HTTP + WebSocket only: events watch, stats, device commands, DPI control, admin, backups              |
+| `session`     | Username + password     | Session HTTP + WebSocket only: events watch, stats, device commands, DPI control, admin, backups             |
 | `hybrid`      | API key + username/pass | Everything above, including session WebSocket plus enriched records with maximum controller compatibility       |
+| `cloud`       | Site Manager API key    | Connector-routed Integration CRUD plus `unifly cloud` fleet commands against `api.ui.com`                    |
 
 Session WebSocket still rejects API keys, so `events watch` needs `session` or
-`hybrid`.
+`hybrid`. Cloud mode does **not** expose Session API endpoints or WebSocket
+streaming.
 
 For the complete command-to-API gate matrix (which commands require which
 auth mode), consult `references/concepts.md`.
@@ -80,6 +83,7 @@ All commands follow `unifly [global-flags] <command> <action> [args]`.
 | --------------- | ---------- | -------------------------------------------------------------------------------------------------------------- |
 | `devices`       | `dev`, `d` | list, get, adopt, remove, restart, locate, port-cycle, stats, pending, upgrade, provision, speedtest, tags     |
 | `clients`       | `cl`       | list, find, get, roams, wifi, authorize, unauthorize, block, unblock, kick, forget, reservations (`res`), set-ip, remove-ip |
+| `cloud`         |            | hosts [get], sites, devices, isp [query], sdwan [get, status]                                                  |
 | `networks`      | `net`, `n` | list, get, create, update, delete, refs                                                                        |
 | `wifi`          | `w`        | list, get, neighbors, channels, create, update, delete                                                        |
 | `firewall`      | `fw`       | policies {list, get, create, update, patch, delete, reorder}, zones {list, get, create, update, delete}        |
@@ -316,8 +320,10 @@ UNIFI_PROFILE=warehouse unifly system health
    endpoints (stats, device commands, Wi-Fi observability, client enrichment).
    Use **Hybrid only when live WebSocket streaming is needed** (`events watch`,
    TUI live refresh). Client and device enrichment fields work in API key mode.
-5. **Local controllers only.** unifly targets on-prem controllers. The Site
-   Manager cloud API (`api.ui.com`) is not yet implemented.
+5. **Cloud support is Integration-only.** `unifly cloud ...` talks to
+   Site Manager and `auth_mode = "cloud"` routes Integration-backed commands
+   through the connector, but Session-only features still need direct
+   controller access.
 6. **Exit codes are meaningful.** `0` on success, non-zero on error. Capture
    stderr for diagnostics.
 

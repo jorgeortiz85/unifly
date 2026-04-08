@@ -20,6 +20,10 @@ pub struct GlobalOpts {
     #[arg(long, env = "UNIFI_API_KEY", global = true, hide_env = true)]
     pub api_key: Option<String>,
 
+    /// Cloud console/host ID (for cloud auth mode)
+    #[arg(long, env = "UNIFI_HOST_ID", global = true, hide = true)]
+    pub host_id: Option<String>,
+
     /// Output format
     #[arg(
         long,

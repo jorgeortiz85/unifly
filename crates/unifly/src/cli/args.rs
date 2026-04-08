@@ -15,6 +15,8 @@ mod alarms;
 mod api;
 #[path = "args/clients.rs"]
 mod clients;
+#[path = "args/cloud.rs"]
+mod cloud;
 #[path = "args/common.rs"]
 mod common;
 #[path = "args/config.rs"]
@@ -59,6 +61,7 @@ pub use admin::*;
 pub use alarms::*;
 pub use api::*;
 pub use clients::*;
+pub use cloud::*;
 pub use common::*;
 pub use config::*;
 pub use devices::*;
@@ -122,6 +125,9 @@ pub enum Command {
 
     /// Generate shell completions
     Completions(CompletionsArgs),
+
+    /// Query the Site Manager cloud fleet API
+    Cloud(CloudArgs),
 
     /// Manage CLI configuration and profiles
     Config(ConfigArgs),
