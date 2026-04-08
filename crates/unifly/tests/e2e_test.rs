@@ -119,6 +119,15 @@ fn assert_success(output: &Output, context: &str) {
     );
 }
 
+fn assert_exit_code(output: &Output, expected: i32, context: &str) {
+    assert_eq!(
+        output.status.code(),
+        Some(expected),
+        "{context} exited unexpectedly, stderr:\n{}",
+        stderr_text(output)
+    );
+}
+
 fn json_array<'a>(payload: &'a serde_json::Value, context: &str) -> &'a [serde_json::Value] {
     payload
         .as_array()
@@ -186,6 +195,61 @@ fn session_profile_lists_simulated_devices() {
 }
 
 #[test]
+fn session_profile_reads_first_device_detail() {
+    let ctx = E2eContext::session();
+
+    let list_output = ctx.run(&["devices", "list", "--all", "-o", "json"]);
+    assert_success(&list_output, "devices list for detail lookup");
+    let list_payload = stdout_json(&list_output);
+    let devices = json_array(&list_payload, "devices list");
+    let first_device = devices
+        .first()
+        .expect("expected at least one simulated device for detail lookup");
+    let device_id = first_device
+        .get("id")
+        .or_else(|| first_device.get("mac"))
+        .and_then(serde_json::Value::as_str)
+        .expect("expected the simulated device to expose an id or mac");
+
+    let detail_output = ctx.run(&["devices", "get", device_id, "-o", "json"]);
+    assert_success(&detail_output, "devices get");
+    let detail = stdout_json(&detail_output);
+
+    assert_eq!(
+        detail
+            .get("id")
+            .and_then(serde_json::Value::as_str)
+            .expect("device detail should include an id"),
+        device_id
+    );
+    assert!(
+        detail
+            .get("device_type")
+            .and_then(serde_json::Value::as_str)
+            .is_some(),
+        "expected device detail to include a device_type, got {detail}"
+    );
+
+    let stats_output = ctx.run(&["devices", "stats", device_id, "-o", "json"]);
+    assert_success(&stats_output, "devices stats");
+    let stats = stdout_json(&stats_output);
+    assert_eq!(
+        stats
+            .get("id")
+            .and_then(serde_json::Value::as_str)
+            .expect("device stats should include an id"),
+        device_id
+    );
+    assert!(
+        stats
+            .get("stats")
+            .and_then(serde_json::Value::as_object)
+            .is_some(),
+        "expected device stats to include a stats object, got {stats}"
+    );
+}
+
+#[test]
 fn session_profile_lists_default_site() {
     let ctx = E2eContext::session();
     let output = ctx.run(&["sites", "list", "--all", "-o", "json"]);
@@ -237,6 +301,59 @@ fn session_profile_output_formats_render_cleanly() {
     let plain = ctx.run(&["sites", "list", "--all", "-o", "plain"]);
     assert_success(&plain, "sites list plain output");
     assert!(!stdout_text(&plain).trim().is_empty());
+}
+
+#[test]
+fn session_profile_reports_system_health_subsystems() {
+    let ctx = E2eContext::session();
+
+    let output = ctx.run(&["system", "health", "-o", "json"]);
+    assert_success(&output, "system health");
+
+    let payload = stdout_json(&output);
+    let health = json_array(&payload, "system health");
+    assert!(
+        !health.is_empty(),
+        "expected system health to return subsystem entries"
+    );
+
+    for subsystem in ["lan", "wlan", "wan", "vpn", "www"] {
+        assert!(
+            health.iter().any(|entry| {
+                entry
+                    .get("subsystem")
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|value| value == subsystem)
+            }),
+            "expected system health to include subsystem '{subsystem}', got {}",
+            stdout_text(&output)
+        );
+    }
+}
+
+#[test]
+fn session_profile_lists_pending_devices() {
+    let ctx = E2eContext::session();
+
+    let output = ctx.run(&["devices", "pending", "--all", "-o", "json"]);
+    assert_success(&output, "devices pending");
+
+    let payload = stdout_json(&output);
+    let pending = json_array(&payload, "devices pending");
+    assert!(
+        !pending.is_empty(),
+        "expected simulation mode to expose pending devices"
+    );
+    assert!(
+        pending.iter().all(|device| {
+            device
+                .get("state")
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|state| state == "PendingAdoption")
+        }),
+        "expected pending devices to remain in PendingAdoption, got {}",
+        stdout_text(&output)
+    );
 }
 
 #[test]
@@ -419,6 +536,174 @@ fn session_profile_lists_empty_nat_and_vpn_collections() {
             stdout_text(&output)
         );
     }
+}
+
+#[test]
+fn session_profile_renders_session_observability_collections() {
+    let ctx = E2eContext::session();
+
+    for args in [
+        &["events", "list", "-o", "json"][..],
+        &["clients", "list", "--all", "-o", "json"][..],
+        &["stats", "client", "-o", "json"][..],
+        &["stats", "gateway", "-o", "json"][..],
+        &["wifi", "neighbors", "--all", "-o", "json"][..],
+    ] {
+        let output = ctx.run(args);
+        let context = args.join(" ");
+        assert_success(&output, &context);
+
+        let payload = stdout_json(&output);
+        let values = json_array(&payload, &context);
+        assert!(
+            values.iter().all(serde_json::Value::is_object),
+            "expected '{context}' to render an array of JSON objects, got {}",
+            stdout_text(&output)
+        );
+    }
+}
+
+#[test]
+fn session_profile_lists_empty_session_reference_collections() {
+    let ctx = E2eContext::session();
+
+    for args in [
+        &["devices", "tags", "--all", "-o", "json"][..],
+        &["clients", "reservations", "--all", "-o", "json"][..],
+        &["system", "backup", "list", "-o", "json"][..],
+    ] {
+        let output = ctx.run(args);
+        let context = args.join(" ");
+        assert_success(&output, &context);
+
+        let payload = stdout_json(&output);
+        let values = json_array(&payload, &context);
+        assert!(
+            values.is_empty(),
+            "expected '{context}' to be empty in simulation mode, got {}",
+            stdout_text(&output)
+        );
+    }
+}
+
+#[test]
+fn session_profile_renders_stats_and_wifi_channel_data() {
+    let ctx = E2eContext::session();
+
+    let site_stats = ctx.run(&["stats", "site", "-o", "json"]);
+    assert_success(&site_stats, "stats site");
+    let site_payload = stdout_json(&site_stats);
+    let site_values = json_array(&site_payload, "stats site");
+    let first_site = site_values
+        .first()
+        .expect("expected stats site to return at least one datapoint");
+    assert_eq!(
+        first_site
+            .get("o")
+            .and_then(serde_json::Value::as_str)
+            .expect("site stats row should include object type"),
+        "site"
+    );
+    assert!(
+        first_site
+            .get("time")
+            .and_then(serde_json::Value::as_i64)
+            .is_some(),
+        "expected stats site rows to include a numeric timestamp, got {first_site}"
+    );
+
+    let device_stats = ctx.run(&["stats", "device", "-o", "json"]);
+    assert_success(&device_stats, "stats device");
+    let device_payload = stdout_json(&device_stats);
+    let device_values = json_array(&device_payload, "stats device");
+    let first_device = device_values
+        .first()
+        .expect("expected stats device to return at least one datapoint");
+    assert!(
+        first_device
+            .get("oid")
+            .and_then(serde_json::Value::as_str)
+            .is_some(),
+        "expected stats device rows to include an oid, got {first_device}"
+    );
+
+    for group_by in ["by-cat", "by-app"] {
+        let output = ctx.run(&["stats", "dpi", "--group-by", group_by, "-o", "json"]);
+        let context = format!("stats dpi --group-by {group_by}");
+        assert_success(&output, &context);
+        let payload = stdout_json(&output);
+        let values = json_array(&payload, &context);
+        assert!(
+            !values.is_empty(),
+            "expected '{context}' to return at least one JSON object"
+        );
+        assert!(
+            values.iter().all(serde_json::Value::is_object),
+            "expected '{context}' to return JSON objects, got {}",
+            stdout_text(&output)
+        );
+    }
+
+    let channels = ctx.run(&["wifi", "channels", "-o", "json"]);
+    assert_success(&channels, "wifi channels");
+    let channel_payload = stdout_json(&channels);
+    let channel_rows = json_array(&channel_payload, "wifi channels");
+
+    for band in ["2.4 GHz", "5 GHz", "6 GHz"] {
+        assert!(
+            channel_rows.iter().any(|row| {
+                row.get("band")
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|value| value == band)
+            }),
+            "expected wifi channels to include '{band}', got {}",
+            stdout_text(&channels)
+        );
+    }
+}
+
+#[test]
+fn session_profile_client_resolution_errors_include_list_guidance() {
+    let ctx = E2eContext::session();
+
+    for args in [
+        ["clients", "find", "definitely-not-a-client", "-o", "json"],
+        ["clients", "get", "aa:bb:cc:dd:ee:ff", "-o", "json"],
+        ["clients", "roams", "definitely-not-a-client", "-o", "json"],
+        ["clients", "wifi", "definitely-not-a-client", "-o", "json"],
+    ] {
+        let output = ctx.run(&args);
+        let context = args.join(" ");
+        assert_exit_code(&output, 4, &context);
+        assert!(
+            stderr_text(&output).contains("clients list"),
+            "expected '{context}' to guide toward clients list, got:\n{}",
+            stderr_text(&output)
+        );
+    }
+}
+
+#[test]
+fn session_profile_rejects_invalid_stats_time_range() {
+    let ctx = E2eContext::session();
+
+    let output = ctx.run(&[
+        "stats",
+        "site",
+        "--start",
+        "2026-01-02T00:00:00Z",
+        "--end",
+        "2026-01-01T00:00:00Z",
+        "-o",
+        "json",
+    ]);
+
+    assert_exit_code(&output, 2, "stats site invalid time range");
+    assert!(
+        stderr_text(&output).contains("start must be <="),
+        "expected validation guidance, got:\n{}",
+        stderr_text(&output)
+    );
 }
 
 #[test]
