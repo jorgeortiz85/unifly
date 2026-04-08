@@ -178,15 +178,17 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '22'
-      - name: Publish skill via sync
+      - name: Authenticate ClawHub CLI
         env:
           CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
+        run: npx -y clawhub@0.9.0 login --token "$CLAWHUB_TOKEN" --no-browser
+      - name: Publish skill via sync
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          npx clawhub sync --root ./skills --all --changelog "Release v${VERSION}"
+          npx -y clawhub@0.9.0 sync --root ./skills --all --changelog "Release v${VERSION}"
 
   # ── Update Homebrew Tap ───────────────────────────────────────
   update-homebrew:
