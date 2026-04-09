@@ -10,7 +10,6 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use directories::ProjectDirs;
 use figment::{
     Figment,
     providers::{Env, Format, Serialized, Toml},
@@ -245,32 +244,40 @@ fn default_auth_mode() -> String {
 
 // ── Config file path ────────────────────────────────────────────────
 
-/// Resolve the config file path via platform-native conventions.
+/// Resolve the config file path.
+///
+/// Unix (including macOS): `$XDG_CONFIG_HOME/unifly/config.toml` or `~/.config/unifly/config.toml`
+/// Windows: `%APPDATA%\unifly\config.toml` via `ProjectDirs`, with env-var fallback
+///
+/// On macOS, automatically migrates from the old `~/Library/Application Support/unifly/`
+/// location if it exists and the XDG path does not.
 pub fn config_path() -> PathBuf {
-    ProjectDirs::from("", "", "unifly").map_or_else(fallback_config_path, |dirs| {
-        dirs.config_dir().join("config.toml")
-    })
-}
-
-fn fallback_config_path() -> PathBuf {
-    fallback_config_dir().join("config.toml")
+    let dir = config_dir();
+    #[cfg(target_os = "macos")]
+    migrate_macos_config(&dir);
+    dir.join("config.toml")
 }
 
 #[cfg(windows)]
-fn fallback_config_dir() -> PathBuf {
-    std::env::var_os("APPDATA")
-        .map(PathBuf::from)
-        .or_else(|| {
-            std::env::var_os("USERPROFILE")
+fn config_dir() -> PathBuf {
+    directories::ProjectDirs::from("", "", "unifly").map_or_else(
+        || {
+            std::env::var_os("APPDATA")
                 .map(PathBuf::from)
-                .map(|home| home.join("AppData").join("Roaming"))
-        })
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("unifly")
+                .or_else(|| {
+                    std::env::var_os("USERPROFILE")
+                        .map(PathBuf::from)
+                        .map(|home| home.join("AppData").join("Roaming"))
+                })
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join("unifly")
+        },
+        |dirs| dirs.config_dir().to_owned(),
+    )
 }
 
 #[cfg(not(windows))]
-fn fallback_config_dir() -> PathBuf {
+fn config_dir() -> PathBuf {
     std::env::var_os("XDG_CONFIG_HOME")
         .map_or_else(
             || {
@@ -280,6 +287,38 @@ fn fallback_config_dir() -> PathBuf {
             PathBuf::from,
         )
         .join("unifly")
+}
+
+#[cfg(target_os = "macos")]
+fn migrate_macos_config(new_dir: &std::path::Path) {
+    use std::sync::Once;
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        let Some(old_dir) =
+            directories::ProjectDirs::from("", "", "unifly").map(|d| d.config_dir().to_owned())
+        else {
+            return;
+        };
+        if old_dir == *new_dir || !old_dir.exists() || new_dir.exists() {
+            return;
+        }
+        if let Some(parent) = new_dir.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        match std::fs::rename(&old_dir, new_dir) {
+            Ok(()) => {
+                eprintln!("unifly: migrated config to {}", new_dir.display(),);
+            }
+            Err(e) => {
+                eprintln!(
+                    "unifly: could not auto-migrate config from {} to {}: {e}",
+                    old_dir.display(),
+                    new_dir.display(),
+                );
+                eprintln!("unifly: please move your config.toml manually to the new location");
+            }
+        }
+    });
 }
 
 // ── Config loading ──────────────────────────────────────────────────

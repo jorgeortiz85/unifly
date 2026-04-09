@@ -60,12 +60,6 @@ fn written_config(tempdir: &TempDir) -> String {
         tempdir.path().join("unifly").join("config.toml"),
         tempdir
             .path()
-            .join("Library")
-            .join("Application Support")
-            .join("unifly")
-            .join("config.toml"),
-        tempdir
-            .path()
             .join("AppData")
             .join("Roaming")
             .join("unifly")

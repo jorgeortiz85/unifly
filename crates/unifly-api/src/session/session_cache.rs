@@ -128,9 +128,56 @@ pub const EXPIRY_MARGIN_SECS: u64 = 60;
 
 // ── Internals ──────────────────────────────────────────────────────
 
-/// Resolve the cache directory: `$XDG_CACHE_HOME/unifly/` or `~/.cache/unifly/`.
+/// Resolve the cache directory.
+///
+/// Unix (including macOS): `$XDG_CACHE_HOME/unifly/` or `~/.cache/unifly/`
+/// Windows: platform-native via `ProjectDirs`
+///
+/// On macOS, migrates from the old `~/Library/Caches/unifly/` location automatically.
 fn cache_dir() -> Option<PathBuf> {
+    let dir = platform_cache_dir()?;
+    #[cfg(target_os = "macos")]
+    migrate_macos_cache(&dir);
+    Some(dir)
+}
+
+#[cfg(not(windows))]
+fn platform_cache_dir() -> Option<PathBuf> {
+    let base = std::env::var_os("XDG_CACHE_HOME")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".cache")))?;
+    Some(base.join("unifly"))
+}
+
+#[cfg(windows)]
+fn platform_cache_dir() -> Option<PathBuf> {
     directories::ProjectDirs::from("", "", "unifly").map(|dirs| dirs.cache_dir().to_owned())
+}
+
+#[cfg(target_os = "macos")]
+fn migrate_macos_cache(new_dir: &Path) {
+    use std::sync::Once;
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        let Some(old_dir) =
+            directories::ProjectDirs::from("", "", "unifly").map(|d| d.cache_dir().to_owned())
+        else {
+            return;
+        };
+        if old_dir == *new_dir || !old_dir.exists() || new_dir.exists() {
+            return;
+        }
+        if let Some(parent) = new_dir.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        if fs::rename(&old_dir, new_dir).is_ok() {
+            debug!(
+                "migrated session cache from {} to {}",
+                old_dir.display(),
+                new_dir.display()
+            );
+        }
+    });
 }
 
 /// Simple non-cryptographic hash for URL → filename mapping.

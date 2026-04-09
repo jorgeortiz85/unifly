@@ -209,11 +209,11 @@ falls back to polling when no session cookie is available.
 | OS      | Config File                                        |
 | ------- | -------------------------------------------------- |
 | Linux   | `~/.config/unifly/config.toml`                     |
-| macOS   | `~/Library/Application Support/unifly/config.toml` |
+| macOS   | `~/.config/unifly/config.toml`                     |
 | Windows | `%APPDATA%\unifly\config.toml`                     |
 
-The CLI uses `ProjectDirs` for per-OS resolution. Agents should not assume
-Linux paths on macOS or Windows.
+Unix platforms (Linux and macOS) use XDG-standard paths. Windows uses
+platform-native `%APPDATA%`. Agents should not assume Unix paths on Windows.
 
 ### Environment Variables
 
