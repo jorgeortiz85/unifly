@@ -58,8 +58,10 @@ pub enum CliError {
         code(unifi::auth_failed),
         help(
             "Verify your API key or credentials.\n\
-             For Integration API: Check Settings > Integrations on your controller.\n\
-             Run: unifly config set-password --profile {profile}"
+             For local controller API keys: check Settings > Integrations on your controller.\n\
+             For Site Manager cloud profiles: verify the API key can see the console and your UI account has UniFi Network admin access.\n\
+             For local username/password profiles: run unifly config set-password --profile {profile}\n\
+             To re-run cloud onboarding: unifly config cloud-setup"
         )
     )]
     AuthFailed { profile: String, message: String },

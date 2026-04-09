@@ -133,6 +133,7 @@ fn test_cloud_help_mentions_fleet_subcommands() {
         .stdout(
             predicate::str::contains("hosts")
                 .and(predicate::str::contains("sites"))
+                .and(predicate::str::contains("switch"))
                 .and(predicate::str::contains("devices"))
                 .and(predicate::str::contains("isp"))
                 .and(predicate::str::contains("sdwan")),
@@ -155,6 +156,19 @@ fn test_cloud_isp_query_help_mentions_sites_flag() {
         .assert()
         .success()
         .stdout(predicate::str::contains("--sites <SITES>"));
+}
+
+#[test]
+fn test_cloud_switch_help_mentions_site_identifier() {
+    unifly_cmd()
+        .args(["cloud", "switch", "--help"])
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::contains("<SITE>")
+                .and(predicate::str::contains("internal reference"))
+                .or(predicate::str::contains("UUID")),
+        );
 }
 
 #[test]

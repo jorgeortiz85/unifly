@@ -253,7 +253,7 @@ impl Controller {
                 *self.inner.site_id.lock().await = Some(site_id);
 
                 let msg =
-                    "Cloud auth mode active: Session API and WebSocket features are unavailable"
+                    "Cloud connector mode active: events watch, Wi-Fi observability, admin/session features, and live WebSocket data are unavailable"
                         .to_string();
                 self.inner.warnings.lock().await.push(msg);
             }

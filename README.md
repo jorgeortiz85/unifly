@@ -123,6 +123,7 @@ unifly wifi neighbors            # Nearby APs your radios can see
 unifly clients wifi 10.0.0.42    # Per-client Wi-Fi experience score
 unifly events watch              # Live event feed (requires Hybrid auth)
 unifly cloud hosts               # Consoles visible through Site Manager
+unifly cloud switch default      # Re-target the active cloud profile to another site
 ```
 
 ```
@@ -180,8 +181,15 @@ owner console, is visible to the API key.
 unifly config cloud-setup
 unifly cloud hosts
 unifly cloud sites
+unifly cloud switch default
 unifly --profile cloud-home networks list
 ```
+
+If the API key can see more than one console, `unifly cloud ...` still works
+without `host_id`, but controller-bound commands such as `devices list` need a
+saved `host_id` or a unique auto-resolution path. `unifly cloud switch <site>`
+updates the active cloud profile's controller-side site target using the
+connector's site names or internal references.
 
 ### Environment Variables
 
@@ -208,7 +216,7 @@ unifly --profile cloud-home networks list
 | `admin` | | Administrator management |
 | `alarms` | | Manage alarms |
 | `clients` | `cl` | Manage clients and DHCP reservations |
-| `cloud` | | Query Site Manager hosts, sites, devices, ISP metrics, and SD-WAN |
+| `cloud` | | Query Site Manager hosts, sites, devices, ISP metrics, SD-WAN, and switch the active cloud site |
 | `completions` | | Generate shell completions |
 | `config` | | Manage CLI configuration |
 | `countries` | | List available country codes |
@@ -280,6 +288,10 @@ unifly tui                   # Launch with default profile
 unifly tui -p office         # Use a specific profile
 unifly tui -k                # Accept self-signed TLS certs
 ```
+
+Cloud profiles can launch the TUI for a single connector-backed console. Fleet
+aggregation, Site Manager host switching, and Session-only live features are
+still outside the TUI surface today.
 
 <p align="center">
   <img src="docs/images/dashboard.png" alt="unifly tui dashboard" width="900">

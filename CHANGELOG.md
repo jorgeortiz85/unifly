@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   API key validation, console selection, site discovery, and profile writing
 - **`cloud` command group** for Site Manager fleet visibility: `hosts`,
   `sites`, `devices`, `isp`, and `sdwan`
+- **`cloud switch <site>`** to retarget the active cloud profile to a different
+  controller site using connector-resolved site names, internal references, or
+  UUIDs
 - **Site Manager fleet client** in `unifly-api` with `nextToken` pagination
   and cloud rate-limit handling
 - **Cloud host auto-resolution** for controller-bound Integration commands
@@ -40,6 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   defaults the controller URL to `https://api.ui.com`, and forces strict TLS
 - Config and auth error guidance now points to both `config init` for local
   controllers and `config cloud-setup` for Site Manager onboarding
+- Cloud authentication failures now mention Site Manager RBAC and console
+  access, instead of only local controller password guidance
 - Enriched `vpn servers` and `vpn tunnels` list output with subnet, port,
   protocol, peer, and IKE visibility where the controller returns those
   fields

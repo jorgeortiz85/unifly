@@ -14,6 +14,9 @@ pub enum CloudCommand {
     /// List sites across all accessible cloud consoles
     Sites(CloudSitesArgs),
 
+    /// Update the active cloud profile to target a different controller site
+    Switch(CloudSwitchArgs),
+
     /// List cloud-managed devices, optionally scoped to one or more hosts
     Devices(CloudDevicesArgs),
 
@@ -38,6 +41,12 @@ pub enum CloudHostsCommand {
 
 #[derive(Debug, Args, Default)]
 pub struct CloudSitesArgs {}
+
+#[derive(Debug, Args)]
+pub struct CloudSwitchArgs {
+    /// Site name, internal reference, or UUID exposed by the controller connector
+    pub site: String,
+}
 
 #[derive(Debug, Args)]
 pub struct CloudDevicesArgs {

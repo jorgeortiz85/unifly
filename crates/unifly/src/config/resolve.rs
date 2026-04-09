@@ -170,6 +170,7 @@ mod tests {
             yes: false,
             totp: None,
             no_cache: false,
+            demo: false,
             insecure: true,
             timeout: 30,
         }

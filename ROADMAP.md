@@ -20,7 +20,9 @@ Issues that exist in the current release and are documented so nobody wastes tim
 
 Near-term priorities for the next 1-2 releases.
 
-- **Cloud/Site Manager API support.** The `AuthCredentials::Cloud` variant exists but the transport is not yet implemented. This would enable managing controllers through Ubiquiti's cloud dashboard without direct network access.
+- **Cloud-native TUI dashboard.** The connector and fleet CLI are in place; the
+  next major step is a dedicated Site Manager dashboard with fleet rollups,
+  host selection, and ISP health in the TUI.
 - **`networks refs` for all entities.** Currently only networks have a "what depends on this?" command. Extend to WiFi, firewall zones, and other entities to make safe deletion easier.
 - **Automate plugin manifest sync.** Add a CI step to the shared release workflow that patches version fields in plugin manifests before tagging.
 - **Automate ClawHub publish.** Wire `npx clawhub publish ./skills/unifly` into the release workflow.
@@ -31,6 +33,9 @@ Near-term priorities for the next 1-2 releases.
 Features that landed since the last roadmap update.
 
 - **Wi-Fi observability commands.** `wifi neighbors`, `wifi channels`, `clients roams`, `clients wifi` — neighboring AP scans, regulatory channel data, per-client roam timelines, and Wi-Fi experience metrics.
+- **Site Manager support.** Cloud connector auth, `unifly cloud` fleet
+  commands, host auto-resolution, and `config cloud-setup` now work end-to-end
+  for connector-backed CLI/TUI use.
 - **API-key-on-Session-API discovery.** The Integration API key authenticates against Session API HTTP endpoints on UniFi OS, covering nearly every CLI command without a password. Hybrid is now only needed for WebSocket.
 - **Legacy → Session rename.** The entire codebase renamed "Legacy API" to "Session API" to reflect that the surface is not deprecated.
 - **VPN detail views.** `vpn servers get`, `vpn tunnels get`, `vpn status` (IPsec SA), `vpn health`.

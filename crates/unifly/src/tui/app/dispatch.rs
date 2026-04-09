@@ -3,8 +3,16 @@ use std::time::Duration;
 use color_eyre::eyre::Result;
 
 use super::{App, ConnectionStatus};
-use crate::tui::action::Action;
+use crate::tui::action::{Action, NotificationLevel};
 use crate::tui::screen::ScreenId;
+
+fn notification_ttl(level: NotificationLevel) -> Duration {
+    match level {
+        NotificationLevel::Info | NotificationLevel::Success => Duration::from_secs(3),
+        NotificationLevel::Warning => Duration::from_secs(8),
+        NotificationLevel::Error => Duration::from_secs(10),
+    }
+}
 
 impl App {
     /// Process a single action — update app state and propagate to components.
@@ -54,8 +62,8 @@ impl App {
             Action::Tick => {
                 self.forward_to_all_screens(action)?;
 
-                if let Some((_, created)) = &self.notification
-                    && created.elapsed() > Duration::from_secs(3)
+                if let Some((notification, created)) = &self.notification
+                    && created.elapsed() > notification_ttl(notification.level)
                 {
                     self.notification = None;
                 }

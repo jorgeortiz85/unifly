@@ -3,43 +3,46 @@ pub mod fleet_sites;
 pub mod hosts;
 pub mod isp;
 pub mod sdwan;
+pub mod switch;
 
 use std::time::Duration;
 
 use secrecy::SecretString;
+use unifly_api::integration_types::SiteResponse;
 use unifly_api::site_manager_types::Host;
-use unifly_api::{CoreError, SiteManagerClient, TlsMode, TransportConfig};
+use unifly_api::{
+    ControllerPlatform, CoreError, IntegrationClient, SiteManagerClient, TlsMode, TransportConfig,
+};
 
 use crate::cli::args::{CloudArgs, CloudCommand, GlobalOpts};
 use crate::cli::error::CliError;
 use crate::config::{self, Profile};
 
 pub async fn handle(args: CloudArgs, global: &GlobalOpts) -> Result<(), CliError> {
-    let client = build_site_manager_client(global)?;
-
     match args.command {
-        CloudCommand::Hosts(args) => hosts::handle(&client, args, global).await,
-        CloudCommand::Sites(args) => fleet_sites::handle(&client, args, global).await,
-        CloudCommand::Devices(args) => fleet_devices::handle(&client, args, global).await,
-        CloudCommand::Isp(args) => isp::handle(&client, args, global).await,
-        CloudCommand::Sdwan(args) => sdwan::handle(&client, args, global).await,
+        CloudCommand::Switch(args) => switch::handle(args, global).await,
+        command => {
+            let client = build_site_manager_client(global)?;
+            match command {
+                CloudCommand::Hosts(args) => hosts::handle(&client, args, global).await,
+                CloudCommand::Sites(args) => fleet_sites::handle(&client, args, global).await,
+                CloudCommand::Devices(args) => fleet_devices::handle(&client, args, global).await,
+                CloudCommand::Isp(args) => isp::handle(&client, args, global).await,
+                CloudCommand::Sdwan(args) => sdwan::handle(&client, args, global).await,
+                CloudCommand::Switch(_) => unreachable!("switch is handled above"),
+            }
+        }
     }
 }
 
 pub(crate) fn build_site_manager_client(
     global: &GlobalOpts,
 ) -> Result<SiteManagerClient, CliError> {
-    let cfg = config::resolve::load_config_or_default();
-    let profile_name = config::resolve::active_profile_name(global, &cfg);
-    let profile = cfg.profiles.get(&profile_name);
+    let (profile_name, profile) = active_profile(global);
 
-    let api_key = resolve_cloud_api_key(profile, &profile_name, global)?;
-    let controller = resolve_site_manager_url(profile, global);
-    let transport = TransportConfig {
-        tls: TlsMode::System,
-        timeout: Duration::from_secs(global.timeout),
-        cookie_jar: None,
-    };
+    let api_key = resolve_cloud_api_key(profile.as_ref(), &profile_name, global)?;
+    let controller = resolve_site_manager_url(profile.as_ref(), global);
+    let transport = cloud_transport(global);
 
     SiteManagerClient::from_api_key(&controller, &api_key, &transport).map_err(api_error)
 }
@@ -54,7 +57,62 @@ pub(crate) fn api_error(error: unifly_api::Error) -> CliError {
     CliError::from(CoreError::from(error))
 }
 
-fn resolve_cloud_api_key(
+pub(crate) async fn build_cloud_integration_client(
+    profile: &Profile,
+    profile_name: &str,
+    global: &GlobalOpts,
+) -> Result<IntegrationClient, CliError> {
+    let api_key = resolve_cloud_api_key(Some(profile), profile_name, global)?;
+    let controller = resolve_site_manager_url(Some(profile), global);
+    let transport = cloud_transport(global);
+    let host_id = if let Some(host_id) = &global.host_id {
+        host_id.clone()
+    } else if let Ok(host_id) = config::resolve_host_id(profile) {
+        host_id
+    } else {
+        auto_resolve_host_id(global).await?
+    };
+
+    IntegrationClient::from_api_key(
+        &format!(
+            "{}/v1/connector/consoles/{host_id}",
+            controller.trim_end_matches('/')
+        ),
+        &api_key,
+        &transport,
+        ControllerPlatform::Cloud,
+    )
+    .map_err(api_error)
+}
+
+pub(crate) async fn load_cloud_connector_sites(
+    profile: &Profile,
+    profile_name: &str,
+    global: &GlobalOpts,
+) -> Result<Vec<SiteResponse>, CliError> {
+    let integration = build_cloud_integration_client(profile, profile_name, global).await?;
+    integration
+        .paginate_all(50, |offset, limit| integration.list_sites(offset, limit))
+        .await
+        .map_err(api_error)
+}
+
+pub(crate) fn active_profile(global: &GlobalOpts) -> (String, Option<Profile>) {
+    let cfg = config::resolve::load_config_or_default();
+    let profile_name = config::resolve::active_profile_name(global, &cfg);
+    let profile = cfg.profiles.get(&profile_name).cloned();
+    (profile_name, profile)
+}
+
+fn cloud_transport(global: &GlobalOpts) -> TransportConfig {
+    TransportConfig {
+        tls: TlsMode::System,
+        timeout: Duration::from_secs(global.timeout),
+        cookie_jar: None,
+    }
+}
+
+pub(crate) fn resolve_cloud_api_key(
     profile: Option<&Profile>,
     profile_name: &str,
     global: &GlobalOpts,
@@ -70,7 +128,7 @@ fn resolve_cloud_api_key(
     config::resolve_api_key(profile, profile_name).map_err(CliError::from)
 }
 
-fn resolve_site_manager_url(profile: Option<&Profile>, global: &GlobalOpts) -> String {
+pub(crate) fn resolve_site_manager_url(profile: Option<&Profile>, global: &GlobalOpts) -> String {
     global
         .controller
         .clone()

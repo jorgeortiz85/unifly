@@ -84,7 +84,7 @@ All commands follow `unifly [global-flags] <command> <action> [args]`.
 | --------------- | ---------- | -------------------------------------------------------------------------------------------------------------- |
 | `devices`       | `dev`, `d` | list, get, adopt, remove, restart, locate, port-cycle, stats, pending, upgrade, provision, speedtest, tags     |
 | `clients`       | `cl`       | list, find, get, roams, wifi, authorize, unauthorize, block, unblock, kick, forget, reservations (`res`), set-ip, remove-ip |
-| `cloud`         |            | hosts [get], sites, devices, isp [query], sdwan [get, status]                                                  |
+| `cloud`         |            | hosts [get], sites, switch, devices, isp [query], sdwan [get, status]                                          |
 | `networks`      | `net`, `n` | list, get, create, update, delete, refs                                                                        |
 | `wifi`          | `w`        | list, get, neighbors, channels, create, update, delete                                                        |
 | `firewall`      | `fw`       | policies {list, get, create, update, patch, delete, reorder}, zones {list, get, create, update, delete}        |

@@ -535,6 +535,7 @@ unifly api <path> [-m get|post|put|patch|delete] [-d '<json-body>']
 unifly cloud hosts
 unifly cloud hosts get <id>
 unifly cloud sites
+unifly cloud switch <site>
 unifly cloud devices [--host <id>]...
 unifly cloud isp [--type 5m|1h]
 unifly cloud isp query --sites <site-1,site-2>
@@ -551,6 +552,9 @@ unifly cloud sdwan status <id>
   accessible consoles.
 - `cloud isp query --sites` is comma-delimited and returns a warning if Site
   Manager responds with `partialSuccess`.
+- `cloud switch <site>` updates the active cloud profile's `site` field using
+  the controller connector's site inventory. It accepts a site name, internal
+  reference, or UUID, and stores the controller-side internal reference.
 - `cloud` commands only need a Site Manager API key. They do **not** need
   `host_id`.
 - Regular commands such as `networks list` or `firewall policies list` still
