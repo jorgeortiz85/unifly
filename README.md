@@ -294,7 +294,7 @@ aggregation, Site Manager host switching, and Session-only live features are
 still outside the TUI surface today.
 
 <p align="center">
-  <img src="docs/images/dashboard.png" alt="unifly tui dashboard" width="900">
+  <img src="docs/static/img/dashboard.png" alt="unifly tui dashboard" width="900">
 </p>
 
 | Screen         | Highlights                                                                                       |
@@ -311,8 +311,8 @@ still outside the TUI surface today.
 | **Onboarding** | First-run setup wizard                                                                           |
 
 <p align="center">
-  <img src="docs/images/devices.png" alt="unifly tui devices" width="900">
-  <img src="docs/images/clients.png" alt="unifly tui clients" width="900">
+  <img src="docs/static/img/devices.png" alt="unifly tui devices" width="900">
+  <img src="docs/static/img/clients.png" alt="unifly tui clients" width="900">
 </p>
 
 Full keybinding reference and screen details in the [TUI documentation](https://hyperb1iss.github.io/unifly/reference/tui).
