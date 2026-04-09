@@ -1,0 +1,203 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Top Navigation
+// ─────────────────────────────────────────────────────────────────────────────
+
+.site-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: $nav-height;
+  z-index: $z-nav;
+  background: var(--nav-bg);
+  @include glass(12px, 1.15);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.nav-container {
+  max-width: $bp-xl;
+  height: 100%;
+  margin: 0 auto;
+  padding: 0 $sp-6;
+  display: flex;
+  align-items: center;
+  gap: $sp-6;
+}
+
+// ── Brand ────────────────────────────────────────────────────────────────────
+
+.nav-title {
+  font-family: $font-mono;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  transition: opacity $duration-fast $ease-out;
+
+  &:hover {
+    opacity: 0.85;
+
+    .nav-title__uni,
+    .nav-title__fly {
+      filter: unquote('brightness(1.15)');
+    }
+  }
+}
+
+.nav-title__uni {
+  color: var(--c-cyan);
+  transition: filter $duration-normal $ease-out;
+}
+
+.nav-title__fly {
+  color: var(--c-purple);
+  transition: filter $duration-normal $ease-out;
+}
+
+// ── Nav links ────────────────────────────────────────────────────────────────
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: $sp-1;
+  margin-left: $sp-4;
+  list-style: none;
+  padding: 0;
+}
+
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  padding: $sp-2 $sp-3;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-radius: $radius-md;
+  transition: color $duration-fast $ease-out, background $duration-fast $ease-out;
+
+  &:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+  }
+
+  &--active {
+    color: var(--c-purple);
+    background: rgba(225, 53, 255, 0.08);
+
+    [data-theme="light"] & {
+      background: rgba(126, 43, 213, 0.08);
+    }
+  }
+}
+
+// ── Actions (right side) ─────────────────────────────────────────────────────
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  margin-left: auto;
+}
+
+// Shared button reset for action buttons
+%nav-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: $radius-md;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color $duration-fast $ease-out, background $duration-fast $ease-out;
+
+  &:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+  }
+
+  &:focus-visible {
+    @include focus-ring;
+  }
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+.theme-toggle {
+  @extend %nav-action-btn;
+}
+
+.search-trigger {
+  @extend %nav-action-btn;
+
+  .search-trigger__kbd {
+    display: none;
+    font-family: $font-mono;
+    font-size: $font-size-xs;
+    padding: 1px $sp-1;
+    border: 1px solid var(--border-default);
+    border-radius: $radius-sm;
+    color: var(--text-muted);
+    margin-left: $sp-2;
+    line-height: 1;
+
+    @media (min-width: $bp-md) {
+      display: inline;
+    }
+  }
+
+  @media (min-width: $bp-md) {
+    width: auto;
+    padding: $sp-2 $sp-3;
+    gap: $sp-2;
+  }
+}
+
+.nav-github {
+  @extend %nav-action-btn;
+  text-decoration: none;
+}
+
+// ── Hamburger ────────────────────────────────────────────────────────────────
+
+.nav-hamburger {
+  @extend %nav-action-btn;
+  display: none;
+
+  .hamburger-line {
+    display: block;
+    width: 18px;
+    height: 2px;
+    background: currentColor;
+    border-radius: $radius-full;
+    transition: transform $duration-normal $ease-out, opacity $duration-fast $ease-out;
+
+    & + .hamburger-line {
+      margin-top: 4px;
+    }
+  }
+
+  &[aria-expanded="true"] {
+    .hamburger-line:nth-child(1) {
+      transform: rotate(45deg) translate(4px, 4px);
+    }
+
+    .hamburger-line:nth-child(2) {
+      opacity: 0;
+    }
+
+    .hamburger-line:nth-child(3) {
+      transform: rotate(-45deg) translate(4px, -4px);
+    }
+  }
+}

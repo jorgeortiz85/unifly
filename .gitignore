@@ -27,6 +27,7 @@ RESEARCH*.md
 research/
 specs/
 docs/plans/
+docs/public/
 
 # ── Docs build ──
 docs/node_modules/

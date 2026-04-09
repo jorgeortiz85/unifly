@@ -1,0 +1,447 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Document Content Styling
+// ─────────────────────────────────────────────────────────────────────────────
+
+.doc {
+  min-height: 60vh;
+}
+
+.doc__header {
+  margin-bottom: $sp-8;
+  padding-bottom: $sp-6;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.doc__title {
+  font-size: $font-size-3xl;
+  font-weight: $font-weight-bold;
+  line-height: $line-height-tight;
+  @include gradient-text;
+  margin-bottom: $sp-3;
+}
+
+.doc__description {
+  font-size: $font-size-md;
+  color: var(--text-muted);
+  line-height: $line-height-loose;
+}
+
+// ── Headings ─────────────────────────────────────────────────────────────────
+
+.doc h1 {
+  font-size: $font-size-3xl;
+  font-weight: $font-weight-bold;
+  line-height: $line-height-tight;
+  @include gradient-text;
+  margin: $sp-12 0 $sp-4;
+
+  &:first-child {
+    margin-top: 0;
+  }
+}
+
+.doc h2 {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  line-height: $line-height-tight;
+  color: var(--text-primary);
+  margin: $sp-10 0 $sp-4;
+  padding-bottom: $sp-2;
+  border-bottom: 1px solid var(--border-subtle);
+
+  &::before {
+    content: '\25C6';
+    color: var(--c-purple);
+    margin-right: $sp-2;
+    font-size: 0.65em;
+    vertical-align: middle;
+  }
+}
+
+.doc h3 {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: var(--text-primary);
+  margin: $sp-8 0 $sp-3;
+}
+
+.doc h4 {
+  font-size: $font-size-base;
+  font-weight: $font-weight-semibold;
+  color: var(--text-secondary);
+  margin: $sp-6 0 $sp-2;
+}
+
+.doc h5,
+.doc h6 {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: $sp-5 0 $sp-2;
+}
+
+// Anchor links on headings
+.doc h2,
+.doc h3,
+.doc h4 {
+  &:hover .zola-anchor,
+  &:hover .anchor {
+    opacity: 1;
+  }
+}
+
+.zola-anchor,
+.anchor {
+  color: var(--c-cyan);
+  text-decoration: none;
+  opacity: 0;
+  margin-right: $sp-2;
+  margin-left: -1.2em;
+  font-weight: $font-weight-normal;
+  transition: opacity $duration-fast $ease-out;
+
+  &:hover {
+    color: var(--c-purple);
+  }
+}
+
+// ── Paragraphs & Inline ──────────────────────────────────────────────────────
+
+.doc p {
+  margin: $sp-4 0;
+  color: var(--text-secondary);
+  line-height: $line-height-normal;
+}
+
+.doc strong {
+  font-weight: $font-weight-semibold;
+  color: var(--text-primary);
+}
+
+.doc em {
+  font-style: italic;
+}
+
+.doc hr {
+  border: none;
+  height: 1px;
+  background: var(--border-subtle);
+  margin: $sp-8 0;
+}
+
+// ── Lists ────────────────────────────────────────────────────────────────────
+
+.doc ul,
+.doc ol {
+  margin: $sp-4 0;
+  color: var(--text-secondary);
+
+  li {
+    margin: $sp-2 0;
+    line-height: $line-height-normal;
+
+    &::marker {
+      color: var(--c-purple);
+    }
+  }
+
+  ul, ol {
+    margin: $sp-1 0;
+  }
+}
+
+// ── Inline code ──────────────────────────────────────────────────────────────
+
+.doc code:not(pre code) {
+  font-family: $font-mono;
+  font-size: 0.875em;
+  padding: 0.15em 0.4em;
+  background: var(--inline-code-bg);
+  color: var(--c-coral);
+  border-radius: $radius-sm;
+  word-break: break-word;
+}
+
+// ── Code blocks ──────────────────────────────────────────────────────────────
+
+.doc pre {
+  margin: $sp-6 0;
+  padding: $sp-4 $sp-5;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: $radius-lg;
+  overflow-x: auto;
+  font-family: $font-mono;
+  font-size: $font-size-sm;
+  line-height: $line-height-loose;
+
+  code {
+    background: none;
+    padding: 0;
+    color: var(--code-text);
+    border-radius: 0;
+    font-size: inherit;
+  }
+
+  // Line numbers
+  table {
+    border: none;
+    margin: 0;
+
+    td {
+      padding: 0;
+      border: none;
+      background: transparent;
+
+      &:first-child {
+        padding-right: $sp-4;
+        user-select: none;
+        color: var(--text-muted);
+        opacity: 0.4;
+        text-align: right;
+      }
+    }
+
+    tr:hover td:first-child {
+      opacity: 0.7;
+    }
+  }
+}
+
+// ── Blockquotes ──────────────────────────────────────────────────────────────
+
+.doc blockquote {
+  margin: $sp-6 0;
+  padding: $sp-4 $sp-5;
+  border-left: 3px solid var(--c-purple);
+  background: var(--bg-elevated);
+  border-radius: 0 $radius-md $radius-md 0;
+  color: var(--text-secondary);
+
+  p {
+    margin: $sp-2 0;
+
+    &:first-child { margin-top: 0; }
+    &:last-child  { margin-bottom: 0; }
+  }
+}
+
+// ── Tables ───────────────────────────────────────────────────────────────────
+
+.doc table {
+  width: 100%;
+  margin: $sp-6 0;
+  border-collapse: collapse;
+  font-size: $font-size-sm;
+  overflow-x: auto;
+  display: block;
+}
+
+.doc thead {
+  background: var(--table-header-bg);
+}
+
+.doc th {
+  font-weight: $font-weight-semibold;
+  color: var(--c-cyan);
+  text-align: left;
+  padding: $sp-3 $sp-4;
+  border-bottom: 2px solid var(--c-purple);
+  white-space: nowrap;
+}
+
+.doc td {
+  padding: $sp-3 $sp-4;
+  border-bottom: 1px solid var(--table-border);
+  color: var(--text-secondary);
+  vertical-align: top;
+}
+
+.doc tbody tr {
+  transition: background $duration-fast $ease-out;
+
+  &:hover {
+    background: var(--table-row-hover);
+  }
+}
+
+// ── Images ───────────────────────────────────────────────────────────────────
+
+.doc img {
+  border-radius: $radius-lg;
+  border: 1px solid var(--border-subtle);
+  margin: $sp-6 auto;
+}
+
+.doc figure {
+  margin: $sp-6 0;
+  text-align: center;
+
+  figcaption {
+    margin-top: $sp-2;
+    font-size: $font-size-sm;
+    color: var(--text-muted);
+    font-style: italic;
+  }
+}
+
+// ── Callouts (shortcodes) ────────────────────────────────────────────────────
+
+.callout {
+  margin: $sp-6 0;
+  padding: $sp-4 $sp-5;
+  border-left: 3px solid var(--callout-tip-border);
+  border-radius: 0 $radius-md $radius-md 0;
+  background: var(--callout-tip-bg);
+}
+
+.callout__title {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  font-weight: $font-weight-semibold;
+  font-size: $font-size-sm;
+  margin-bottom: $sp-2;
+  color: var(--callout-tip-icon);
+
+  &::before {
+    font-size: $font-size-base;
+  }
+}
+
+.callout__body {
+  color: var(--text-secondary);
+  font-size: $font-size-sm;
+  line-height: $line-height-normal;
+
+  p {
+    margin: $sp-2 0;
+
+    &:first-child { margin-top: 0; }
+    &:last-child  { margin-bottom: 0; }
+  }
+
+  code:not(pre code) {
+    font-size: 0.85em;
+  }
+}
+
+.callout--tip {
+  border-left-color: var(--callout-tip-border);
+  background: var(--callout-tip-bg);
+
+  .callout__title {
+    color: var(--callout-tip-icon);
+    &::before { content: '💡'; }
+  }
+
+  &:not(:has(.callout__title)) .callout__body::before {
+    content: '💡 ';
+  }
+}
+
+.callout--warning {
+  border-left-color: var(--callout-warning-border);
+  background: var(--callout-warning-bg);
+
+  .callout__title {
+    color: var(--callout-warning-icon);
+    &::before { content: '⚠️'; }
+  }
+
+  &:not(:has(.callout__title)) .callout__body::before {
+    content: '⚠️ ';
+  }
+}
+
+.callout--danger {
+  border-left-color: var(--callout-danger-border);
+  background: var(--callout-danger-bg);
+
+  .callout__title {
+    color: var(--callout-danger-icon);
+    &::before { content: '🚨'; }
+  }
+
+  &:not(:has(.callout__title)) .callout__body::before {
+    content: '🚨 ';
+  }
+}
+
+// ── Mermaid Diagrams ────────────────────────────────────────────────────────
+
+.mermaid-container {
+  margin: $sp-6 0;
+  padding: $sp-5;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: $radius-lg;
+  overflow-x: auto;
+  text-align: center;
+
+  .mermaid {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    overflow: visible;
+    font-family: $font-mono;
+
+    svg {
+      max-width: 100%;
+      height: auto;
+    }
+  }
+}
+
+// ── Pagination ───────────────────────────────────────────────────────────────
+
+.doc__pagination {
+  display: flex;
+  justify-content: space-between;
+  gap: $sp-4;
+  margin-top: $sp-12;
+  padding-top: $sp-6;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.pagination-link {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-1;
+  padding: $sp-3 $sp-4;
+  border: 1px solid var(--border-subtle);
+  border-radius: $radius-lg;
+  text-decoration: none;
+  min-width: 0;
+  max-width: 48%;
+  transition: border-color $duration-fast $ease-out,
+              background $duration-fast $ease-out;
+
+  &:hover {
+    border-color: var(--c-purple);
+    background: var(--bg-hover);
+  }
+
+  &--next {
+    text-align: right;
+    margin-left: auto;
+  }
+}
+
+.pagination-link__label {
+  font-size: $font-size-xs;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.pagination-link__title {
+  font-weight: $font-weight-medium;
+  color: var(--c-purple);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

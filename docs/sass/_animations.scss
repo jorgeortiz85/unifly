@@ -1,0 +1,221 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Animations & Transitions
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Fade in on load
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Subtle shimmer for gradient elements
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+// Pulse glow for active elements
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(225, 53, 255, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(225, 53, 255, 0.3);
+  }
+}
+
+// ── Page entry ───────────────────────────────────────────────────────────────
+
+.doc {
+  animation: fade-in $duration-slow $ease-out;
+}
+
+.hero {
+  animation: fade-in-up 600ms $ease-out;
+}
+
+.hero__title {
+  animation: fade-in-up 600ms $ease-out 100ms both;
+}
+
+.hero__tagline {
+  animation: fade-in-up 600ms $ease-out 200ms both;
+}
+
+.hero__sub {
+  animation: fade-in-up 600ms $ease-out 280ms both;
+}
+
+.hero__actions {
+  animation: fade-in-up 600ms $ease-out 360ms both;
+}
+
+// Staggered feature card entry
+.feature-card {
+  animation: fade-in-up 500ms $ease-out both;
+
+  @for $i from 1 through 8 {
+    &:nth-child(#{$i}) {
+      animation-delay: #{150 + ($i * 80)}ms;
+    }
+  }
+}
+
+// ── Hover glow effect on cards ───────────────────────────────────────────────
+
+.feature-card:hover {
+  box-shadow:
+    0 8px 32px rgba(225, 53, 255, 0.12),
+    0 0 0 1px rgba(225, 53, 255, 0.1);
+
+  [data-theme="light"] & {
+    box-shadow:
+      0 8px 32px rgba(126, 43, 213, 0.1),
+      0 0 0 1px rgba(126, 43, 213, 0.08);
+  }
+}
+
+// ── Nav title gradient hover ─────────────────────────────────────────────────
+
+.nav-title {
+  &:hover .nav-title__uni {
+    text-shadow: 0 0 12px rgba(128, 255, 234, 0.4);
+  }
+
+  &:hover .nav-title__fly {
+    text-shadow: 0 0 12px rgba(225, 53, 255, 0.4);
+  }
+
+  [data-theme="light"] &:hover .nav-title__uni {
+    text-shadow: 0 0 12px rgba(0, 127, 142, 0.3);
+  }
+
+  [data-theme="light"] &:hover .nav-title__fly {
+    text-shadow: 0 0 12px rgba(126, 43, 213, 0.3);
+  }
+}
+
+// ── Sidebar link slide-in indicator ──────────────────────────────────────────
+
+.sidebar-link--active {
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 25%;
+    height: 50%;
+    width: 2px;
+    background: var(--c-purple);
+    border-radius: $radius-full;
+    animation: fade-in $duration-fast $ease-out;
+  }
+}
+
+// ── TOC link active pulse ────────────────────────────────────────────────────
+
+.toc-link--active {
+  transition: color $duration-fast $ease-out, border-color $duration-fast $ease-out;
+}
+
+// ── Button hover ripple ──────────────────────────────────────────────────────
+
+.btn--primary {
+  background-size: 200% 200%;
+
+  &:hover {
+    animation: gradient-shift 3s ease infinite;
+  }
+}
+
+// ── Code block hover border ──────────────────────────────────────────────────
+
+.doc pre {
+  transition: border-color $duration-normal $ease-out;
+
+  &:hover {
+    border-color: var(--border-strong);
+  }
+}
+
+// ── Blockquote accent pulse ──────────────────────────────────────────────────
+
+.doc blockquote {
+  transition: border-color $duration-normal $ease-out;
+
+  &:hover {
+    border-left-color: var(--c-cyan);
+  }
+}
+
+// ── Section page card shimmer ────────────────────────────────────────────────
+
+.section-page-card {
+  animation: fade-in $duration-slow $ease-out both;
+
+  @for $i from 1 through 12 {
+    &:nth-child(#{$i}) {
+      animation-delay: #{50 + ($i * 60)}ms;
+    }
+  }
+}
+
+// ── Search modal transitions ─────────────────────────────────────────────────
+
+.search-result {
+  transition: background $duration-fast $ease-out, transform $duration-fast $ease-out;
+
+  &:hover {
+    transform: translateX(2px);
+  }
+}
+
+// ── Heading anchor fade ──────────────────────────────────────────────────────
+
+.zola-anchor,
+.anchor {
+  transition: opacity $duration-fast $ease-out, color $duration-fast $ease-out;
+}
+
+// ── Theme toggle rotation ────────────────────────────────────────────────────
+
+.theme-toggle {
+  transition: color $duration-fast $ease-out, background $duration-fast $ease-out,
+              transform $duration-normal $ease-spring;
+
+  &:active {
+    transform: rotate(30deg) scale(0.9);
+  }
+}
+
+// ── Footer gradient shimmer ──────────────────────────────────────────────────
+
+.footer-gradient {
+  background-size: 200% 100%;
+  animation: gradient-shift 8s ease infinite;
+}

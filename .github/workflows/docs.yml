@@ -8,11 +8,40 @@ on:
       - ".github/workflows/docs.yml"
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
 jobs:
-  docs:
-    uses: hyperb1iss/shared-workflows/.github/workflows/docs-deploy.yml@main
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    secrets: inherit
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    env:
+      ZOLA_VERSION: "0.20.0"
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Zola
+        run: |
+          curl -fsSL "https://github.com/getzola/zola/releases/download/v${ZOLA_VERSION}/zola-v${ZOLA_VERSION}-x86_64-unknown-linux-gnu.tar.gz" \
+            | tar xz -C /usr/local/bin
+
+      - name: Build site
+        working-directory: docs
+        run: zola build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/public
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

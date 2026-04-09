@@ -1,0 +1,27 @@
+title = "Unifly"
+description = "CLI + TUI for UniFi Network Controllers"
+base_url = "https://hyperb1iss.github.io/unifly"
+compile_sass = true
+build_search_index = true
+generate_feeds = false
+minify_html = true
+
+[search]
+include_title = true
+include_description = true
+include_path = true
+include_content = true
+
+[markdown]
+smart_punctuation = true
+bottom_footnotes = true
+insert_anchor_links = "left"
+
+[markdown.highlighting]
+enabled = true
+theme = "one-dark-pro"
+
+[extra]
+github_url = "https://github.com/hyperb1iss/unifly"
+license = "Apache-2.0"
+author = "Stefanie Jane"
