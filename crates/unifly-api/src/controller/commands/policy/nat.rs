@@ -1,3 +1,4 @@
+use crate::command::requests::UpdateNatPolicyRequest;
 use serde_json::json;
 use tracing::debug;
 
@@ -86,6 +87,11 @@ pub(super) async fn route(ctx: &CommandContext, cmd: Command) -> Result<CommandR
             session.create_nat_rule(&body).await?;
             Ok(CommandResult::Ok)
         }
+        Command::UpdateNatPolicy { id, update } => {
+            let session = require_session(session)?;
+            apply_nat_update(session, &id, update).await?;
+            Ok(CommandResult::Ok)
+        }
         Command::DeleteNatPolicy { id } => {
             let session = require_session(session)?;
             session.delete_nat_rule(&id.to_string()).await?;
@@ -93,6 +99,125 @@ pub(super) async fn route(ctx: &CommandContext, cmd: Command) -> Result<CommandR
         }
         _ => unreachable!("nat::route received non-NAT command"),
     }
+}
+
+/// Fetch the existing NAT rule, merge updated fields, and PUT it back.
+async fn apply_nat_update(
+    session: &SessionClient,
+    id: &EntityId,
+    update: UpdateNatPolicyRequest,
+) -> Result<(), CoreError> {
+    let rule_id = id.to_string();
+
+    let rules = session.list_nat_rules().await.map_err(CoreError::from)?;
+    let existing = rules
+        .iter()
+        .find(|r| r.get("_id").and_then(serde_json::Value::as_str) == Some(&rule_id))
+        .ok_or_else(|| CoreError::NotFound {
+            entity_type: "NAT rule".into(),
+            identifier: rule_id.clone(),
+        })?
+        .clone();
+
+    let mut body = existing;
+
+    if let Some(name) = &update.name {
+        body["description"] = json!(name);
+    }
+    if let Some(enabled) = update.enabled {
+        body["enabled"] = json!(enabled);
+    }
+    if let Some(desc) = &update.description {
+        body["description"] = json!(desc);
+    }
+    if let Some(ref nat_type) = update.nat_type {
+        let lowered = nat_type.to_lowercase();
+        let mapped = match lowered.as_str() {
+            "masquerade" => "MASQUERADE",
+            "source" | "source_nat" | "snat" => "SNAT",
+            _ => "DNAT",
+        };
+        // When changing direction (DNAT <-> SNAT/MASQUERADE), clear the
+        // stale interface key so the controller doesn't receive both
+        // in_interface and out_interface simultaneously.
+        let old_type = body["type"].as_str().unwrap_or("");
+        let was_dnat = old_type == "DNAT";
+        let is_dnat = mapped == "DNAT";
+        if was_dnat != is_dnat {
+            let stale_key = if was_dnat {
+                "in_interface"
+            } else {
+                "out_interface"
+            };
+            if let Some(m) = body.as_object_mut() {
+                m.remove(stale_key);
+            }
+        }
+        body["type"] = json!(mapped);
+    }
+    if let Some(ref protocol) = update.protocol {
+        let lowered = protocol.to_lowercase();
+        let mapped = match lowered.as_str() {
+            "tcp" => "tcp",
+            "udp" => "udp",
+            "tcp_udp" | "tcp_and_udp" => "tcp_udp",
+            _ => "all",
+        };
+        body["protocol"] = json!(mapped);
+    }
+    if let Some(iface) = &update.interface_id {
+        let session_id = resolve_interface_id(session, iface).await?;
+        let nat_type_str = body["type"].as_str().unwrap_or("DNAT");
+        let key = if nat_type_str == "DNAT" {
+            "in_interface"
+        } else {
+            "out_interface"
+        };
+        body[key] = json!(session_id);
+    }
+    if let Some(addr) = &update.translated_address {
+        body["ip_address"] = json!(addr);
+    }
+    if let Some(port) = &update.translated_port {
+        body["port"] = json!(port);
+    }
+
+    if update.src_address.is_some() || update.src_port.is_some() {
+        body["source_filter"] = merge_filter(
+            body.get("source_filter"),
+            update.src_address.as_deref(),
+            update.src_port.as_deref(),
+        );
+    }
+    if update.dst_address.is_some() || update.dst_port.is_some() {
+        body["destination_filter"] = merge_filter(
+            body.get("destination_filter"),
+            update.dst_address.as_deref(),
+            update.dst_port.as_deref(),
+        );
+    }
+
+    session
+        .update_nat_rule(&rule_id, &body)
+        .await
+        .map_err(CoreError::from)?;
+    Ok(())
+}
+
+/// Merge new address/port values with an existing filter, preserving fields
+/// that were not explicitly supplied in the update.
+fn merge_filter(
+    existing: Option<&serde_json::Value>,
+    new_addr: Option<&str>,
+    new_port: Option<&str>,
+) -> serde_json::Value {
+    let existing_addr = existing
+        .and_then(|f| f.get("address"))
+        .and_then(serde_json::Value::as_str);
+    let existing_port = existing
+        .and_then(|f| f.get("port"))
+        .and_then(serde_json::Value::as_str);
+    build_filter(new_addr.or(existing_addr), new_port.or(existing_port))
 }
 
 /// Build a v2 NAT filter object (source_filter or destination_filter).
