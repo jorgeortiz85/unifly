@@ -122,6 +122,43 @@ pub(super) async fn handle(args: ConfigArgs, global: &GlobalOpts) -> Result<(), 
             Ok(())
         }
 
+        ConfigCommand::Theme { name } => {
+            let mut cfg = crate::config::load_config_or_default();
+            let current = cfg.defaults.theme.as_deref().unwrap_or("silkcircuit-neon");
+
+            if let Some(name) = name {
+                if opaline::load_by_name(&name).is_none() {
+                    let available: Vec<_> = opaline::list_available_themes()
+                        .iter()
+                        .map(|t| t.name.clone())
+                        .collect();
+                    return Err(CliError::Validation {
+                        field: "theme".into(),
+                        reason: format!(
+                            "unknown theme '{name}'. available: {}",
+                            available.join(", ")
+                        ),
+                    });
+                }
+
+                cfg.defaults.theme = Some(name.clone());
+                save_config(&cfg)?;
+
+                if !global.quiet {
+                    eprintln!("Theme set to {name}");
+                }
+            } else {
+                eprintln!("Current theme: {current}");
+                eprintln!();
+                eprintln!("Available themes:");
+                for info in opaline::list_available_themes() {
+                    let marker = if info.name == current { " *" } else { "" };
+                    eprintln!("  {:<24} {}{marker}", info.name, info.description);
+                }
+            }
+            Ok(())
+        }
+
         ConfigCommand::SetPassword {
             profile,
             profile_flag,

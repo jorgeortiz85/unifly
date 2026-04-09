@@ -35,6 +35,12 @@ pub enum ConfigCommand {
         name: String,
     },
 
+    /// Show or set the color theme (shared by CLI and TUI)
+    Theme {
+        /// Theme name to activate (omit to show current + list available)
+        name: Option<String>,
+    },
+
     /// Store a password in the system keyring
     SetPassword {
         /// Profile name
