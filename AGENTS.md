@@ -482,13 +482,10 @@ Releases use the shared workflow at
 
 ### What Is NOT Automated Yet
 
-- ClawHub skill publish (`npx clawhub publish ./skills/unifly`). This is
-  on the CI roadmap. For now, republish manually after each release.
 - Plugin manifest version sync. **`.claude-plugin/plugin.json`,
   `.claude-plugin/marketplace.json`, and `.cursor-plugin/plugin.json` must
   be updated by hand** to match the new workspace version. They have
   drifted before and caused a ClawHub publish at the wrong version.
-- AUR package update (`just aur-update <version>` must be run by hand).
 
 When bumping the version, always update the plugin manifests in the same
 commit.

@@ -190,6 +190,29 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           npx -y clawhub@0.9.0 sync --root ./skills --all --changelog "Release v${VERSION}"
 
+  # ── Update AUR Package ─────────────────────────────────────────
+  update-aur:
+    name: Update AUR Package
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Update pkgver
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          sed -i "s/^pkgver=.*/pkgver=${VERSION}/" aur/PKGBUILD
+      - name: Publish to AUR
+        uses: KSXGitHub/github-actions-deploy-aur@v4.1.2
+        with:
+          pkgname: unifly-bin
+          pkgbuild: aur/PKGBUILD
+          updpkgsums: true
+          commit_username: Stefanie Jane
+          commit_email: stef@hyperbliss.tech
+          commit_message: "Update to ${{ github.ref_name }}"
+          ssh_private_key: ${{ secrets.AUR_SSH_KEY }}
+
   # ── Update Homebrew Tap ───────────────────────────────────────
   update-homebrew:
     name: Update Homebrew Tap
