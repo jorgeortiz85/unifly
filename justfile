@@ -119,9 +119,9 @@ tui *args:
 doc:
     cargo doc --workspace --no-deps --open
 
-# Build the Zola docs site
+# Build the Zola docs site + generate llms.txt
 docs-build:
-    cd docs && zola build
+    cd docs && zola build && ./scripts/gen-llms-txt.sh
 
 # Serve the docs site with live reload
 docs-serve:
