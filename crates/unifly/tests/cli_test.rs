@@ -284,7 +284,31 @@ fn test_config_profiles_no_config_mentions_unifly() {
         .args(["config", "profiles"])
         .assert()
         .success()
-        .stderr(predicate::str::contains("unifly config init"));
+        .stderr(
+            predicate::str::contains("unifly config init")
+                .and(predicate::str::contains("unifly config cloud-setup")),
+        );
+}
+
+#[test]
+fn test_config_help_mentions_cloud_setup() {
+    unifly_cmd()
+        .args(["config", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("cloud-setup"));
+}
+
+#[test]
+fn test_config_cloud_setup_help_mentions_site_manager() {
+    unifly_cmd()
+        .args(["config", "cloud-setup", "--help"])
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::contains("Site Manager")
+                .or(predicate::str::contains("cloud Site Manager")),
+        );
 }
 
 #[test]

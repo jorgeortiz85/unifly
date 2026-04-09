@@ -68,7 +68,8 @@ pub enum CliError {
     #[diagnostic(
         code(unifi::no_credentials),
         help(
-            "Configure credentials with: unifly config init\n\
+            "Configure credentials with: unifly config init (local)\n\
+             Or: unifly config cloud-setup (Site Manager)\n\
              Or set UNIFI_API_KEY environment variable."
         )
     )]
@@ -108,7 +109,7 @@ pub enum CliError {
         code(unifi::unsupported),
         help(
             "This command requires {required}.\n\
-             Configure the appropriate credentials with: unifly config init"
+             Configure the appropriate credentials with: unifly config init or unifly config cloud-setup"
         )
     )]
     Unsupported { operation: String, required: String },
@@ -131,7 +132,7 @@ pub enum CliError {
         code(unifi::profile_not_found),
         help(
             "Available profiles: {available}\n\
-             Create one with: unifly config init"
+             Create one with: unifly config init or unifly config cloud-setup"
         )
     )]
     ProfileNotFound { name: String, available: String },
@@ -140,7 +141,8 @@ pub enum CliError {
     #[diagnostic(
         code(unifi::no_config),
         help(
-            "Create one with: unifly config init\n\
+            "Create one with: unifly config init (local)\n\
+             Or: unifly config cloud-setup (Site Manager)\n\
              Expected at: {path}"
         )
     )]

@@ -3,15 +3,16 @@ use crate::cli::error::CliError;
 use crate::cli::output;
 use crate::config::resolve;
 
-use super::interactive::{run_init, store_profile_secrets};
+use super::interactive::{run_cloud_setup, run_init, store_profile_secrets};
 use super::support::{
     empty_profile, format_config_redacted, profile_not_found, resolve_set_target, save_config,
 };
 
 #[allow(clippy::too_many_lines)]
-pub(super) fn handle(args: ConfigArgs, global: &GlobalOpts) -> Result<(), CliError> {
+pub(super) async fn handle(args: ConfigArgs, global: &GlobalOpts) -> Result<(), CliError> {
     match args.command {
-        ConfigCommand::Init => run_init(),
+        ConfigCommand::Init => run_init(global),
+        ConfigCommand::CloudSetup => run_cloud_setup(global).await,
 
         ConfigCommand::Show => {
             let cfg = crate::config::load_config_or_default();
@@ -93,7 +94,9 @@ pub(super) fn handle(args: ConfigArgs, global: &GlobalOpts) -> Result<(), CliErr
             let default = cfg.default_profile.as_deref().unwrap_or("default");
 
             if cfg.profiles.is_empty() {
-                eprintln!("No profiles configured. Run: unifly config init");
+                eprintln!(
+                    "No profiles configured. Run: unifly config init (local) or unifly config cloud-setup (Site Manager)"
+                );
                 return Ok(());
             }
 

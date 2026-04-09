@@ -3,7 +3,7 @@
 use clap::Parser;
 use tracing_subscriber::EnvFilter;
 
-use unifly::cli::args::{Cli, Command, EventsCommand, GlobalOpts};
+use unifly::cli::args::{Cli, Command, ConfigCommand, EventsCommand, GlobalOpts};
 use unifly::cli::commands;
 use unifly::cli::error::CliError;
 use unifly::config::resolve;
@@ -47,7 +47,12 @@ async fn run(cli: Cli) -> Result<(), CliError> {
             commands::cloud::handle(args, &cli.global).await
         }
 
-        Command::Config(args) => commands::config_cmd::handle(args, &cli.global),
+        Command::Config(args) => {
+            if matches!(&args.command, ConfigCommand::CloudSetup) {
+                init_tracing(cli.global.verbose);
+            }
+            commands::config_cmd::handle(args, &cli.global).await
+        }
 
         Command::Completions(args) => {
             use clap::CommandFactory;
@@ -202,7 +207,9 @@ async fn build_controller_config(
 
 #[cfg(test)]
 mod tests {
-    use super::{command_needs_initial_refresh, command_uses_websocket, controller_points_to_cloud};
+    use super::{
+        command_needs_initial_refresh, command_uses_websocket, controller_points_to_cloud,
+    };
     use unifly::cli::args::{
         BackupArgs, BackupCommand, Command, EventsArgs, EventsCommand, SystemArgs, SystemCommand,
     };
