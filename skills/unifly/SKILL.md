@@ -52,8 +52,9 @@ command -v unifly >/dev/null 2>&1 && unifly --version || echo "unifly not instal
 
 If unifly is not installed, prefer `brew install hyperb1iss/tap/unifly` on
 macOS or `cargo install --git https://github.com/hyperb1iss/unifly.git unifly`
-elsewhere. After install, run `unifly config init` for the interactive
-wizard. See `examples/config.toml` for manual configuration.
+elsewhere. After install, run `unifly config init` for a local controller or
+`unifly config cloud-setup` for Site Manager. See `examples/config.toml` for
+manual configuration.
 
 ## Authentication Modes
 
@@ -106,7 +107,7 @@ All commands follow `unifly [global-flags] <command> <action> [args]`.
 | `radius`        |            | profiles                                                                                                       |
 | `countries`     |            | _(no subcommands)_                                                                                             |
 | `api`           |            | Raw API passthrough (GET/POST/PUT/PATCH/DELETE any path)                                                       |
-| `config`        |            | init, show, set, profiles, use, set-password                                                                   |
+| `config`        |            | init, cloud-setup, show, set, profiles, use, set-password                                                      |
 | `tui`           |            | _(no subcommands)_                                                                                             |
 | `completions`   |            | bash, zsh, fish, powershell, elvish                                                                            |
 

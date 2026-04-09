@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`config cloud-setup`** guided onboarding for Site Manager profiles with
+  API key validation, console selection, site discovery, and profile writing
 - **`cloud` command group** for Site Manager fleet visibility: `hosts`,
   `sites`, `devices`, `isp`, and `sdwan`
 - **Site Manager fleet client** in `unifly-api` with `nextToken` pagination
@@ -36,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Cloud auth now works end-to-end in CLI, TUI settings, and onboarding:
   `auth_mode = "cloud"` preserves `host_id`, `host_id_env`, `api_key_env`,
   defaults the controller URL to `https://api.ui.com`, and forces strict TLS
+- Config and auth error guidance now points to both `config init` for local
+  controllers and `config cloud-setup` for Site Manager onboarding
 - Enriched `vpn servers` and `vpn tunnels` list output with subnet, port,
   protocol, peer, and IKE visibility where the controller returns those
   fields

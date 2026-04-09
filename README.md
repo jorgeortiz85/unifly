@@ -107,10 +107,11 @@ irm https://raw.githubusercontent.com/hyperb1iss/unifly/main/install.ps1 | iex
 Run the interactive setup wizard:
 
 ```bash
-unifly config init
+unifly config init            # Local controller
+unifly config cloud-setup     # Site Manager / cloud controller
 ```
 
-The wizard walks you through controller URL, authentication method, and site selection. Credentials can be stored in your OS keyring or saved in plaintext config, depending on the option you choose.
+The local wizard walks you through controller URL, authentication method, and site selection. The cloud wizard validates your Site Manager API key, lets you pick a console by name, discovers its sites, and writes a ready-to-use cloud profile. Credentials can be stored in your OS keyring, referenced from `UNIFI_API_KEY`, or saved in plaintext config, depending on the path you choose.
 
 Once configured:
 
@@ -176,6 +177,7 @@ connector and can auto-resolve `host_id` when exactly one console, or one
 owner console, is visible to the API key.
 
 ```bash
+unifly config cloud-setup
 unifly cloud hosts
 unifly cloud sites
 unifly --profile cloud-home networks list
@@ -321,7 +323,8 @@ Deep dive: [Architecture documentation](https://hyperb1iss.github.io/unifly/arch
 ## ⚙️ Configuration
 
 ```bash
-unifly config init             # Interactive setup wizard
+unifly config init             # Local controller setup wizard
+unifly config cloud-setup      # Site Manager cloud setup wizard
 unifly config profiles         # List profiles (* marks active)
 unifly config use office       # Switch default profile
 unifly -p home devices list    # One-off override

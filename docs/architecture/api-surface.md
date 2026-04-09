@@ -82,10 +82,10 @@ When configured with both an API key and credentials, unifly uses each API for w
 | Operation                               | API Used                      |
 | --------------------------------------- | ----------------------------- |
 | List/get/create/update/delete resources | Integration API (NAT uses v2) |
-| Stream events                           | Session API (WebSocket)        |
-| Query statistics                        | Session API                    |
-| Device commands                         | Session API                    |
-| System health (ISP, DNS, gateway)       | Session API                    |
+| Stream events                           | Session API (WebSocket)       |
+| Query statistics                        | Session API                   |
+| Device commands                         | Session API                   |
+| System health (ISP, DNS, gateway)       | Session API                   |
 
 This provides the most complete feature set while using the cleanest API surface available for each operation.
 

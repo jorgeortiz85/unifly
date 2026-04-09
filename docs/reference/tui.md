@@ -63,28 +63,28 @@ The dashboard packs eight live panels into a dense, information-rich overview:
 
 ### Screen-Specific
 
-| Screen               | Key             | Action                                              |
-| -------------------- | --------------- | --------------------------------------------------- |
-| **Devices**          | `R`             | Restart selected device                             |
-| **Devices**          | `L`             | Locate (flash LED)                                  |
-| **Devices** (detail) | `h` / `l`       | Previous / next detail tab                          |
-| **Clients**          | `Tab`           | Cycle filter (All / Wireless / Wired / VPN / Guest) |
-| **Clients**          | `b` / `B`       | Block / unblock client                              |
-| **Clients**          | `x`             | Kick client                                         |
-| **Networks**         | `e`             | Edit selected network (opens overlay)               |
-| **Firewall**         | `h` / `l`       | Cycle sub-tabs (Policies / Zones / ACL / NAT)       |
-| **Firewall**         | `K` / `J`       | Reorder policy up / down                            |
-| **Topology**         | Arrows          | Pan canvas                                          |
-| **Topology**         | `+` / `-`       | Zoom in / out                                       |
-| **Topology**         | `f`             | Fit to view                                         |
-| **Events**           | `Space`         | Pause / resume live stream                          |
-| **Stats**            | `h` `d` `w` `m` | Period: 1h / 24h / 7d / 30d                         |
-| **Stats**            | `r`             | Refresh data                                        |
+| Screen               | Key             | Action                                                    |
+| -------------------- | --------------- | --------------------------------------------------------- |
+| **Devices**          | `R`             | Restart selected device                                   |
+| **Devices**          | `L`             | Locate (flash LED)                                        |
+| **Devices** (detail) | `h` / `l`       | Previous / next detail tab                                |
+| **Clients**          | `Tab`           | Cycle filter (All / Wireless / Wired / VPN / Guest)       |
+| **Clients**          | `b` / `B`       | Block / unblock client                                    |
+| **Clients**          | `x`             | Kick client                                               |
+| **Networks**         | `e`             | Edit selected network (opens overlay)                     |
+| **Firewall**         | `h` / `l`       | Cycle sub-tabs (Policies / Zones / ACL / NAT)             |
+| **Firewall**         | `K` / `J`       | Reorder policy up / down                                  |
+| **Topology**         | Arrows          | Pan canvas                                                |
+| **Topology**         | `+` / `-`       | Zoom in / out                                             |
+| **Topology**         | `f`             | Fit to view                                               |
+| **Events**           | `Space`         | Pause / resume live stream                                |
+| **Stats**            | `h` `d` `w` `m` | Period: 1h / 24h / 7d / 30d                               |
+| **Stats**            | `r`             | Refresh data                                              |
 | **WiFi**             | `Tab`           | Cycle sub-tabs (Overview / Clients / Neighbors / Roaming) |
-| **WiFi**             | `c`             | Toggle channel map on the Overview tab              |
-| **WiFi**             | `[` / `]`       | Switch WiFi band in the channel map                 |
-| **WiFi**             | `R` / `L`       | Restart / locate selected access point              |
-| **WiFi**             | `b` / `u` / `x` | Block / unblock / kick selected wireless client     |
+| **WiFi**             | `c`             | Toggle channel map on the Overview tab                    |
+| **WiFi**             | `[` / `]`       | Switch WiFi band in the channel map                       |
+| **WiFi**             | `R` / `L`       | Restart / locate selected access point                    |
+| **WiFi**             | `b` / `u` / `x` | Block / unblock / kick selected wireless client           |
 
 ## Detail Views
 

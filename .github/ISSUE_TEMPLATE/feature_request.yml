@@ -1,0 +1,46 @@
+name: Feature Request
+description: Suggest a new feature or improvement
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or Use Case
+      description: What problem does this solve? What are you trying to do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: How would you expect this to work? Include CLI syntax, TUI behavior, or API changes.
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected Surface
+      options:
+        - CLI
+        - TUI
+        - Library (unifly-api)
+        - Agent Skill
+        - Multiple
+
+  - type: dropdown
+    id: api-path
+    attributes:
+      label: UniFi API Path
+      description: Which API does this relate to?
+      options:
+        - Integration API (REST, API key)
+        - Session API (cookie/CSRF)
+        - Cloud / Site Manager
+        - Not sure
+        - N/A
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Anything else — screenshots, related issues, controller model, etc.

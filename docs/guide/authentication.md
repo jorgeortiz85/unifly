@@ -29,12 +29,12 @@ unifly config init                     # Select "API Key" during setup
 unifly --api-key <KEY> devices list    # Or pass directly
 ```
 
-| Pros                                      | Limitations                                  |
-| ----------------------------------------- | -------------------------------------------- |
-| Simplest setup — no password juggling     | No live WebSocket events (requires cookie)   |
-| Authenticates both Integration + Session  | `events watch` and TUI live refresh unavailable |
-| No CSRF bookkeeping                       | Classic standalone controllers may differ    |
-| Stable, no token expiry                   |                                              |
+| Pros                                     | Limitations                                     |
+| ---------------------------------------- | ----------------------------------------------- |
+| Simplest setup — no password juggling    | No live WebSocket events (requires cookie)      |
+| Authenticates both Integration + Session | `events watch` and TUI live refresh unavailable |
+| No CSRF bookkeeping                      | Classic standalone controllers may differ       |
+| Stable, no token expiry                  |                                                 |
 
 Best for: CI/CD pipelines, scripted provisioning, daily CLI automation, most everyday workflows.
 
@@ -46,11 +46,11 @@ Session-based auth with cookie and CSRF token handling. Use this when you lack a
 unifly config init                     # Select "Username/Password" during setup
 ```
 
-| Pros                              | Limitations                               |
-| --------------------------------- | ----------------------------------------- |
-| Live WebSocket events + TUI live  | Sessions expire periodically              |
-| Full Session API access           | No access to modern Integration endpoints |
-| Admin management                  | DNS, ACL, traffic lists unavailable       |
+| Pros                             | Limitations                               |
+| -------------------------------- | ----------------------------------------- |
+| Live WebSocket events + TUI live | Sessions expire periodically              |
+| Full Session API access          | No access to modern Integration endpoints |
+| Admin management                 | DNS, ACL, traffic lists unavailable       |
 
 Best for: Monitoring-focused setups where you primarily care about live event streaming.
 
@@ -62,11 +62,11 @@ API key for HTTP (both Integration and Session) plus username/password for the l
 unifly config init                     # Select "Hybrid" during setup
 ```
 
-| Capability                                        | How it's reached                              |
-| ------------------------------------------------- | --------------------------------------------- |
-| Integration CRUD (networks, WiFi, firewall, etc.) | Integration API via `X-API-KEY`               |
-| Session HTTP (stats, device commands, admin)      | Session API via `X-API-KEY`                   |
-| Live event streaming (`events watch`, TUI)        | Session WebSocket via cookie session          |
+| Capability                                        | How it's reached                               |
+| ------------------------------------------------- | ---------------------------------------------- |
+| Integration CRUD (networks, WiFi, firewall, etc.) | Integration API via `X-API-KEY`                |
+| Session HTTP (stats, device commands, admin)      | Session API via `X-API-KEY`                    |
+| Live event streaming (`events watch`, TUI)        | Session WebSocket via cookie session           |
 | Client/device field enrichment                    | Session HTTP (merged into Integration records) |
 
 How it works: unifly uses the API key for every HTTP request and the cookie session only to establish the live WebSocket. Everything else an API key can reach is reached with the API key.

@@ -6,34 +6,34 @@ Every command supports `--help` for exhaustive flag listings. This page document
 
 ## Commands
 
-| Command         | Alias      | API   | Description                                    |
-| --------------- | ---------- | ----- | ---------------------------------------------- |
-| `devices`       | `dev`, `d` | H     | Manage adopted and pending devices             |
-| `clients`       | `cl`       | H     | Manage connected clients and DHCP reservations |
-| `networks`      | `net`, `n` | I     | Manage networks and VLANs                      |
-| `wifi`          | `w`        | I     | Manage WiFi broadcasts (SSIDs)                 |
-| `firewall`      | `fw`       | I     | Manage firewall policies and zones             |
-| `nat`           |            | L     | Manage NAT policies (masquerade, SNAT, DNAT)   |
-| `acl`           |            | I     | Manage ACL rules                               |
-| `dns`           |            | I     | Manage DNS policies (local records)            |
-| `traffic-lists` |            | I     | Manage traffic matching lists                  |
-| `hotspot`       |            | I     | Manage hotspot vouchers                        |
+| Command         | Alias      | API   | Description                                                                                                                                                                  |
+| --------------- | ---------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `devices`       | `dev`, `d` | H     | Manage adopted and pending devices                                                                                                                                           |
+| `clients`       | `cl`       | H     | Manage connected clients and DHCP reservations                                                                                                                               |
+| `networks`      | `net`, `n` | I     | Manage networks and VLANs                                                                                                                                                    |
+| `wifi`          | `w`        | I     | Manage WiFi broadcasts (SSIDs)                                                                                                                                               |
+| `firewall`      | `fw`       | I     | Manage firewall policies and zones                                                                                                                                           |
+| `nat`           |            | L     | Manage NAT policies (masquerade, SNAT, DNAT)                                                                                                                                 |
+| `acl`           |            | I     | Manage ACL rules                                                                                                                                                             |
+| `dns`           |            | I     | Manage DNS policies (local records)                                                                                                                                          |
+| `traffic-lists` |            | I     | Manage traffic matching lists                                                                                                                                                |
+| `hotspot`       |            | I     | Manage hotspot vouchers                                                                                                                                                      |
 | `vpn`           |            | Mixed | View VPN inventory, session site-to-site, remote-access, and client VPN records, OpenVPN helpers, connections, WireGuard peers, magic site-to-site configs, and VPN settings |
-| `events`        |            | L     | View and stream events                         |
-| `alarms`        |            | L     | Manage alarms                                  |
-| `stats`         |            | L     | Query statistics and reports                   |
-| `sites`         |            | L     | Manage sites                                   |
-| `admin`         |            | L     | Administrator management                       |
-| `system`        | `sys`      | Mixed | System operations and info                     |
-| `topology`      | `topo`     | H     | Show network topology tree                     |
-| `dpi`           |            | Mixed | DPI reference data and control                 |
-| `radius`        |            | I     | View RADIUS profiles                           |
-| `wans`          |            | I     | View WAN interfaces                            |
-| `countries`     |            | I     | List available country codes                   |
-| `config`        |            | Local | Manage CLI configuration                       |
-| `completions`   |            | Local | Generate shell completions                     |
-| `api`           |            | L     | Raw API passthrough (GET/POST/PUT/PATCH/DELETE any endpoint) |
-| `tui`           |            | H     | Launch the real-time terminal dashboard        |
+| `events`        |            | L     | View and stream events                                                                                                                                                       |
+| `alarms`        |            | L     | Manage alarms                                                                                                                                                                |
+| `stats`         |            | L     | Query statistics and reports                                                                                                                                                 |
+| `sites`         |            | L     | Manage sites                                                                                                                                                                 |
+| `admin`         |            | L     | Administrator management                                                                                                                                                     |
+| `system`        | `sys`      | Mixed | System operations and info                                                                                                                                                   |
+| `topology`      | `topo`     | H     | Show network topology tree                                                                                                                                                   |
+| `dpi`           |            | Mixed | DPI reference data and control                                                                                                                                               |
+| `radius`        |            | I     | View RADIUS profiles                                                                                                                                                         |
+| `wans`          |            | I     | View WAN interfaces                                                                                                                                                          |
+| `countries`     |            | I     | List available country codes                                                                                                                                                 |
+| `config`        |            | Local | Manage CLI configuration                                                                                                                                                     |
+| `completions`   |            | Local | Generate shell completions                                                                                                                                                   |
+| `api`           |            | L     | Raw API passthrough (GET/POST/PUT/PATCH/DELETE any endpoint)                                                                                                                 |
+| `tui`           |            | H     | Launch the real-time terminal dashboard                                                                                                                                      |
 
 ::: tip
 List commands default to 25 rows. Pass `--all` or `--limit 200` for complete results.

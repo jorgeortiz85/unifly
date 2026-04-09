@@ -565,8 +565,10 @@ unifly cloud sdwan status <id>
   dashboard. `UNIFLY_THEME` env var also sets the theme.
 - `unifly completions bash|zsh|fish|powershell|elvish`: Emit completion
   script to stdout.
-- `unifly config init | show | set | profiles | use | set-password`:
-  Profile management. `set-password` stores in OS keyring.
+- `unifly config init | cloud-setup | show | set | profiles | use | set-password`:
+  Profile management. `cloud-setup` validates a Site Manager API key, lets
+  you pick a console and site interactively, and writes a cloud profile.
+  `set-password` stores secrets in the OS keyring.
 - `unifly countries`: List country codes for WiFi regulatory settings.
 
 ## Cross-Cutting Patterns

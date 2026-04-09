@@ -1,0 +1,68 @@
+name: Bug Report
+description: Report a bug in unifly
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened? What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Minimal steps to trigger the bug.
+      placeholder: |
+        1. Run `unifly devices list --format json`
+        2. ...
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: unifly Version
+      description: Output of `unifly --version`
+      placeholder: unifly 0.8.0
+    validations:
+      required: true
+
+  - type: input
+    id: controller
+    attributes:
+      label: Controller Info
+      description: Model and firmware version (e.g., UDM Pro 4.1.6)
+      placeholder: UDM Pro 4.1.6
+
+  - type: dropdown
+    id: auth-mode
+    attributes:
+      label: Auth Mode
+      options:
+        - API Key
+        - Credentials (username/password)
+        - Hybrid
+        - Cloud
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected Surface
+      options:
+        - CLI
+        - TUI
+        - Library (unifly-api)
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Debug Output
+      description: Run the failing command with `-vvv` and paste the output.
+      render: shell

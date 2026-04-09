@@ -117,7 +117,7 @@ graph TD
 | `Controller`      | Main entry point. Wraps `Arc<ControllerInner>` for cheap cloning across async tasks                                                      |
 | `DataStore`       | Entity storage. `DashMap` + `watch` channels for lock-free reactive updates                                                              |
 | `EntityStream<T>` | Reactive subscription. `current()` for a snapshot, `changed()` to await the next update (returns `None` when the controller disconnects) |
-| `EntityId`        | Dual-identity enum: `Uuid(Uuid)` for Integration API or `Legacy(String)` for Session API                                                  |
+| `EntityId`        | Dual-identity enum: `Uuid(Uuid)` for Integration API or `Legacy(String)` for Session API                                                 |
 | `AuthCredentials` | Auth mode: `ApiKey`, `Credentials`, `Hybrid`, or `Cloud` variants                                                                        |
 
 ## Connection Modes
