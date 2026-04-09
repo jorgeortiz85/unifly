@@ -46,7 +46,7 @@ impl WizardUi {
         };
 
         Self {
-            theme: output::load_theme(),
+            theme: output::load_theme(None),
             enabled,
         }
     }

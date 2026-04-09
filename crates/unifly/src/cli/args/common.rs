@@ -38,6 +38,10 @@ pub struct GlobalOpts {
     #[arg(long, default_value = "auto", global = true)]
     pub color: ColorMode,
 
+    /// Color theme (e.g., nord, dracula, silkcircuit-neon)
+    #[arg(long, env = "UNIFLY_THEME", global = true)]
+    pub theme: Option<String>,
+
     /// Increase verbosity (-v, -vv, -vvv)
     #[arg(long, short = 'v', action = clap::ArgAction::Count, global = true)]
     pub verbose: u8,
@@ -120,10 +124,6 @@ pub struct ListArgs {
 #[cfg(feature = "tui")]
 #[derive(Debug, Args)]
 pub struct TuiArgs {
-    /// Theme name (e.g., nord, dracula, silkcircuit-neon)
-    #[arg(long, env = "UNIFLY_THEME")]
-    pub theme: Option<String>,
-
     /// Log file path
     #[arg(long, default_value_os_t = default_tui_log_path())]
     pub log_file: std::path::PathBuf,

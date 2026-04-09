@@ -23,9 +23,28 @@ pub fn should_color(mode: &ColorMode) -> bool {
     }
 }
 
-/// Load the SilkCircuit Neon theme for CLI output.
-pub fn load_theme() -> opaline::Theme {
-    opaline::load_by_name("silkcircuit-neon").expect("builtin theme must exist")
+/// Load the CLI color theme.
+///
+/// Resolution: `--theme` flag / `UNIFLY_THEME` env → config `defaults.theme`
+/// → `silkcircuit-neon` fallback. Matches the TUI resolution order so both
+/// surfaces stay in sync.
+pub fn load_theme(name: Option<&str>) -> opaline::Theme {
+    let config_theme = name
+        .is_none()
+        .then(|| {
+            crate::config::load_config()
+                .ok()
+                .and_then(|c| c.defaults.theme)
+        })
+        .flatten();
+
+    let resolved = name
+        .or(config_theme.as_deref())
+        .unwrap_or("silkcircuit-neon");
+
+    opaline::load_by_name(resolved).unwrap_or_else(|| {
+        opaline::load_by_name("silkcircuit-neon").expect("builtin theme must exist")
+    })
 }
 
 /// Apply theme coloring to a value based on its semantic role.
@@ -50,7 +69,7 @@ impl Painter {
         let enabled = should_color(&global.color)
             && matches!(global.output, super::args::OutputFormat::Table);
         Self {
-            theme: load_theme(),
+            theme: load_theme(global.theme.as_deref()),
             enabled,
         }
     }
@@ -58,7 +77,7 @@ impl Painter {
     /// Create a disabled (no-color) painter.
     pub fn plain() -> Self {
         Self {
-            theme: load_theme(),
+            theme: load_theme(None),
             enabled: false,
         }
     }

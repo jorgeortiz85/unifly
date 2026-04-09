@@ -36,7 +36,7 @@ pub async fn launch(global: &GlobalOpts, args: TuiArgs) -> Result<()> {
     let _log_guard = setup_tracing(global.verbose, &args.log_file);
 
     let config_theme = config::load_config().ok().and_then(|c| c.defaults.theme);
-    let theme_name = args.theme.as_deref().or(config_theme.as_deref());
+    let theme_name = global.theme.as_deref().or(config_theme.as_deref());
     theme::initialize(theme_name);
 
     info!(

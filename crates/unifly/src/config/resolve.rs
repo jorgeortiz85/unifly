@@ -165,6 +165,7 @@ mod tests {
             host_id: Some("host-from-flag".into()),
             output: OutputFormat::Table,
             color: ColorMode::Auto,
+            theme: None,
             verbose: 0,
             quiet: false,
             yes: false,

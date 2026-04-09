@@ -224,6 +224,7 @@ mod tests {
             demo: false,
             output: OutputFormat::Plain,
             color: ColorMode::Never,
+            theme: None,
             verbose: 0,
             quiet: false,
             yes: false,
