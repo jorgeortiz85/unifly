@@ -146,7 +146,7 @@ fn parse_integration_ports(interfaces: &Value) -> Vec<Port> {
         .iter()
         .filter_map(|p| {
             let idx = p.get("idx").and_then(Value::as_u64)?;
-            #[allow(clippy::cast_possible_truncation)]
+            #[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
             Some(Port {
                 index: idx as u32,
                 name: p.get("name").and_then(Value::as_str).map(String::from),
@@ -187,9 +187,9 @@ fn parse_integration_radios(interfaces: &Value) -> Vec<Radio> {
     radios
         .iter()
         .filter_map(|r| {
-            #[allow(clippy::cast_possible_truncation)]
+            #[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
             let freq = r.get("frequencyGHz").and_then(Value::as_f64)? as f32;
-            #[allow(clippy::cast_possible_truncation)]
+            #[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
             Some(Radio {
                 frequency_ghz: freq,
                 channel: r.get("channel").and_then(Value::as_u64).map(|v| v as u32),
@@ -214,7 +214,7 @@ pub(crate) fn enrich_radios_from_stats(radios: &mut [Radio], stats_interfaces: &
         return;
     };
     for sr in stats_radios {
-        #[allow(clippy::cast_possible_truncation)]
+        #[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
         let Some(freq) = sr
             .get("frequencyGHz")
             .and_then(Value::as_f64)
@@ -243,7 +243,7 @@ fn parse_session_ports(extra: &serde_json::Map<String, Value>) -> Vec<Port> {
         .filter_map(|p| {
             let idx = p.get("port_idx").and_then(Value::as_u64)?;
             let up = p.get("up").and_then(Value::as_bool).unwrap_or(false);
-            #[allow(clippy::cast_possible_truncation)]
+            #[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
             Some(Port {
                 index: idx as u32,
                 name: p.get("name").and_then(Value::as_str).map(String::from),
@@ -318,7 +318,7 @@ fn parse_session_radios(extra: &serde_json::Map<String, Value>) -> Vec<Radio> {
                     .and_then(Value::as_str)
                     .is_some_and(|b| b == band)
             });
-            #[allow(clippy::cast_possible_truncation)]
+            #[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
             Some(Radio {
                 frequency_ghz: freq,
                 channel: r

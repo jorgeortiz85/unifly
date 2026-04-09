@@ -12,7 +12,7 @@ use super::WifiScreen;
 use crate::tui::action::{Action, WifiBand, WifiSortField, WifiSubTab};
 
 pub(super) const NEIGHBOR_REFRESH_INTERVAL: Duration = Duration::from_secs(30);
-pub(super) const CHANNEL_REFRESH_INTERVAL: Duration = Duration::from_secs(60);
+pub(super) const CHANNEL_REFRESH_INTERVAL: Duration = Duration::from_mins(1);
 
 #[derive(Clone, Default)]
 pub(super) struct ChannelOccupancy {
