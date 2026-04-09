@@ -201,10 +201,20 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 .section-pages {
+  margin: $sp-6 0;
+}
+
+.section-pages__heading {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: var(--text-primary);
+  margin-bottom: $sp-4;
+}
+
+.section-pages__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: $sp-4;
-  margin: $sp-6 0;
 }
 
 .section-page-card {

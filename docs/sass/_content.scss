@@ -393,6 +393,26 @@
       max-width: 100%;
       height: auto;
     }
+
+    // Force dark text on bright node fills for contrast
+    [style*="fill: rgb(80, 250, 123)"],      // green
+    [style*="fill:#50fa7b"],
+    [style*="fill: rgb(128, 255, 234)"],      // cyan
+    [style*="fill:#80ffea"],
+    [style*="fill: rgb(241, 250, 140)"],      // yellow
+    [style*="fill:#f1fa8c"] {
+      + foreignObject .nodeLabel,
+      ~ text {
+        color: #0a0a0f !important;
+        fill: #0a0a0f !important;
+      }
+    }
+
+    // Also catch when mermaid wraps the label in a span
+    .nodeLabel[style*="color:#0a0a0f"],
+    .nodeLabel[style*="color: rgb(10, 10, 15)"] {
+      color: #0a0a0f !important;
+    }
   }
 }
 

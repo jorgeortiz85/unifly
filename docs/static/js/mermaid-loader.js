@@ -17,12 +17,12 @@
     primaryColor: '#2d1b4e',
     primaryBorderColor: '#e135ff',
     primaryTextColor: '#f8f8f2',
-    secondaryColor: '#0d2b2b',
+    secondaryColor: '#132e2e',
     secondaryBorderColor: '#80ffea',
-    secondaryTextColor: '#f8f8f2',
-    tertiaryColor: '#1e1e28',
+    secondaryTextColor: '#121218',
+    tertiaryColor: '#2a1525',
     tertiaryBorderColor: '#ff6ac1',
-    tertiaryTextColor: '#f8f8f2',
+    tertiaryTextColor: '#121218',
     lineColor: '#80ffea',
     textColor: '#f8f8f2',
     mainBkg: '#2d1b4e',
@@ -138,6 +138,27 @@
     return loadPromise;
   };
 
+  const BRIGHT_FILLS = ['#50fa7b', '#80ffea', '#f1fa8c', '#ff6ac1',
+    'rgb(80, 250, 123)', 'rgb(128, 255, 234)', 'rgb(241, 250, 140)', 'rgb(255, 106, 193)'];
+
+  const fixBrightNodeContrast = (containers) => {
+    const dark = '#0a0a0f';
+    containers.forEach((container) => {
+      container.querySelectorAll('.node').forEach((node) => {
+        const shape = node.querySelector('rect, polygon, circle, ellipse, path');
+        if (!shape) return;
+        const fill = (shape.getAttribute('style') || '').match(/fill:\s*([^;]+)/);
+        const fillVal = fill ? fill[1].trim() : shape.getAttribute('fill') || '';
+        if (BRIGHT_FILLS.some((b) => fillVal.includes(b))) {
+          node.querySelectorAll('.nodeLabel, .nodeLabel *, text, tspan').forEach((t) => {
+            t.style.setProperty('color', dark, 'important');
+            t.style.setProperty('fill', dark, 'important');
+          });
+        }
+      });
+    });
+  };
+
   const renderDiagrams = async (elements) => {
     if (!window.mermaid || !elements.length) return;
 
@@ -147,10 +168,11 @@
     elements.forEach((el) => {
       el.removeAttribute('data-processed');
       const src = el.getAttribute('data-mermaid-src');
-      if (src) el.textContent = src;
+      if (src) el.innerHTML = src;
     });
 
     await window.mermaid.run({ nodes: elements });
+    fixBrightNodeContrast(elements);
     clearLoading(elements);
   };
 
@@ -161,7 +183,7 @@
     // Save source BEFORE showLoading prepends into the element
     elements.forEach((el) => {
       if (!el.getAttribute('data-mermaid-src')) {
-        el.setAttribute('data-mermaid-src', el.textContent);
+        el.setAttribute('data-mermaid-src', el.innerHTML);
       }
     });
 
