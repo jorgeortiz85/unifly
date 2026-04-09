@@ -9,10 +9,11 @@ template = "section.html"
 
 {% mermaid() %}
 graph TD
-    UNIFLY["unifly<br/><i>CLI + TUI (single binary)</i>"]
-    API["unifly-api<br/><i>Library: transport, controller,<br/>data store, domain models</i>"]
+UNIFLY["unifly<br/><i>CLI + TUI (single binary)</i>"]
+API["unifly-api<br/><i>Library: transport, controller,<br/>data store, domain models</i>"]
 
     UNIFLY --> API
+
 {% end %}
 
 ## Design Principles

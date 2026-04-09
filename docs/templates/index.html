@@ -1,17 +1,25 @@
-{% extends "base.html" %}
-
-{% block title %}{{ config.title }} — {{ config.description }}{% endblock title %}
-
-{% block content %}
+{% extends "base.html" %} {% block title %}{{ config.title }} — {{
+config.description }}{% endblock title %} {% block content %}
 <main id="main-content">
   <section class="hero">
     <div class="hero__bg" aria-hidden="true"></div>
     <h1 class="hero__title gradient-text">Unifly</h1>
     <p class="hero__tagline">Your UniFi Network, at Your Fingertips</p>
-    <p class="hero__sub">28 commands, 10 TUI screens, triple-path API engine. Manage your entire UniFi network from the terminal, or have an AI agent do it for you.</p>
+    <p class="hero__sub">
+      28 commands, 10 TUI screens, triple-path API engine. Manage your entire
+      UniFi network from the terminal, or have an AI agent do it for you.
+    </p>
     <div class="hero__actions">
-      <a class="btn btn--primary" href="{{ get_url(path='@/guide/_index.md') }}">Get Started</a>
-      <a class="btn btn--secondary" href="{{ config.extra.github_url }}" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a class="btn btn--primary" href="{{ get_url(path='@/guide/_index.md') }}"
+        >Get Started</a
+      >
+      <a
+        class="btn btn--secondary"
+        href="{{ config.extra.github_url }}"
+        target="_blank"
+        rel="noopener noreferrer"
+        >GitHub</a
+      >
     </div>
   </section>
 
@@ -20,32 +28,50 @@
       <div class="feature-card">
         <div class="feature-card__icon">&#9889;</div>
         <h3 class="feature-card__title">Triple-Path API Engine</h3>
-        <p class="feature-card__desc">Integration API + Session API via a single API key, plus Site Manager cloud fleet and connector support. One engine, every endpoint.</p>
+        <p class="feature-card__desc">
+          Integration API + Session API via a single API key, plus Site Manager
+          cloud fleet and connector support. One engine, every endpoint.
+        </p>
       </div>
       <div class="feature-card">
         <div class="feature-card__icon">&#128202;</div>
         <h3 class="feature-card__title">10-Screen TUI</h3>
-        <p class="feature-card__desc">btop-inspired dashboard with area-fill traffic charts, CPU/MEM gauges, zoomable topology, and live event streaming.</p>
+        <p class="feature-card__desc">
+          btop-inspired dashboard with area-fill traffic charts, CPU/MEM gauges,
+          zoomable topology, and live event streaming.
+        </p>
       </div>
       <div class="feature-card">
         <div class="feature-card__icon">&#129504;</div>
         <h3 class="feature-card__title">28 Top-Level Commands</h3>
-        <p class="feature-card__desc">Devices, clients, networks, WiFi, firewall, NAT, DNS, VPN, DPI, cloud fleet, topology, raw API passthrough, and more.</p>
+        <p class="feature-card__desc">
+          Devices, clients, networks, WiFi, firewall, NAT, DNS, VPN, DPI, cloud
+          fleet, topology, raw API passthrough, and more.
+        </p>
       </div>
       <div class="feature-card">
         <div class="feature-card__icon">&#128274;</div>
         <h3 class="feature-card__title">Secure Credentials</h3>
-        <p class="feature-card__desc">OS keyring by default for API keys and passwords. Plaintext config available as an opt-in fallback.</p>
+        <p class="feature-card__desc">
+          OS keyring by default for API keys and passwords. Plaintext config
+          available as an opt-in fallback.
+        </p>
       </div>
       <div class="feature-card">
         <div class="feature-card__icon">&#127760;</div>
         <h3 class="feature-card__title">Multi-Profile</h3>
-        <p class="feature-card__desc">Named profiles for multiple controllers with instant switching. Great for managing home, office, and remote sites.</p>
+        <p class="feature-card__desc">
+          Named profiles for multiple controllers with instant switching. Great
+          for managing home, office, and remote sites.
+        </p>
       </div>
       <div class="feature-card">
         <div class="feature-card__icon">&#129302;</div>
         <h3 class="feature-card__title">AI Agent Skill</h3>
-        <p class="feature-card__desc">Ships with a skill bundle that teaches coding agents to provision VLANs, audit firewalls, and diagnose connectivity.</p>
+        <p class="feature-card__desc">
+          Ships with a skill bundle that teaches coding agents to provision
+          VLANs, audit firewalls, and diagnose connectivity.
+        </p>
       </div>
     </div>
   </section>

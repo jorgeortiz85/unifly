@@ -65,14 +65,15 @@ Unifly's DPI cascade tries the v2 endpoint first, then falls back to `stat/sited
 
 {% mermaid() %}
 sequenceDiagram
-    participant Client
-    participant Controller
+participant Client
+participant Controller
 
     Client->>Controller: POST /api/login (credentials)
     Controller-->>Client: Set-Cookie + X-CSRF-Token header
     Client->>Controller: POST /api/s/default/stat/health<br/>X-CSRF-Token: <token>
     Controller-->>Client: Response + X-Updated-CSRF-Token
     Note over Client: Store rotated token for next request
+
 {% end %}
 
 {% warning() %}

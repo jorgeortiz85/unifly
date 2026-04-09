@@ -16,11 +16,11 @@ UniFi controllers expose two completely different APIs:
 
 {% mermaid() %}
 graph LR
-    subgraph "Integration API"
-        I["REST + API Key"]
-        I1["Networks, WiFi, Firewall"]
-        I2["DNS, ACL, NAT, Traffic Lists"]
-    end
+subgraph "Integration API"
+I["REST + API Key"]
+I1["Networks, WiFi, Firewall"]
+I2["DNS, ACL, NAT, Traffic Lists"]
+end
 
     subgraph "Session API"
         S["Cookie + CSRF"]
@@ -36,6 +36,7 @@ graph LR
     S --> U
     U --> CLI["CLI Output"]
     U --> TUI["TUI Dashboard"]
+
 {% end %}
 
 - **Integration API**: RESTful, API-key authenticated, covers CRUD for most resources
@@ -62,8 +63,8 @@ Most tools only speak one dialect. The web dashboard is slow and can't be script
 
 {% mermaid() %}
 graph TD
-    UNIFLY["unifly<br/><i>CLI + TUI (single binary)</i>"]
-    API["unifly-api<br/><i>Library crate on crates.io</i>"]
+UNIFLY["unifly<br/><i>CLI + TUI (single binary)</i>"]
+API["unifly-api<br/><i>Library crate on crates.io</i>"]
 
     UNIFLY --> API
 
@@ -71,6 +72,7 @@ graph TD
     API --> SES["Session Client<br/>Cookie + CSRF"]
     API --> WS["WebSocket<br/>Live Events"]
     API --> DS["DataStore<br/>DashMap + watch channels"]
+
 {% end %}
 
 Two crates with a clean dependency chain. The library is published independently for Rust developers building custom integrations. See the [Architecture](/architecture/) section for the full picture.

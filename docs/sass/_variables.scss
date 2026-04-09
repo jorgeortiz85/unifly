@@ -3,51 +3,61 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Typography
-$font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-  Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
-$font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Cascadia Code',
-  'Source Code Pro', Consolas, monospace;
+$font-body:
+  "Inter",
+  -apple-system,
+  BlinkMacSystemFont,
+  "Segoe UI",
+  Roboto,
+  Oxygen,
+  Ubuntu,
+  Cantarell,
+  "Helvetica Neue",
+  sans-serif;
+$font-mono:
+  "JetBrains Mono", "Fira Code", "SF Mono", "Cascadia Code", "Source Code Pro",
+  Consolas, monospace;
 
-$font-size-xs:   0.75rem;
-$font-size-sm:   0.8125rem;
+$font-size-xs: 0.75rem;
+$font-size-sm: 0.8125rem;
 $font-size-base: 1rem;
-$font-size-md:   1.125rem;
-$font-size-lg:   1.25rem;
-$font-size-xl:   1.5rem;
-$font-size-2xl:  2rem;
-$font-size-3xl:  2.75rem;
-$font-size-4xl:  3.5rem;
+$font-size-md: 1.125rem;
+$font-size-lg: 1.25rem;
+$font-size-xl: 1.5rem;
+$font-size-2xl: 2rem;
+$font-size-3xl: 2.75rem;
+$font-size-4xl: 3.5rem;
 
-$line-height-tight:  1.25;
+$line-height-tight: 1.25;
 $line-height-normal: 1.65;
-$line-height-loose:  1.8;
+$line-height-loose: 1.8;
 
-$font-weight-normal:   400;
-$font-weight-medium:   500;
+$font-weight-normal: 400;
+$font-weight-medium: 500;
 $font-weight-semibold: 600;
-$font-weight-bold:     700;
+$font-weight-bold: 700;
 
 // Breakpoints
-$bp-sm:  640px;
-$bp-md:  768px;
-$bp-lg:  1024px;
-$bp-xl:  1280px;
+$bp-sm: 640px;
+$bp-md: 768px;
+$bp-lg: 1024px;
+$bp-xl: 1280px;
 $bp-2xl: 1536px;
 
 // Layout
-$nav-height:    60px;
+$nav-height: 60px;
 $sidebar-width: 260px;
-$toc-width:     200px;
+$toc-width: 200px;
 $content-max-w: 800px;
 
 // Spacing scale
-$sp-1:  0.25rem;
-$sp-2:  0.5rem;
-$sp-3:  0.75rem;
-$sp-4:  1rem;
-$sp-5:  1.25rem;
-$sp-6:  1.5rem;
-$sp-8:  2rem;
+$sp-1: 0.25rem;
+$sp-2: 0.5rem;
+$sp-3: 0.75rem;
+$sp-4: 1rem;
+$sp-5: 1.25rem;
+$sp-6: 1.5rem;
+$sp-8: 2rem;
 $sp-10: 2.5rem;
 $sp-12: 3rem;
 $sp-16: 4rem;
@@ -55,34 +65,34 @@ $sp-20: 5rem;
 $sp-24: 6rem;
 
 // Border radii
-$radius-sm:   4px;
-$radius-md:   8px;
-$radius-lg:   12px;
-$radius-xl:   16px;
-$radius-2xl:  24px;
+$radius-sm: 4px;
+$radius-md: 8px;
+$radius-lg: 12px;
+$radius-xl: 16px;
+$radius-2xl: 24px;
 $radius-full: 9999px;
 
 // Shadows
-$shadow-sm:  0 1px 2px rgba(0, 0, 0, 0.2);
-$shadow-md:  0 4px 12px rgba(0, 0, 0, 0.25);
-$shadow-lg:  0 8px 24px rgba(0, 0, 0, 0.3);
-$shadow-xl:  0 12px 40px rgba(0, 0, 0, 0.35);
+$shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+$shadow-md: 0 4px 12px rgba(0, 0, 0, 0.25);
+$shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3);
+$shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.35);
 $shadow-glow-purple: 0 0 20px rgba(225, 53, 255, 0.3);
-$shadow-glow-cyan:   0 0 20px rgba(128, 255, 234, 0.3);
+$shadow-glow-cyan: 0 0 20px rgba(128, 255, 234, 0.3);
 
 // Motion
-$ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+$ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 $ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-$duration-fast:   150ms;
+$duration-fast: 150ms;
 $duration-normal: 250ms;
-$duration-slow:   400ms;
+$duration-slow: 400ms;
 
 // Z-index layers
-$z-base:      1;
-$z-sidebar:   100;
-$z-nav:       200;
-$z-overlay:   300;
-$z-modal:     400;
+$z-base: 1;
+$z-sidebar: 100;
+$z-nav: 200;
+$z-overlay: 300;
+$z-modal: 400;
 $z-skip-link: 500;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -90,8 +100,8 @@ $z-skip-link: 500;
 // ─────────────────────────────────────────────────────────────────────────────
 
 @mixin glass($blur: 12px, $saturate: 1.15) {
-  backdrop-filter: unquote('blur(#{$blur}) saturate(#{$saturate})');
-  -webkit-backdrop-filter: unquote('blur(#{$blur}) saturate(#{$saturate})');
+  backdrop-filter: unquote("blur(#{$blur}) saturate(#{$saturate})");
+  -webkit-backdrop-filter: unquote("blur(#{$blur}) saturate(#{$saturate})");
 }
 
 @mixin gradient-text {
@@ -112,70 +122,70 @@ $z-skip-link: 500;
 
 :root {
   // Backgrounds
-  --bg-base:     #121218;
-  --bg-panel:    #181820;
+  --bg-base: #121218;
+  --bg-panel: #181820;
   --bg-elevated: #1e1e28;
-  --bg-code:     #1a1a24;
-  --bg-hover:    rgba(225, 53, 255, 0.06);
+  --bg-code: #1a1a24;
+  --bg-hover: rgba(225, 53, 255, 0.06);
 
   // Accent palette
   --c-purple: #e135ff;
-  --c-cyan:   #80ffea;
-  --c-coral:  #ff6ac1;
+  --c-cyan: #80ffea;
+  --c-coral: #ff6ac1;
   --c-yellow: #f1fa8c;
-  --c-green:  #50fa7b;
-  --c-red:    #ff6363;
+  --c-green: #50fa7b;
+  --c-red: #ff6363;
 
   // Text
-  --text-primary:   #f8f8f2;
+  --text-primary: #f8f8f2;
   --text-secondary: #e0e0e0;
-  --text-muted:     #a0a0a0;
+  --text-muted: #a0a0a0;
 
   // Borders
-  --border-subtle:  rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.08);
   --border-default: rgba(255, 255, 255, 0.12);
-  --border-strong:  rgba(255, 255, 255, 0.2);
+  --border-strong: rgba(255, 255, 255, 0.2);
 
   // Nav glass
   --nav-bg: rgba(18, 18, 24, 0.82);
 
   // Sidebar
-  --sidebar-bg:          var(--bg-panel);
-  --sidebar-border:      var(--border-subtle);
-  --sidebar-link-hover:  var(--bg-hover);
+  --sidebar-bg: var(--bg-panel);
+  --sidebar-border: var(--border-subtle);
+  --sidebar-link-hover: var(--bg-hover);
   --sidebar-link-active: rgba(225, 53, 255, 0.12);
 
   // Cards
-  --card-bg:     var(--bg-elevated);
+  --card-bg: var(--bg-elevated);
   --card-border: var(--border-subtle);
   --card-shadow: #{$shadow-md};
 
   // Code
-  --code-bg:     var(--bg-code);
+  --code-bg: var(--bg-code);
   --code-border: var(--border-subtle);
-  --code-text:   var(--text-primary);
+  --code-text: var(--text-primary);
   --inline-code-bg: rgba(225, 53, 255, 0.1);
 
   // Table
   --table-header-bg: var(--bg-elevated);
   --table-row-hover: rgba(128, 255, 234, 0.04);
-  --table-border:    var(--border-subtle);
+  --table-border: var(--border-subtle);
 
   // Callouts
-  --callout-tip-bg:     rgba(80, 250, 123, 0.08);
+  --callout-tip-bg: rgba(80, 250, 123, 0.08);
   --callout-tip-border: var(--c-green);
-  --callout-tip-icon:   var(--c-green);
+  --callout-tip-icon: var(--c-green);
 
-  --callout-warning-bg:     rgba(241, 250, 140, 0.08);
+  --callout-warning-bg: rgba(241, 250, 140, 0.08);
   --callout-warning-border: var(--c-yellow);
-  --callout-warning-icon:   var(--c-yellow);
+  --callout-warning-icon: var(--c-yellow);
 
-  --callout-danger-bg:     rgba(255, 99, 99, 0.08);
+  --callout-danger-bg: rgba(255, 99, 99, 0.08);
   --callout-danger-border: var(--c-red);
-  --callout-danger-icon:   var(--c-red);
+  --callout-danger-icon: var(--c-red);
 
   // Search
-  --search-bg:     var(--bg-elevated);
+  --search-bg: var(--bg-elevated);
   --search-border: var(--border-default);
 
   // Scrollbar
@@ -184,7 +194,7 @@ $z-skip-link: 500;
   --scrollbar-thumb-hover: rgba(255, 255, 255, 0.25);
 
   // Selection
-  --selection-bg:   rgba(225, 53, 255, 0.3);
+  --selection-bg: rgba(225, 53, 255, 0.3);
   --selection-text: #fff;
 
   // Footer
@@ -196,67 +206,67 @@ $z-skip-link: 500;
 // ─────────────────────────────────────────────────────────────────────────────
 
 [data-theme="light"] {
-  --bg-base:     #faf8ff;
-  --bg-panel:    #f1ecff;
+  --bg-base: #faf8ff;
+  --bg-panel: #f1ecff;
   --bg-elevated: #efeaff;
-  --bg-code:     #e1daf7;
-  --bg-hover:    rgba(126, 43, 213, 0.06);
+  --bg-code: #e1daf7;
+  --bg-hover: rgba(126, 43, 213, 0.06);
 
   --c-purple: #7e2bd5;
-  --c-cyan:   #007f8e;
-  --c-coral:  #b40077;
+  --c-cyan: #007f8e;
+  --c-coral: #b40077;
   --c-yellow: #a88600;
-  --c-green:  #1f8752;
-  --c-red:    #c1272d;
+  --c-green: #1f8752;
+  --c-red: #c1272d;
 
-  --text-primary:   #2b2540;
+  --text-primary: #2b2540;
   --text-secondary: #3d3558;
-  --text-muted:     #5a4d78;
+  --text-muted: #5a4d78;
 
-  --border-subtle:  rgba(0, 0, 0, 0.06);
+  --border-subtle: rgba(0, 0, 0, 0.06);
   --border-default: rgba(0, 0, 0, 0.1);
-  --border-strong:  rgba(0, 0, 0, 0.18);
+  --border-strong: rgba(0, 0, 0, 0.18);
 
   --nav-bg: rgba(250, 248, 255, 0.82);
 
-  --sidebar-bg:          var(--bg-panel);
-  --sidebar-border:      var(--border-subtle);
-  --sidebar-link-hover:  var(--bg-hover);
+  --sidebar-bg: var(--bg-panel);
+  --sidebar-border: var(--border-subtle);
+  --sidebar-link-hover: var(--bg-hover);
   --sidebar-link-active: rgba(126, 43, 213, 0.1);
 
-  --card-bg:     #fff;
+  --card-bg: #fff;
   --card-border: var(--border-subtle);
   --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 
-  --code-bg:     var(--bg-code);
+  --code-bg: var(--bg-code);
   --code-border: var(--border-subtle);
-  --code-text:   var(--text-primary);
+  --code-text: var(--text-primary);
   --inline-code-bg: rgba(126, 43, 213, 0.08);
 
   --table-header-bg: var(--bg-elevated);
   --table-row-hover: rgba(0, 127, 142, 0.04);
-  --table-border:    var(--border-subtle);
+  --table-border: var(--border-subtle);
 
-  --callout-tip-bg:     rgba(31, 135, 82, 0.08);
+  --callout-tip-bg: rgba(31, 135, 82, 0.08);
   --callout-tip-border: var(--c-green);
-  --callout-tip-icon:   var(--c-green);
+  --callout-tip-icon: var(--c-green);
 
-  --callout-warning-bg:     rgba(168, 134, 0, 0.08);
+  --callout-warning-bg: rgba(168, 134, 0, 0.08);
   --callout-warning-border: var(--c-yellow);
-  --callout-warning-icon:   var(--c-yellow);
+  --callout-warning-icon: var(--c-yellow);
 
-  --callout-danger-bg:     rgba(193, 39, 45, 0.08);
+  --callout-danger-bg: rgba(193, 39, 45, 0.08);
   --callout-danger-border: var(--c-red);
-  --callout-danger-icon:   var(--c-red);
+  --callout-danger-icon: var(--c-red);
 
-  --search-bg:     #fff;
+  --search-bg: #fff;
   --search-border: var(--border-default);
 
   --scrollbar-track: var(--bg-panel);
   --scrollbar-thumb: rgba(0, 0, 0, 0.12);
   --scrollbar-thumb-hover: rgba(0, 0, 0, 0.22);
 
-  --selection-bg:   rgba(126, 43, 213, 0.25);
+  --selection-bg: rgba(126, 43, 213, 0.25);
   --selection-text: #2b2540;
 
   --footer-bg: var(--bg-panel);

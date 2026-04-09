@@ -40,7 +40,8 @@
 
 // Pulse glow for active elements
 @keyframes pulse-glow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 8px rgba(225, 53, 255, 0.15);
   }
   50% {
@@ -125,7 +126,7 @@
   position: relative;
 
   &::after {
-    content: '';
+    content: "";
     position: absolute;
     left: 0;
     top: 25%;
@@ -140,7 +141,9 @@
 // ── TOC link active pulse ────────────────────────────────────────────────────
 
 .toc-link--active {
-  transition: color $duration-fast $ease-out, border-color $duration-fast $ease-out;
+  transition:
+    color $duration-fast $ease-out,
+    border-color $duration-fast $ease-out;
 }
 
 // ── Button hover ripple ──────────────────────────────────────────────────────
@@ -188,7 +191,9 @@
 // ── Search modal transitions ─────────────────────────────────────────────────
 
 .search-result {
-  transition: background $duration-fast $ease-out, transform $duration-fast $ease-out;
+  transition:
+    background $duration-fast $ease-out,
+    transform $duration-fast $ease-out;
 
   &:hover {
     transform: translateX(2px);
@@ -199,14 +204,18 @@
 
 .zola-anchor,
 .anchor {
-  transition: opacity $duration-fast $ease-out, color $duration-fast $ease-out;
+  transition:
+    opacity $duration-fast $ease-out,
+    color $duration-fast $ease-out;
 }
 
 // ── Theme toggle rotation ────────────────────────────────────────────────────
 
 .theme-toggle {
-  transition: color $duration-fast $ease-out, background $duration-fast $ease-out,
-              transform $duration-normal $ease-spring;
+  transition:
+    color $duration-fast $ease-out,
+    background $duration-fast $ease-out,
+    transform $duration-normal $ease-spring;
 
   &:active {
     transform: rotate(30deg) scale(0.9);

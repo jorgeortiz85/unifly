@@ -40,14 +40,17 @@ clippy:
 fix:
     cargo clippy --workspace --all-targets --fix --allow-dirty
     cargo fmt --all
+    npx prettier --write .
 
 # Format all code
 fmt:
     cargo fmt --all
+    npx prettier --write .
 
 # Check formatting without modifying
 fmt-check:
     cargo fmt --all -- --check
+    npx prettier --check .
 
 # Lint = format check + clippy
 lint: fmt-check clippy
@@ -116,13 +119,13 @@ tui *args:
 doc:
     cargo doc --workspace --no-deps --open
 
-# Format markdown and JSON with prettier
-prettier:
-    cd docs && npx prettier --write "**/*.md" "**/*.json"
+# Build the Zola docs site
+docs-build:
+    cd docs && zola build
 
-# Check markdown and JSON formatting
-prettier-check:
-    cd docs && npx prettier --check "**/*.md" "**/*.json"
+# Serve the docs site with live reload
+docs-serve:
+    cd docs && zola serve
 
 # ── Clean ───────────────────────────────────────────────────────
 

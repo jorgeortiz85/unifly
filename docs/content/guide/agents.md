@@ -23,14 +23,15 @@ npx skills add hyperb1iss/unifly -a claude-code
 
 {% mermaid() %}
 graph TD
-    SKILL["unifly Skill Bundle"] --> REF["Command Reference<br/><i>27 commands, flags, gotchas</i>"]
-    SKILL --> AGENT["Network Manager Agent<br/><i>Autonomous provisioning</i>"]
-    SKILL --> CONCEPTS["Networking Concepts<br/><i>Dual-API architecture, auth</i>"]
-    SKILL --> WORKFLOWS["Workflow Patterns<br/><i>Automation recipes</i>"]
-    SKILL --> EXAMPLES["Example Payloads<br/><i>JSON templates for --from-file</i>"]
+SKILL["unifly Skill Bundle"] --> REF["Command Reference<br/><i>27 commands, flags, gotchas</i>"]
+SKILL --> AGENT["Network Manager Agent<br/><i>Autonomous provisioning</i>"]
+SKILL --> CONCEPTS["Networking Concepts<br/><i>Dual-API architecture, auth</i>"]
+SKILL --> WORKFLOWS["Workflow Patterns<br/><i>Automation recipes</i>"]
+SKILL --> EXAMPLES["Example Payloads<br/><i>JSON templates for --from-file</i>"]
 
     style SKILL fill:#e135ff,color:#0a0a0f
     style AGENT fill:#50fa7b,color:#0a0a0f
+
 {% end %}
 
 | Component                 | Description                                                                                |

@@ -59,7 +59,9 @@
     background: rgba(0, 0, 0, 0.4);
     opacity: 0;
     visibility: hidden;
-    transition: opacity $duration-normal $ease-out, visibility $duration-normal;
+    transition:
+      opacity $duration-normal $ease-out,
+      visibility $duration-normal;
 
     &--visible {
       opacity: 1;
@@ -151,7 +153,8 @@
   .doc table {
     font-size: $font-size-xs;
 
-    th, td {
+    th,
+    td {
       padding: $sp-2 $sp-3;
     }
   }

@@ -113,7 +113,8 @@ img {
 }
 
 // Lists
-ul, ol {
+ul,
+ol {
   padding-left: $sp-6;
 }
 
@@ -170,7 +171,12 @@ ul, ol {
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, var(--c-purple), var(--c-cyan), var(--c-coral));
+  background: linear-gradient(
+    90deg,
+    var(--c-purple),
+    var(--c-cyan),
+    var(--c-coral)
+  );
 }
 
 .footer-content {

@@ -28,14 +28,15 @@ Profiles let you manage multiple controllers from a single config. Each profile 
 
 {% mermaid() %}
 graph TD
-    CONFIG["config.toml"] --> DEFAULT["default_profile = 'home'"]
-    CONFIG --> P1["[profiles.home]<br/>UDM Pro, Hybrid"]
-    CONFIG --> P2["[profiles.office]<br/>Cloud Key, API Key"]
-    CONFIG --> P3["[profiles.warehouse]<br/>Self-hosted, Session"]
+CONFIG["config.toml"] --> DEFAULT["default_profile = 'home'"]
+CONFIG --> P1["[profiles.home]<br/>UDM Pro, Hybrid"]
+CONFIG --> P2["[profiles.office]<br/>Cloud Key, API Key"]
+CONFIG --> P3["[profiles.warehouse]<br/>Self-hosted, Session"]
 
     style P1 fill:#50fa7b,color:#0a0a0f
     style P2 fill:#80ffea,color:#0a0a0f
     style P3 fill:#f1fa8c,color:#0a0a0f
+
 {% end %}
 
 ### Managing Profiles
@@ -150,12 +151,13 @@ Settings are resolved in this order (highest priority first):
 
 {% mermaid() %}
 graph LR
-    A["1. CLI Flags"] --> B["2. Environment Vars"] --> C["3. Profile Config"] --> D["4. [defaults] Section"]
+A["1. CLI Flags"] --> B["2. Environment Vars"] --> C["3. Profile Config"] --> D["4. [defaults] Section"]
 
     style A fill:#ff6ac1,color:#0a0a0f
     style B fill:#f1fa8c,color:#0a0a0f
     style C fill:#80ffea,color:#0a0a0f
     style D fill:#50fa7b,color:#0a0a0f
+
 {% end %}
 
 1. **CLI flags** (`--controller`, `--site`, `-o json`, etc.)

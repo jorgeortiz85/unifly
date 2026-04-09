@@ -14,15 +14,39 @@
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(ellipse 60% 50% at 50% 0%, rgba(225, 53, 255, 0.12) 0%, transparent 70%),
-    radial-gradient(ellipse 40% 40% at 80% 20%, rgba(128, 255, 234, 0.08) 0%, transparent 60%),
-    radial-gradient(ellipse 40% 40% at 20% 30%, rgba(255, 106, 193, 0.06) 0%, transparent 60%);
+    radial-gradient(
+      ellipse 60% 50% at 50% 0%,
+      rgba(225, 53, 255, 0.12) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 40% 40% at 80% 20%,
+      rgba(128, 255, 234, 0.08) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse 40% 40% at 20% 30%,
+      rgba(255, 106, 193, 0.06) 0%,
+      transparent 60%
+    );
 
   [data-theme="light"] & {
     background:
-      radial-gradient(ellipse 60% 50% at 50% 0%, rgba(126, 43, 213, 0.1) 0%, transparent 70%),
-      radial-gradient(ellipse 40% 40% at 80% 20%, rgba(0, 127, 142, 0.07) 0%, transparent 60%),
-      radial-gradient(ellipse 40% 40% at 20% 30%, rgba(180, 0, 119, 0.05) 0%, transparent 60%);
+      radial-gradient(
+        ellipse 60% 50% at 50% 0%,
+        rgba(126, 43, 213, 0.1) 0%,
+        transparent 70%
+      ),
+      radial-gradient(
+        ellipse 40% 40% at 80% 20%,
+        rgba(0, 127, 142, 0.07) 0%,
+        transparent 60%
+      ),
+      radial-gradient(
+        ellipse 40% 40% at 20% 30%,
+        rgba(180, 0, 119, 0.05) 0%,
+        transparent 60%
+      );
   }
 }
 
@@ -85,7 +109,11 @@
 }
 
 .btn--primary {
-  background: linear-gradient(135deg, var(--c-purple), color-mix(in srgb, var(--c-purple) 70%, var(--c-cyan)));
+  background: linear-gradient(
+    135deg,
+    var(--c-purple),
+    color-mix(in srgb, var(--c-purple) 70%, var(--c-cyan))
+  );
   color: #fff;
   border-color: transparent;
   box-shadow: 0 2px 12px rgba(225, 53, 255, 0.25);
@@ -143,29 +171,40 @@
   background: var(--card-bg);
   border: 1px solid var(--card-border);
   border-radius: $radius-xl;
-  transition: transform $duration-normal $ease-out,
-              border-color $duration-normal $ease-out,
-              box-shadow $duration-normal $ease-out;
+  transition:
+    transform $duration-normal $ease-out,
+    border-color $duration-normal $ease-out,
+    box-shadow $duration-normal $ease-out;
 
   &::before {
-    content: '';
+    content: "";
     position: absolute;
     inset: -1px;
     border-radius: inherit;
-    background: linear-gradient(135deg, rgba(225, 53, 255, 0.15), rgba(128, 255, 234, 0.15));
+    background: linear-gradient(
+      135deg,
+      rgba(225, 53, 255, 0.15),
+      rgba(128, 255, 234, 0.15)
+    );
     opacity: 0;
     transition: opacity $duration-normal $ease-out;
     z-index: -1;
     padding: 1px;
-    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
     mask-composite: exclude;
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
   }
 
   &:hover {
     transform: translateY(-4px);
-    box-shadow: 0 8px 32px rgba(225, 53, 255, 0.12), 0 4px 16px rgba(0, 0, 0, 0.2);
+    box-shadow:
+      0 8px 32px rgba(225, 53, 255, 0.12),
+      0 4px 16px rgba(0, 0, 0, 0.2);
 
     &::before {
       opacity: 1;
@@ -225,9 +264,10 @@
   border: 1px solid var(--card-border);
   border-radius: $radius-lg;
   text-decoration: none;
-  transition: border-color $duration-fast $ease-out,
-              background $duration-fast $ease-out,
-              transform $duration-normal $ease-out;
+  transition:
+    border-color $duration-fast $ease-out,
+    background $duration-fast $ease-out,
+    transform $duration-normal $ease-out;
 
   &:hover {
     border-color: var(--c-purple);
@@ -266,7 +306,9 @@
   @include glass(4px, 1);
   opacity: 0;
   visibility: hidden;
-  transition: opacity $duration-normal $ease-out, visibility $duration-normal;
+  transition:
+    opacity $duration-normal $ease-out,
+    visibility $duration-normal;
 
   &--open {
     opacity: 1;
@@ -292,7 +334,9 @@
   flex-direction: column;
   transform: translateY(-8px) scale(0.98);
   opacity: 0;
-  transition: transform $duration-normal $ease-out, opacity $duration-normal $ease-out;
+  transition:
+    transform $duration-normal $ease-out,
+    opacity $duration-normal $ease-out;
 }
 
 .search-input {

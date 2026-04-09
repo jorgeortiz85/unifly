@@ -58,9 +58,10 @@
   text-decoration: none;
   border-radius: $radius-md;
   border-left: 2px solid transparent;
-  transition: color $duration-fast $ease-out,
-              background $duration-fast $ease-out,
-              border-color $duration-fast $ease-out;
+  transition:
+    color $duration-fast $ease-out,
+    background $duration-fast $ease-out,
+    border-color $duration-fast $ease-out;
 
   &:hover {
     color: var(--text-primary);
@@ -126,7 +127,9 @@
   color: var(--text-muted);
   text-decoration: none;
   border-left: 2px solid transparent;
-  transition: color $duration-fast $ease-out, border-color $duration-fast $ease-out;
+  transition:
+    color $duration-fast $ease-out,
+    border-color $duration-fast $ease-out;
 
   &:hover {
     color: var(--text-primary);

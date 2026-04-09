@@ -42,7 +42,7 @@
 
     .nav-title__uni,
     .nav-title__fly {
-      filter: unquote('brightness(1.15)');
+      filter: unquote("brightness(1.15)");
     }
   }
 }
@@ -77,7 +77,9 @@
   color: var(--text-secondary);
   text-decoration: none;
   border-radius: $radius-md;
-  transition: color $duration-fast $ease-out, background $duration-fast $ease-out;
+  transition:
+    color $duration-fast $ease-out,
+    background $duration-fast $ease-out;
 
   &:hover {
     color: var(--text-primary);
@@ -116,7 +118,9 @@
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  transition: color $duration-fast $ease-out, background $duration-fast $ease-out;
+  transition:
+    color $duration-fast $ease-out,
+    background $duration-fast $ease-out;
 
   &:hover {
     color: var(--text-primary);
@@ -180,7 +184,9 @@
     height: 2px;
     background: currentColor;
     border-radius: $radius-full;
-    transition: transform $duration-normal $ease-out, opacity $duration-fast $ease-out;
+    transition:
+      transform $duration-normal $ease-out,
+      opacity $duration-fast $ease-out;
 
     & + .hamburger-line {
       margin-top: 4px;

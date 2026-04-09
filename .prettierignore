@@ -1,0 +1,7 @@
+target/
+docs/public/
+CHANGELOG.md
+*.rs
+*.lock
+*.toml
+tests/fixtures/

@@ -1,4 +1,6 @@
 <div class="callout callout--tip">
-  {% if title %}<div class="callout__title">{{ title }}</div>{% endif %}
+  {% if title %}
+  <div class="callout__title">{{ title }}</div>
+  {% endif %}
   <div class="callout__body">{{ body | markdown | safe }}</div>
 </div>

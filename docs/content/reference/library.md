@@ -99,13 +99,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 {% mermaid() %}
 graph TD
-    subgraph "unifly-api"
-        IC["IntegrationClient<br/><i>REST + API Key</i>"]
-        SC["SessionClient<br/><i>Cookie + CSRF</i>"]
-        WS["WebSocket<br/><i>Live Events</i>"]
-        CTRL["Controller<br/><i>Lifecycle + Routing</i>"]
-        DS["DataStore<br/><i>DashMap + watch</i>"]
-    end
+subgraph "unifly-api"
+IC["IntegrationClient<br/><i>REST + API Key</i>"]
+SC["SessionClient<br/><i>Cookie + CSRF</i>"]
+WS["WebSocket<br/><i>Live Events</i>"]
+CTRL["Controller<br/><i>Lifecycle + Routing</i>"]
+DS["DataStore<br/><i>DashMap + watch</i>"]
+end
 
     CTRL --> IC
     CTRL --> SC
@@ -114,6 +114,7 @@ graph TD
     SC --> DS
     WS --> DS
     DS --> ES["EntityStream&lt;T&gt;<br/><i>Reactive subscriptions</i>"]
+
 {% end %}
 
 | Type              | Purpose                                                                                                                                  |

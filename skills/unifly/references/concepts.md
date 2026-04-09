@@ -206,11 +206,11 @@ falls back to polling when no session cookie is available.
 
 ### Platform-Native Config Paths
 
-| OS      | Config File                                        |
-| ------- | -------------------------------------------------- |
-| Linux   | `~/.config/unifly/config.toml`                     |
-| macOS   | `~/.config/unifly/config.toml`                     |
-| Windows | `%APPDATA%\unifly\config.toml`                     |
+| OS      | Config File                    |
+| ------- | ------------------------------ |
+| Linux   | `~/.config/unifly/config.toml` |
+| macOS   | `~/.config/unifly/config.toml` |
+| Windows | `%APPDATA%\unifly\config.toml` |
 
 Unix platforms (Linux and macOS) use XDG-standard paths. Windows uses
 platform-native `%APPDATA%`. Agents should not assume Unix paths on Windows.
@@ -224,8 +224,8 @@ over CLI flags when running in automation contexts:
 | ---------------- | ---------------------------------------------------- |
 | `UNIFI_URL`      | Controller URL (overrides profile)                   |
 | `UNIFI_API_KEY`  | Integration API key                                  |
-| `UNIFI_USERNAME` | Session API username                                  |
-| `UNIFI_PASSWORD` | Session API password (prefer keyring in interactive)  |
+| `UNIFI_USERNAME` | Session API username                                 |
+| `UNIFI_PASSWORD` | Session API password (prefer keyring in interactive) |
 | `UNIFI_SITE`     | Target site name or UUID                             |
 | `UNIFI_PROFILE`  | Active profile                                       |
 | `UNIFI_OUTPUT`   | Default output format                                |
@@ -402,8 +402,8 @@ Common failures and how to diagnose them:
 
 | Error                                         | Root Cause                                               | Fix                                         |
 | --------------------------------------------- | -------------------------------------------------------- | ------------------------------------------- |
-| `Unsupported { required: "Integration API" }` | Command needs API key, running in `session` mode          | Switch to `hybrid` or `integration` mode    |
-| `Unsupported { required: "Session API" }`      | Command needs credentials, running in `integration` mode | Switch to `hybrid` or `session` mode         |
+| `Unsupported { required: "Integration API" }` | Command needs API key, running in `session` mode         | Switch to `hybrid` or `integration` mode    |
+| `Unsupported { required: "Session API" }`     | Command needs credentials, running in `integration` mode | Switch to `hybrid` or `session` mode        |
 | 403 on POST/PUT/DELETE via `/proxy/network/`  | Missing CSRF token                                       | Re-login (cache invalidated); `--no-cache`  |
 | `tls error: self-signed certificate`          | Controller uses self-signed TLS                          | Use `-k`/`--insecure` or `UNIFI_INSECURE=1` |
 | `profile 'foo' not found`                     | No matching profile in config                            | Run `unifly config profiles` to list        |

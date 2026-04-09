@@ -10,14 +10,15 @@ Unifly supports three authentication modes. The right choice depends on whether 
 
 {% mermaid() %}
 flowchart TD
-    START["What do you need?"] --> Q1{"Live event streaming<br/>(events watch or TUI)?"}
-    Q1 -->|"No"| APIKEY["API Key Mode"]
-    Q1 -->|"Yes"| HYBRID["Hybrid Mode"]
-    Q1 -->|"No API key<br/>available"| SESSION["Username/Password Mode"]
+START["What do you need?"] --> Q1{"Live event streaming<br/>(events watch or TUI)?"}
+Q1 -->|"No"| APIKEY["API Key Mode"]
+Q1 -->|"Yes"| HYBRID["Hybrid Mode"]
+Q1 -->|"No API key<br/>available"| SESSION["Username/Password Mode"]
 
     style APIKEY fill:#50fa7b,color:#0a0a0f
     style HYBRID fill:#80ffea,color:#0a0a0f
     style SESSION fill:#f1fa8c,color:#0a0a0f
+
 {% end %}
 
 {% tip(title="Recommended") %}
@@ -108,13 +109,14 @@ unifly devices list
 
 {% mermaid() %}
 graph LR
-    A["CLI Flags"] -->|highest| RESULT["Final Value"]
-    B["Environment Variables"] -->|medium| RESULT
-    C["Config File"] -->|lowest| RESULT
+A["CLI Flags"] -->|highest| RESULT["Final Value"]
+B["Environment Variables"] -->|medium| RESULT
+C["Config File"] -->|lowest| RESULT
 
     style A fill:#ff6ac1,color:#0a0a0f
     style B fill:#f1fa8c,color:#0a0a0f
     style C fill:#80ffea,color:#0a0a0f
+
 {% end %}
 
 CLI flags override environment variables, which override config file values.

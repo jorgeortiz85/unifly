@@ -86,14 +86,14 @@ unifly tui -p office         # Specific profile
 
 {% mermaid() %}
 graph LR
-    1["1 Dashboard<br/><i>Health overview</i>"] --> 2["2 Devices<br/><i>Hardware status</i>"]
-    2 --> 3["3 Clients<br/><i>Connected users</i>"]
-    3 --> 4["4 Networks<br/><i>VLANs & DHCP</i>"]
-    4 --> 5["5 Firewall<br/><i>Policies & zones</i>"]
-    5 --> 6["6 Topology<br/><i>Network map</i>"]
-    6 --> 7["7 Events<br/><i>Live feed</i>"]
-    7 --> 8["8 Stats<br/><i>Historical data</i>"]
-    8 --> 9["9 WiFi<br/><i>RF health & roaming</i>"]
+1["1 Dashboard<br/><i>Health overview</i>"] --> 2["2 Devices<br/><i>Hardware status</i>"]
+2 --> 3["3 Clients<br/><i>Connected users</i>"]
+3 --> 4["4 Networks<br/><i>VLANs & DHCP</i>"]
+4 --> 5["5 Firewall<br/><i>Policies & zones</i>"]
+5 --> 6["6 Topology<br/><i>Network map</i>"]
+6 --> 7["7 Events<br/><i>Live feed</i>"]
+7 --> 8["8 Stats<br/><i>Historical data</i>"]
+8 --> 9["9 WiFi<br/><i>RF health & roaming</i>"]
 {% end %}
 
 Navigate screens with number keys `1`-`9`. Press `,` for settings, `?` for help, `q` to quit.
@@ -103,7 +103,7 @@ Navigate screens with number keys `1`-`9`. Press `,` for settings, `?` for help,
 - `events watch` requires Session or Hybrid auth (WebSocket needs a cookie session)
 - List commands default to 25 rows. Pass `--all` or `--limit 200` for full results
 - Use Hybrid only when you need live event streaming (`events watch`). API Key mode covers most commands on UniFi OS
-{% end %}
+  {% end %}
 
 ## Multiple Controllers
 

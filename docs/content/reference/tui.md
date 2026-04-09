@@ -106,12 +106,13 @@ Navigate detail tabs with `h`/`l`. Press `Esc` to close.
 
 {% mermaid() %}
 graph LR
-    API["Integration + Session APIs"] -->|"Every 10s"| DS["DataStore"]
-    WS["WebSocket"] -->|"Real-time push"| DS
-    DS -->|"watch channels"| TUI["TUI Screens"]
+API["Integration + Session APIs"] -->|"Every 10s"| DS["DataStore"]
+WS["WebSocket"] -->|"Real-time push"| DS
+DS -->|"watch channels"| TUI["TUI Screens"]
 
     style WS fill:#50fa7b,color:#0a0a0f
     style DS fill:#80ffea,color:#0a0a0f
+
 {% end %}
 
 - **Devices and clients**: polled every 10 seconds from both APIs

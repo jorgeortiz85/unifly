@@ -120,14 +120,14 @@ Unit tests are inline in source files under `#[cfg(test)] mod tests`.
 
 ### Test Libraries
 
-| Library | Purpose |
-| --- | --- |
-| **wiremock** | Mock HTTP servers for Integration/Session API tests and e2e simulation |
-| **insta** | Snapshot tests for output formatting (`just snap-review` to approve) |
-| **assert_cmd** + **predicates** | End-to-end CLI tests that spawn the built binary |
-| **tempfile** | Per-test config dir isolation |
-| **tokio-test** | Poll-based async unit tests |
-| **pretty_assertions** | Better diffs on assertion failures |
+| Library                         | Purpose                                                                |
+| ------------------------------- | ---------------------------------------------------------------------- |
+| **wiremock**                    | Mock HTTP servers for Integration/Session API tests and e2e simulation |
+| **insta**                       | Snapshot tests for output formatting (`just snap-review` to approve)   |
+| **assert_cmd** + **predicates** | End-to-end CLI tests that spawn the built binary                       |
+| **tempfile**                    | Per-test config dir isolation                                          |
+| **tokio-test**                  | Poll-based async unit tests                                            |
+| **pretty_assertions**           | Better diffs on assertion failures                                     |
 
 ### Test Policy
 

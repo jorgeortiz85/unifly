@@ -47,7 +47,7 @@ UniFi controllers expose multiple APIs with different capabilities. unifly unifi
 
 > ### 🤖 AI Agent? 👤 Human? Both Welcome.
 >
-> unifly speaks fluent silicon *and* carbon.
+> unifly speaks fluent silicon _and_ carbon.
 >
 > **Coding agents** get a dedicated [skill bundle](skills/unifly/SKILL.md): full CLI reference, automation workflows, and a ready-made network manager agent that can provision VLANs, audit firewalls, and diagnose connectivity without asking permission for every command. One command to install:
 >
@@ -61,19 +61,19 @@ UniFi controllers expose multiple APIs with different capabilities. unifly unifi
 
 ## ✦ Features
 
-| Capability | What You Get |
-| --- | --- |
+| Capability                    | What You Get                                                                                                                                                             |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 🔮 **Triple-Path API Engine** | Integration API + Session API via a single API key on UniFi OS, plus Site Manager cloud fleet and connector support. Hybrid mode adds WebSocket for live event streaming |
-| ⚡ **Real-Time TUI** | 10-screen dashboard with area-fill traffic charts, CPU/MEM gauges, live client counts, zoomable topology |
-| 🦋 **28 Top-Level Commands** | Devices, clients, networks, WiFi, firewall policies, zones, ACLs, NAT, DNS, VPN, DPI, RADIUS, topology, cloud fleet, raw API passthrough, `tui`... |
-| 📡 **Wi-Fi Observability** | Neighboring APs, regulatory channels, per-client Wi-Fi experience scores, roam timelines |
-| 💎 **Flexible Output** | Table, JSON, compact JSON, YAML, and plain text. Pipe-friendly for scripting |
-| 🔒 **Secure Credentials** | OS keyring storage for API keys and passwords, with plaintext config support when you choose it |
-| 🌐 **Multi-Profile** | Named profiles for multiple controllers. Switch with a single flag |
-| 🧠 **Smart Config** | Interactive wizard, environment variables, TOML config, CLI overrides |
-| 📡 **WebSocket Events** | Live event streaming with 10K rolling buffer, severity filtering, pause/scroll-back |
-| 📊 **Historical Stats** | WAN bandwidth area fills, client counts, DPI app/category breakdown (1h to 30d) |
-| 🎨 **SilkCircuit Theme** | Neon-on-dark color palette powered by [opaline](https://crates.io/crates/opaline). Token-based theming across CLI and TUI with ANSI fallback |
+| ⚡ **Real-Time TUI**          | 10-screen dashboard with area-fill traffic charts, CPU/MEM gauges, live client counts, zoomable topology                                                                 |
+| 🦋 **28 Top-Level Commands**  | Devices, clients, networks, WiFi, firewall policies, zones, ACLs, NAT, DNS, VPN, DPI, RADIUS, topology, cloud fleet, raw API passthrough, `tui`...                       |
+| 📡 **Wi-Fi Observability**    | Neighboring APs, regulatory channels, per-client Wi-Fi experience scores, roam timelines                                                                                 |
+| 💎 **Flexible Output**        | Table, JSON, compact JSON, YAML, and plain text. Pipe-friendly for scripting                                                                                             |
+| 🔒 **Secure Credentials**     | OS keyring storage for API keys and passwords, with plaintext config support when you choose it                                                                          |
+| 🌐 **Multi-Profile**          | Named profiles for multiple controllers. Switch with a single flag                                                                                                       |
+| 🧠 **Smart Config**           | Interactive wizard, environment variables, TOML config, CLI overrides                                                                                                    |
+| 📡 **WebSocket Events**       | Live event streaming with 10K rolling buffer, severity filtering, pause/scroll-back                                                                                      |
+| 📊 **Historical Stats**       | WAN bandwidth area fills, client counts, DPI app/category breakdown (1h to 30d)                                                                                          |
+| 🎨 **SilkCircuit Theme**      | Neon-on-dark color palette powered by [opaline](https://crates.io/crates/opaline). Token-based theming across CLI and TUI with ANSI fallback                             |
 
 ---
 
@@ -93,12 +93,12 @@ irm https://raw.githubusercontent.com/hyperb1iss/unifly/main/install.ps1 | iex
 
 ### Other Methods
 
-| Method | Command |
-| --- | --- |
-| **Homebrew** | `brew install hyperb1iss/tap/unifly` |
-| **AUR** | `yay -S unifly-bin` |
-| **Cargo** | `cargo install --git https://github.com/hyperb1iss/unifly.git unifly` |
-| **Binary** | Download from [GitHub Releases](https://github.com/hyperb1iss/unifly/releases/latest) |
+| Method       | Command                                                                               |
+| ------------ | ------------------------------------------------------------------------------------- |
+| **Homebrew** | `brew install hyperb1iss/tap/unifly`                                                  |
+| **AUR**      | `yay -S unifly-bin`                                                                   |
+| **Cargo**    | `cargo install --git https://github.com/hyperb1iss/unifly.git unifly`                 |
+| **Binary**   | Download from [GitHub Releases](https://github.com/hyperb1iss/unifly/releases/latest) |
 
 ---
 
@@ -193,16 +193,16 @@ connector's site names or internal references.
 
 ### Environment Variables
 
-| Variable | Description |
-| --- | --- |
-| `UNIFI_API_KEY` | Integration API key |
-| `UNIFI_HOST_ID` | Site Manager console/host ID for cloud connector mode |
-| `UNIFI_URL` | Controller URL |
-| `UNIFI_PROFILE` | Profile name |
-| `UNIFI_SITE` | Site name or UUID |
-| `UNIFI_OUTPUT` | Default output format |
-| `UNIFI_INSECURE` | Accept self-signed TLS certs |
-| `UNIFI_TIMEOUT` | Request timeout (seconds) |
+| Variable         | Description                                           |
+| ---------------- | ----------------------------------------------------- |
+| `UNIFI_API_KEY`  | Integration API key                                   |
+| `UNIFI_HOST_ID`  | Site Manager console/host ID for cloud connector mode |
+| `UNIFI_URL`      | Controller URL                                        |
+| `UNIFI_PROFILE`  | Profile name                                          |
+| `UNIFI_SITE`     | Site name or UUID                                     |
+| `UNIFI_OUTPUT`   | Default output format                                 |
+| `UNIFI_INSECURE` | Accept self-signed TLS certs                          |
+| `UNIFI_TIMEOUT`  | Request timeout (seconds)                             |
 
 ---
 
@@ -210,35 +210,35 @@ connector's site names or internal references.
 
 ### Commands
 
-| Command | Alias | Description |
-| --- | --- | --- |
-| `acl` | | Manage ACL rules |
-| `admin` | | Administrator management |
-| `alarms` | | Manage alarms |
-| `clients` | `cl` | Manage clients and DHCP reservations |
-| `cloud` | | Query Site Manager hosts, sites, devices, ISP metrics, SD-WAN, and switch the active cloud site |
-| `completions` | | Generate shell completions |
-| `config` | | Manage CLI configuration |
-| `countries` | | List available country codes |
-| `devices` | `dev`, `d` | Manage adopted and pending devices |
-| `dns` | | Manage DNS policies (local records) |
-| `dpi` | | DPI reference data |
-| `events` | | View and stream events |
-| `firewall` | `fw` | Manage firewall policies and zones |
-| `nat` | | Manage NAT policies (masquerade, SNAT, DNAT) |
-| `hotspot` | | Manage hotspot vouchers |
-| `networks` | `net`, `n` | Manage networks and VLANs |
-| `radius` | | View RADIUS profiles |
-| `sites` | | Manage sites |
-| `stats` | | Query statistics and reports |
-| `system` | `sys` | System operations and info |
-| `topology` | `topo` | Show network topology tree |
-| `traffic-lists` | | Manage traffic matching lists |
-| `vpn` | | View VPN inventory, session site-to-site, remote-access, and client records, OpenVPN helpers, VPN connections, WireGuard peers, magic site-to-site configs, and VPN settings |
-| `wans` | | View WAN interfaces |
-| `wifi` | `w` | Manage WiFi broadcasts (SSIDs) |
-| `api` | | Raw API passthrough (GET/POST/PUT/PATCH/DELETE to any endpoint) |
-| `tui` | | Launch the real-time terminal dashboard |
+| Command         | Alias      | Description                                                                                                                                                                  |
+| --------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `acl`           |            | Manage ACL rules                                                                                                                                                             |
+| `admin`         |            | Administrator management                                                                                                                                                     |
+| `alarms`        |            | Manage alarms                                                                                                                                                                |
+| `clients`       | `cl`       | Manage clients and DHCP reservations                                                                                                                                         |
+| `cloud`         |            | Query Site Manager hosts, sites, devices, ISP metrics, SD-WAN, and switch the active cloud site                                                                              |
+| `completions`   |            | Generate shell completions                                                                                                                                                   |
+| `config`        |            | Manage CLI configuration                                                                                                                                                     |
+| `countries`     |            | List available country codes                                                                                                                                                 |
+| `devices`       | `dev`, `d` | Manage adopted and pending devices                                                                                                                                           |
+| `dns`           |            | Manage DNS policies (local records)                                                                                                                                          |
+| `dpi`           |            | DPI reference data                                                                                                                                                           |
+| `events`        |            | View and stream events                                                                                                                                                       |
+| `firewall`      | `fw`       | Manage firewall policies and zones                                                                                                                                           |
+| `nat`           |            | Manage NAT policies (masquerade, SNAT, DNAT)                                                                                                                                 |
+| `hotspot`       |            | Manage hotspot vouchers                                                                                                                                                      |
+| `networks`      | `net`, `n` | Manage networks and VLANs                                                                                                                                                    |
+| `radius`        |            | View RADIUS profiles                                                                                                                                                         |
+| `sites`         |            | Manage sites                                                                                                                                                                 |
+| `stats`         |            | Query statistics and reports                                                                                                                                                 |
+| `system`        | `sys`      | System operations and info                                                                                                                                                   |
+| `topology`      | `topo`     | Show network topology tree                                                                                                                                                   |
+| `traffic-lists` |            | Manage traffic matching lists                                                                                                                                                |
+| `vpn`           |            | View VPN inventory, session site-to-site, remote-access, and client records, OpenVPN helpers, VPN connections, WireGuard peers, magic site-to-site configs, and VPN settings |
+| `wans`          |            | View WAN interfaces                                                                                                                                                          |
+| `wifi`          | `w`        | Manage WiFi broadcasts (SSIDs)                                                                                                                                               |
+| `api`           |            | Raw API passthrough (GET/POST/PUT/PATCH/DELETE to any endpoint)                                                                                                              |
+| `tui`           |            | Launch the real-time terminal dashboard                                                                                                                                      |
 
 Most resource groups support `list` and `get`; some also expose `create`, `update`, `delete`, `patch`, or specialized actions. Run `unifly <command> --help` for details.
 
@@ -297,18 +297,18 @@ still outside the TUI surface today.
   <img src="docs/images/dashboard.png" alt="unifly tui dashboard" width="900">
 </p>
 
-| Screen | Highlights |
-| --- | --- |
-| **Dashboard** | btop-style overview: WAN traffic chart, gateway info, CPU/MEM gauges, top clients, recent events |
-| **Devices** | Model, firmware, uptime, CPU/MEM. 5-tab detail panel. Restart, locate, upgrade |
-| **Clients** | Signal, traffic, VLAN. Filter by type. Block/unblock/kick |
-| **Networks** | VLAN topology with inline edit overlay for live config changes |
-| **Firewall** | Policies, zones, ACL, NAT across four sub-tabs with drag reordering |
-| **Topology** | Zoomable network tree with pan, zoom, fit-to-view |
-| **Events** | Live WebSocket stream with 10K buffer, pause, severity filtering |
-| **Stats** | WAN bandwidth, client counts, DPI breakdown (1h/24h/7d/30d) |
-| **Settings** | Profile switching, theme selector, display preferences |
-| **Onboarding** | First-run setup wizard |
+| Screen         | Highlights                                                                                       |
+| -------------- | ------------------------------------------------------------------------------------------------ |
+| **Dashboard**  | btop-style overview: WAN traffic chart, gateway info, CPU/MEM gauges, top clients, recent events |
+| **Devices**    | Model, firmware, uptime, CPU/MEM. 5-tab detail panel. Restart, locate, upgrade                   |
+| **Clients**    | Signal, traffic, VLAN. Filter by type. Block/unblock/kick                                        |
+| **Networks**   | VLAN topology with inline edit overlay for live config changes                                   |
+| **Firewall**   | Policies, zones, ACL, NAT across four sub-tabs with drag reordering                              |
+| **Topology**   | Zoomable network tree with pan, zoom, fit-to-view                                                |
+| **Events**     | Live WebSocket stream with 10K buffer, pause, severity filtering                                 |
+| **Stats**      | WAN bandwidth, client counts, DPI breakdown (1h/24h/7d/30d)                                      |
+| **Settings**   | Profile switching, theme selector, display preferences                                           |
+| **Onboarding** | First-run setup wizard                                                                           |
 
 <p align="center">
   <img src="docs/images/devices.png" alt="unifly tui devices" width="900">
@@ -323,10 +323,10 @@ Full keybinding reference and screen details in the [TUI documentation](https://
 
 Two crates, clean dependency chain:
 
-| Crate | Purpose |
-| --- | --- |
+| Crate          | Purpose                                                                                                                                                                          |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **unifly-api** | Async HTTP/WebSocket client, Controller lifecycle, reactive DataStore (`DashMap` + `tokio::watch`), entity models. Published on [crates.io](https://crates.io/crates/unifly-api) |
-| **unifly** | Single binary: CLI commands + `unifly tui` dashboard via feature flags, profile/keyring config, 10-screen ratatui dashboard with SilkCircuit theme |
+| **unifly**     | Single binary: CLI commands + `unifly tui` dashboard via feature flags, profile/keyring config, 10-screen ratatui dashboard with SilkCircuit theme                               |
 
 Deep dive: [Architecture documentation](https://hyperb1iss.github.io/unifly/architecture/)
 
@@ -383,11 +383,11 @@ npx skills add hyperb1iss/unifly -a claude-code     # Target a specific agent
 
 ### What's Included
 
-| Component | Description |
-| --- | --- |
-| **unifly skill** | Complete CLI reference, command patterns, output formats, automation tips |
-| **Network Manager agent** | Autonomous agent for provisioning, diagnostics, and security audits |
-| **Reference docs** | Command reference, UniFi networking concepts, workflow patterns |
+| Component                 | Description                                                               |
+| ------------------------- | ------------------------------------------------------------------------- |
+| **unifly skill**          | Complete CLI reference, command patterns, output formats, automation tips |
+| **Network Manager agent** | Autonomous agent for provisioning, diagnostics, and security audits       |
+| **Reference docs**        | Command reference, UniFi networking concepts, workflow patterns           |
 
 ---
 

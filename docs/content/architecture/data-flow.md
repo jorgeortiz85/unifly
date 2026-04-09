@@ -8,12 +8,12 @@ weight = 2
 
 {% mermaid() %}
 sequenceDiagram
-    participant User
-    participant Controller
-    participant IntegrationAPI
-    participant LegacyAPI
-    participant WebSocket
-    participant DataStore
+participant User
+participant Controller
+participant IntegrationAPI
+participant LegacyAPI
+participant WebSocket
+participant DataStore
 
     User->>Controller: connect()
     Controller->>IntegrationAPI: Authenticate (API key)
@@ -36,6 +36,7 @@ sequenceDiagram
         WebSocket-->>DataStore: Push events
         DataStore-->>User: Notify subscribers
     end
+
 {% end %}
 
 ## Data Store Architecture
@@ -44,15 +45,16 @@ The `DataStore` uses a combination of `DashMap` and `tokio::watch` for lock-free
 
 {% mermaid() %}
 graph LR
-    subgraph DataStore
-        DM["DashMap&lt;String, Arc&lt;T&gt;&gt;<br/><i>Lock-free concurrent map</i>"]
-        WS["watch::Sender&lt;Arc&lt;Vec&lt;T&gt;&gt;&gt;<br/><i>Change notification</i>"]
-    end
+subgraph DataStore
+DM["DashMap&lt;String, Arc&lt;T&gt;&gt;<br/><i>Lock-free concurrent map</i>"]
+WS["watch::Sender&lt;Arc&lt;Vec&lt;T&gt;&gt;&gt;<br/><i>Change notification</i>"]
+end
 
     API["API Response"] --> DM
     DM --> WS
     WS --> CLI["CLI (read once)"]
     WS --> TUI["TUI (subscribe)"]
+
 {% end %}
 
 - **Writes** go through `DashMap::insert()` then `watch::Sender::send()`

@@ -18,7 +18,7 @@ jobs:
     uses: hyperb1iss/shared-workflows/.github/workflows/rust-ci.yml@main
     with:
       change-detection: false
-      system-deps: 'libdbus-1-dev pkg-config lld'
+      system-deps: "libdbus-1-dev pkg-config lld"
       workspace: true
       all-features: false
       all-targets: false
@@ -97,8 +97,8 @@ jobs:
     needs: build-artifacts
     uses: hyperb1iss/shared-workflows/.github/workflows/rust-publish.yml@main
     with:
-      crates: 'unifly-api unifly'
-      system-deps: 'libdbus-1-dev pkg-config lld'
+      crates: "unifly-api unifly"
+      system-deps: "libdbus-1-dev pkg-config lld"
     permissions:
       contents: read
       id-token: write
@@ -180,7 +180,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v6
         with:
-          node-version: '22'
+          node-version: "22"
       - name: Authenticate ClawHub CLI
         env:
           CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
