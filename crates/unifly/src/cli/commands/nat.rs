@@ -133,7 +133,10 @@ async fn handle_policies(
     painter: &output::Painter,
 ) -> Result<(), CliError> {
     match cmd {
-        NatPoliciesCommand::List(list) => handle_list(controller, &list, global, painter),
+        NatPoliciesCommand::List(list) => {
+            handle_list(controller, &list, global, painter);
+            Ok(())
+        }
         NatPoliciesCommand::Get { id } => handle_get(controller, &id, global),
         NatPoliciesCommand::Create {
             from_file,
@@ -209,13 +212,12 @@ async fn handle_policies(
     }
 }
 
-#[allow(clippy::unnecessary_wraps)]
 fn handle_list(
     controller: &Controller,
     list: &crate::cli::args::ListArgs,
     global: &GlobalOpts,
     painter: &output::Painter,
-) -> Result<(), CliError> {
+) {
     let all = controller.nat_policies_snapshot();
     let snapshot = util::apply_list_args(all.iter().cloned(), list, |policy, filter| {
         util::matches_json_filter(policy, filter)
@@ -227,7 +229,6 @@ fn handle_list(
         |policy| policy.id.to_string(),
     );
     output::print_output(&out, global.quiet);
-    Ok(())
 }
 
 fn handle_get(controller: &Controller, id: &str, global: &GlobalOpts) -> Result<(), CliError> {
@@ -316,7 +317,14 @@ async fn handle_update(
     global: &GlobalOpts,
 ) -> Result<(), CliError> {
     let update: UpdateNatPolicyRequest = if let Some(path) = from_file.as_ref() {
-        serde_json::from_value(util::read_json_file(path)?)?
+        let req: UpdateNatPolicyRequest = serde_json::from_value(util::read_json_file(path)?)?;
+        if req.name.is_some() && req.description.is_some() {
+            return Err(CliError::Validation {
+                field: "name/description".into(),
+                reason: "mutually exclusive (both map to the API description field)".into(),
+            });
+        }
+        req
     } else {
         if name.is_none()
             && nat_type.is_none()
