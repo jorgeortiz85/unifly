@@ -58,7 +58,7 @@ impl App {
         }
     }
 
-    /// Render the bottom tab bar showing all 8 screens.
+    /// Render the bottom tab bar showing all primary screens.
     fn render_tab_bar(&self, frame: &mut Frame, area: Rect) {
         let compact = area.width < 100;
         let titles: Vec<Line> = ScreenId::ALL
@@ -271,7 +271,7 @@ impl App {
             )]),
             Line::from(Span::styled("  ─────────────", theme::key_hint())),
             Line::from(vec![
-                Span::styled("  1-8         ", theme::key_hint_key()),
+                Span::styled("  1-9         ", theme::key_hint_key()),
                 Span::styled("Jump to screen", theme::key_hint()),
             ]),
             Line::from(vec![

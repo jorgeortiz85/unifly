@@ -7,6 +7,7 @@ mod navigation;
 mod render;
 mod screens;
 mod stats;
+mod wifi;
 
 use std::collections::HashMap;
 use std::sync::Arc;

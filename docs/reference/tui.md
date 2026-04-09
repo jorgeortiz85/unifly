@@ -1,6 +1,6 @@
 # 🖥️ TUI Dashboard
 
-The `unifly tui` subcommand launches a real-time terminal dashboard for monitoring your UniFi network. Ten screens cover everything from live bandwidth charts to firewall policy management.
+The `unifly tui` subcommand launches a real-time terminal dashboard for monitoring your UniFi network. Eleven screens cover everything from live bandwidth charts to WiFi observability.
 
 ## Launch
 
@@ -13,7 +13,7 @@ unifly tui -v                # Verbose logging to temp directory
 
 ## Screens
 
-Navigate with number keys `1`-`8`, `Tab`/`Shift+Tab`, or `,` for Settings:
+Navigate with number keys `1`-`9`, `Tab`/`Shift+Tab`, or `,` for Settings:
 
 | Key | Screen         | When to Use                                                    |
 | --- | -------------- | -------------------------------------------------------------- |
@@ -25,6 +25,7 @@ Navigate with number keys `1`-`8`, `Tab`/`Shift+Tab`, or `,` for Settings:
 | `6` | **Topology**   | Understanding physical network layout, tracing uplink paths    |
 | `7` | **Events**     | Real-time troubleshooting, watching for connectivity issues    |
 | `8` | **Stats**      | Historical analysis, bandwidth trends, DPI app breakdown       |
+| `9` | **WiFi**       | AP health, channel overlap, client experience, roaming history |
 | `,` | **Settings**   | Switching profiles, changing themes, adjusting display options |
 |     | **Onboarding** | First-run setup wizard (shown automatically on first launch)   |
 
@@ -49,7 +50,7 @@ The dashboard packs eight live panels into a dense, information-rich overview:
 
 | Key                       | Action                 |
 | ------------------------- | ---------------------- |
-| `1`-`8`, `,`              | Jump to screen         |
+| `1`-`9`, `,`              | Jump to screen         |
 | `Tab` / `Shift+Tab`       | Next / previous screen |
 | `j` / `k` / `Up` / `Down` | Navigate up / down     |
 | `g` / `G`                 | Jump to top / bottom   |
@@ -79,6 +80,11 @@ The dashboard packs eight live panels into a dense, information-rich overview:
 | **Events**           | `Space`         | Pause / resume live stream                          |
 | **Stats**            | `h` `d` `w` `m` | Period: 1h / 24h / 7d / 30d                         |
 | **Stats**            | `r`             | Refresh data                                        |
+| **WiFi**             | `Tab`           | Cycle sub-tabs (Overview / Clients / Neighbors / Roaming) |
+| **WiFi**             | `c`             | Toggle channel map on the Overview tab              |
+| **WiFi**             | `[` / `]`       | Switch WiFi band in the channel map                 |
+| **WiFi**             | `R` / `L`       | Restart / locate selected access point              |
+| **WiFi**             | `b` / `u` / `x` | Block / unblock / kick selected wireless client     |
 
 ## Detail Views
 
@@ -86,6 +92,7 @@ Press `Enter` on any list item to open a detail panel with comprehensive informa
 
 - **Devices**: 5-tab panel (Overview, Performance, Radios, Clients, Ports)
 - **Clients**: Connection details, traffic history, DHCP info
+- **WiFi**: AP health decomposition, per-client WiFi metrics, channel occupancy, roam history
 - **Networks**: Full VLAN config with DHCP ranges and IPv6 settings
 - **Firewall**: Policy details with traffic filter breakdown
 
@@ -112,11 +119,11 @@ graph LR
 
 The TUI works with all authentication modes, but some screens degrade gracefully:
 
-| Mode              | Dashboard | Devices  | Clients  | Events   | Stats    |
-| ----------------- | --------- | -------- | -------- | -------- | -------- |
-| API Key           | Partial   | Full     | Full     | No       | No       |
-| Username/Password | Full      | Full     | Full     | Full     | Full     |
-| **Hybrid**        | **Full**  | **Full** | **Full** | **Full** | **Full** |
+| Mode              | Dashboard | Devices  | Clients  | Events   | Stats    | WiFi     |
+| ----------------- | --------- | -------- | -------- | -------- | -------- | -------- |
+| API Key           | Partial   | Full     | Full     | No       | No       | Full     |
+| Username/Password | Full      | Full     | Full     | Full     | Full     | Full     |
+| **Hybrid**        | **Full**  | **Full** | **Full** | **Full** | **Full** | **Full** |
 
 ::: tip
 **API Key mode** works for most TUI screens on UniFi OS. Use **Hybrid mode** only when you need live WebSocket event streaming (the Events screen). Statistics and device data are available via Session HTTP endpoints that API Key mode can reach.

@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-/// Identifies each primary TUI screen, navigable by number keys 1-8.
+/// Identifies each primary TUI screen, navigable by number keys 1-9.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum ScreenId {
     #[default]
@@ -14,6 +14,7 @@ pub enum ScreenId {
     Topology, // 6
     Events,   // 7
     Stats,    // 8
+    Wifi,     // 9
     /// Onboarding wizard — not in the tab bar, not navigable by number keys.
     Setup,
     /// Settings editor — not in the tab bar, opened with `,`.
@@ -22,7 +23,7 @@ pub enum ScreenId {
 
 impl ScreenId {
     /// All screens in tab-bar order.
-    pub const ALL: [ScreenId; 8] = [
+    pub const ALL: [ScreenId; 9] = [
         Self::Dashboard,
         Self::Devices,
         Self::Clients,
@@ -31,9 +32,10 @@ impl ScreenId {
         Self::Topology,
         Self::Events,
         Self::Stats,
+        Self::Wifi,
     ];
 
-    /// Numeric key (1-8) for this screen. Setup has no number key.
+    /// Numeric key (1-9) for this screen. Setup has no number key.
     pub fn number(self) -> u8 {
         match self {
             Self::Dashboard => 1,
@@ -44,11 +46,12 @@ impl ScreenId {
             Self::Topology => 6,
             Self::Events => 7,
             Self::Stats => 8,
+            Self::Wifi => 9,
             Self::Setup | Self::Settings => 0,
         }
     }
 
-    /// Screen from a numeric key (1-8). Returns None for out-of-range.
+    /// Screen from a numeric key (1-9). Returns None for out-of-range.
     pub fn from_number(n: u8) -> Option<Self> {
         match n {
             1 => Some(Self::Dashboard),
@@ -59,6 +62,7 @@ impl ScreenId {
             6 => Some(Self::Topology),
             7 => Some(Self::Events),
             8 => Some(Self::Stats),
+            9 => Some(Self::Wifi),
             _ => None,
         }
     }
@@ -86,6 +90,7 @@ impl ScreenId {
             Self::Topology => "Topo",
             Self::Events => "Events",
             Self::Stats => "Stats",
+            Self::Wifi => "WiFi",
             Self::Setup => "Setup",
             Self::Settings => "Settings",
         }
@@ -102,6 +107,7 @@ impl ScreenId {
             Self::Topology => "Topo",
             Self::Events => "Evt",
             Self::Stats => "Stat",
+            Self::Wifi => "WiFi",
             Self::Setup => "Setup",
             Self::Settings => "Set",
         }

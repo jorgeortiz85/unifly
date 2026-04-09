@@ -30,6 +30,9 @@ pub fn derive_tokens(theme: &mut opaline::Theme) {
     theme.register_default_token("unifly.chart.3", theme.color(tokens::SUCCESS));
     theme.register_default_token("unifly.chart.4", theme.color(tokens::WARNING));
     theme.register_default_token("unifly.chart.5", theme.color(tokens::INFO));
+    theme.register_default_token("unifly.wifi.your_ap", theme.color(tokens::ACCENT_PRIMARY));
+    theme.register_default_token("unifly.wifi.neighbor", theme.color(tokens::TEXT_MUTED));
+    theme.register_default_token("unifly.wifi.conflict", theme.color(tokens::WARNING));
 }
 
 /// Initialize the theme subsystem. Call early in `main()`, before any rendering.
@@ -115,6 +118,18 @@ pub fn chart_series() -> [Color; 6] {
         th.color("unifly.chart.4").into(),
         th.color("unifly.chart.5").into(),
     ]
+}
+
+pub fn wifi_your_ap() -> Color {
+    t().color("unifly.wifi.your_ap").into()
+}
+
+pub fn wifi_neighbor() -> Color {
+    t().color("unifly.wifi.neighbor").into()
+}
+
+pub fn wifi_conflict() -> Color {
+    t().color("unifly.wifi.conflict").into()
 }
 
 // ── Semantic style accessors ─────────────────────────────────────────

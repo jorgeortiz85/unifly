@@ -77,9 +77,25 @@ impl App {
             | Action::EventReceived(_)
             | Action::HealthUpdated(_)
             | Action::SiteUpdated(_)
+            | Action::WifiNeighborsUpdated(_)
+            | Action::WifiChannelsUpdated(_)
+            | Action::WifiClientDetailLoaded { .. }
+            | Action::WifiRoamHistoryLoaded { .. }
             | Action::StatsUpdated(_)
             | Action::NetworkEditResult(_) => {
                 self.forward_to_all_screens(action)?;
+            }
+            Action::RequestWifiNeighbors(within_secs) => {
+                self.fetch_wifi_neighbors(*within_secs);
+            }
+            Action::RequestWifiChannels => {
+                self.fetch_wifi_channels();
+            }
+            Action::RequestWifiClientDetail(ip) => {
+                self.fetch_wifi_client_detail(ip);
+            }
+            Action::RequestWifiRoamHistory { mac, limit } => {
+                self.fetch_wifi_roam_history(mac, *limit);
             }
             Action::RequestStats(period) => {
                 self.stats_period = *period;

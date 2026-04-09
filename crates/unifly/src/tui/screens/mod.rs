@@ -10,11 +10,12 @@ pub mod onboarding;
 pub mod settings;
 pub mod stats;
 pub mod topology;
+pub mod wifi;
 
 use crate::tui::component::Component;
 use crate::tui::screen::ScreenId;
 
-/// Create all eight screen components, returning them as boxed trait objects.
+/// Create all primary screen components, returning them as boxed trait objects.
 pub fn create_screens() -> Vec<(ScreenId, Box<dyn Component>)> {
     vec![
         (
@@ -37,5 +38,6 @@ pub fn create_screens() -> Vec<(ScreenId, Box<dyn Component>)> {
         ),
         (ScreenId::Events, Box::new(events::EventsScreen::new())),
         (ScreenId::Stats, Box::new(stats::StatsScreen::new())),
+        (ScreenId::Wifi, Box::new(wifi::WifiScreen::new())),
     ]
 }

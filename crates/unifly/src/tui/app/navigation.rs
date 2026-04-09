@@ -139,7 +139,7 @@ impl App {
             (KeyModifiers::NONE, KeyCode::Char('a')) => Some(Action::ToggleAbout),
             (KeyModifiers::NONE, KeyCode::Char('/')) => Some(Action::OpenSearch),
             (KeyModifiers::NONE, KeyCode::Char(',')) => Some(Action::OpenSettings),
-            (KeyModifiers::NONE, KeyCode::Char(c @ '1'..='8')) => {
+            (KeyModifiers::NONE, KeyCode::Char(c @ '1'..='9')) => {
                 #[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
                 let n = c.to_digit(10).unwrap_or(0) as u8;
                 ScreenId::from_number(n).map(Action::SwitchScreen)
@@ -186,10 +186,7 @@ mod tests {
         let action = app
             .handle_key_event(KeyEvent::new(KeyCode::BackTab, KeyModifiers::SHIFT))
             .expect("key handling should succeed");
-        assert!(matches!(
-            action,
-            Some(Action::SwitchScreen(ScreenId::Stats))
-        ));
+        assert!(matches!(action, Some(Action::SwitchScreen(ScreenId::Wifi))));
     }
 
     #[test]

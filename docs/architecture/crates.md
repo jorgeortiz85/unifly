@@ -49,7 +49,7 @@ Produces one binary with feature-gated capabilities (`cli` and `tui` features):
 
 Real-time dashboard built with `ratatui`:
 
-- **10 screens**: Dashboard, Devices, Clients, Networks, Firewall, Topology, Events, Stats, Settings, Onboarding
+- **11 screens**: Dashboard, Devices, Clients, Networks, Firewall, Topology, Events, Stats, WiFi, Settings, Onboarding
 - **Data bridge**: Translates `Controller` events into TUI actions
 - **SilkCircuit theme**: Opaline-powered color palette with the project's visual identity
 - **Braille charts**: High-resolution terminal graphs using Unicode Braille patterns

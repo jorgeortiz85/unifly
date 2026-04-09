@@ -89,9 +89,10 @@ graph LR
     5 --> 6["6 Topology<br/><i>Network map</i>"]
     6 --> 7["7 Events<br/><i>Live feed</i>"]
     7 --> 8["8 Stats<br/><i>Historical data</i>"]
+    8 --> 9["9 WiFi<br/><i>RF health & roaming</i>"]
 ```
 
-Navigate screens with number keys `1`-`8`. Press `,` for settings, `?` for help, `q` to quit.
+Navigate screens with number keys `1`-`9`. Press `,` for settings, `?` for help, `q` to quit.
 
 ::: tip Heads Up
 

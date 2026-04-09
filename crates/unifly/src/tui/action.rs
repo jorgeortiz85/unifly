@@ -3,9 +3,11 @@
 use std::fmt;
 use std::sync::Arc;
 
+use serde_json::Value;
 use unifly_api::model::{
     AclRule, EventCategory, FirewallPolicy, FirewallZone, NatPolicy, WifiBroadcast,
 };
+use unifly_api::session_models::{ChannelAvailability, RogueAp};
 use unifly_api::{
     Client, Device, EntityId, Event, MacAddress, Network, Site, UpdateNetworkRequest,
 };
@@ -48,6 +50,109 @@ pub enum FirewallSubTab {
     Zones,
     AclRules,
     NatPolicies,
+}
+
+/// WiFi dashboard sub-tab.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum WifiSubTab {
+    #[default]
+    Overview,
+    Clients,
+    Neighbors,
+    Roaming,
+}
+
+impl WifiSubTab {
+    pub const ALL: [Self; 4] = [
+        Self::Overview,
+        Self::Clients,
+        Self::Neighbors,
+        Self::Roaming,
+    ];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Overview => "Overview",
+            Self::Clients => "Clients",
+            Self::Neighbors => "Neighbors",
+            Self::Roaming => "Roaming",
+        }
+    }
+
+    pub fn next(self) -> Self {
+        let index = Self::ALL
+            .iter()
+            .position(|tab| *tab == self)
+            .unwrap_or_default();
+        Self::ALL[(index + 1) % Self::ALL.len()]
+    }
+
+    pub fn prev(self) -> Self {
+        let index = Self::ALL
+            .iter()
+            .position(|tab| *tab == self)
+            .unwrap_or_default();
+        Self::ALL[(index + Self::ALL.len() - 1) % Self::ALL.len()]
+    }
+}
+
+/// Sort field for the WiFi dashboard tables.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum WifiSortField {
+    #[default]
+    Health,
+    Name,
+    Clients,
+    Channel,
+    Signal,
+    Roams,
+    Security,
+    Time,
+}
+
+/// WiFi band selector used by the dashboard.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum WifiBand {
+    #[default]
+    TwoGhz,
+    FiveGhz,
+    SixGhz,
+}
+
+impl WifiBand {
+    pub const ALL: [Self; 3] = [Self::TwoGhz, Self::FiveGhz, Self::SixGhz];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::TwoGhz => "2.4 GHz",
+            Self::FiveGhz => "5 GHz",
+            Self::SixGhz => "6 GHz",
+        }
+    }
+
+    pub fn short_label(self) -> &'static str {
+        match self {
+            Self::TwoGhz => "2.4G",
+            Self::FiveGhz => "5G",
+            Self::SixGhz => "6G",
+        }
+    }
+
+    pub fn next(self) -> Self {
+        let index = Self::ALL
+            .iter()
+            .position(|band| *band == self)
+            .unwrap_or_default();
+        Self::ALL[(index + 1) % Self::ALL.len()]
+    }
+
+    pub fn prev(self) -> Self {
+        let index = Self::ALL
+            .iter()
+            .position(|band| *band == self)
+            .unwrap_or_default();
+        Self::ALL[(index + Self::ALL.len() - 1) % Self::ALL.len()]
+    }
 }
 
 /// Stats time period.
@@ -227,6 +332,16 @@ pub enum Action {
     EventReceived(Arc<Event>),
     HealthUpdated(Arc<Vec<unifly_api::HealthSummary>>),
     SiteUpdated(Arc<Site>),
+    WifiNeighborsUpdated(Arc<Vec<RogueAp>>),
+    WifiChannelsUpdated(Arc<Vec<ChannelAvailability>>),
+    WifiClientDetailLoaded {
+        ip: String,
+        data: Arc<Value>,
+    },
+    WifiRoamHistoryLoaded {
+        mac: String,
+        events: Arc<Vec<Value>>,
+    },
 
     // ── Connection Status ─────────────────────────────────────────
     Connected,
@@ -243,6 +358,11 @@ pub enum Action {
     SelectClient(usize),
     OpenClientDetail(EntityId),
     FilterClientType(ClientTypeFilter),
+    WifiSubTab(WifiSubTab),
+    WifiFocusAp(Option<EntityId>),
+    WifiToggleChannelMap,
+    WifiSortColumn(WifiSortField),
+    WifiBandSelect(WifiBand),
 
     // ── Firewall ──────────────────────────────────────────────────
     SelectZonePair(EntityId, EntityId),
@@ -267,6 +387,13 @@ pub enum Action {
     RequestUnblockClient(EntityId),
     RequestKickClient(EntityId),
     RequestForgetClient(EntityId),
+    RequestWifiNeighbors(Option<i64>),
+    RequestWifiChannels,
+    RequestWifiClientDetail(String),
+    RequestWifiRoamHistory {
+        mac: String,
+        limit: Option<u32>,
+    },
 
     // ── Confirm Dialog ────────────────────────────────────────────
     ShowConfirm(ConfirmAction),

@@ -1,0 +1,946 @@
+use ratatui::Frame;
+use ratatui::layout::{Constraint, Layout, Rect};
+use ratatui::style::{Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, BorderType, Borders, Cell, Clear, Paragraph, Row, Table, Wrap};
+
+use crate::tui::action::{WifiBand, WifiSubTab};
+use crate::tui::theme;
+use crate::tui::widgets::signal_bars;
+
+use super::WifiScreen;
+use super::state::{
+    band_from_neighbor, display_client_name, display_device_name, display_neighbor_name, json_i32,
+    json_string, json_u64,
+};
+
+impl WifiScreen {
+    pub(super) fn render_screen(&self, frame: &mut Frame, area: Rect) {
+        let block = Block::default()
+            .title(" WiFi ")
+            .title_style(theme::title_style())
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .border_style(if self.focused {
+                theme::border_focused()
+            } else {
+                theme::border_default()
+            });
+
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
+
+        let layout = Layout::vertical([
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Min(1),
+            Constraint::Length(1),
+        ])
+        .split(inner);
+
+        frame.render_widget(Paragraph::new(self.tab_line()), layout[0]);
+        frame.render_widget(Paragraph::new(self.health_banner()), layout[1]);
+
+        match self.sub_tab {
+            WifiSubTab::Overview => self.render_overview(frame, layout[2]),
+            WifiSubTab::Clients => self.render_clients(frame, layout[2]),
+            WifiSubTab::Neighbors => self.render_neighbors(frame, layout[2]),
+            WifiSubTab::Roaming => self.render_roaming(frame, layout[2]),
+        }
+
+        frame.render_widget(Paragraph::new(self.hint_line()), layout[3]);
+    }
+
+    fn render_overview(&self, frame: &mut Frame, area: Rect) {
+        let can_split = area.width >= 110 && area.height >= 18;
+        let show_side_panel = self.detail_open || self.channel_map_open;
+        let chunks = if can_split && show_side_panel {
+            Layout::horizontal([Constraint::Percentage(56), Constraint::Percentage(44)]).split(area)
+        } else {
+            Layout::horizontal([Constraint::Percentage(100)]).split(area)
+        };
+
+        self.render_ap_table(frame, chunks[0]);
+        if can_split && let Some(side_area) = chunks.get(1).copied() {
+            if self.detail_open {
+                self.render_ap_detail(frame, side_area);
+            } else if self.channel_map_open {
+                self.render_channel_map(frame, side_area);
+            }
+        } else if show_side_panel {
+            let overlay = centered_rect(area, 82, 78);
+            frame.render_widget(Clear, overlay);
+            if self.detail_open {
+                self.render_ap_detail(frame, overlay);
+            } else if self.channel_map_open {
+                self.render_channel_map(frame, overlay);
+            }
+        }
+    }
+
+    fn render_clients(&self, frame: &mut Frame, area: Rect) {
+        let can_split = self.detail_open && area.height >= 16;
+        let chunks = if can_split {
+            Layout::vertical([Constraint::Percentage(58), Constraint::Percentage(42)]).split(area)
+        } else {
+            Layout::vertical([Constraint::Percentage(100)]).split(area)
+        };
+
+        self.render_client_table(frame, chunks[0]);
+        if can_split && let Some(detail_area) = chunks.get(1).copied() {
+            self.render_client_detail(frame, detail_area);
+        } else if self.detail_open {
+            let overlay = centered_rect(area, 86, 74);
+            frame.render_widget(Clear, overlay);
+            self.render_client_detail(frame, overlay);
+        }
+    }
+
+    fn render_neighbors(&self, frame: &mut Frame, area: Rect) {
+        let block = panel_block(
+            format!(" Neighbor APs [{}] ", self.selected_band.short_label()),
+            self.focused,
+        );
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
+
+        let neighbors = self.visible_neighbors();
+        let header = Row::new(vec![
+            Cell::from("SSID").style(theme::table_header()),
+            Cell::from("BSSID").style(theme::table_header()),
+            Cell::from("Ch").style(theme::table_header()),
+            Cell::from("Signal").style(theme::table_header()),
+            Cell::from("Band").style(theme::table_header()),
+            Cell::from("Security").style(theme::table_header()),
+        ]);
+
+        let selected = self.neighbor_table_state.selected().unwrap_or(0);
+        let rows: Vec<Row> = neighbors
+            .iter()
+            .enumerate()
+            .map(|(index, neighbor)| {
+                let is_selected = index == selected;
+                let signal = neighbor.signal.or(neighbor.rssi);
+                let style = if is_selected {
+                    theme::table_selected()
+                } else {
+                    theme::table_row()
+                };
+
+                Row::new(vec![
+                    Cell::from(format!(
+                        "{}{}",
+                        if is_selected { "▸" } else { " " },
+                        display_neighbor_name(neighbor)
+                    )),
+                    Cell::from(neighbor.bssid.clone()),
+                    Cell::from(
+                        neighbor
+                            .channel
+                            .map_or_else(|| "─".to_string(), |channel| channel.to_string()),
+                    ),
+                    Cell::from(signal.map_or_else(|| "─".to_string(), |dbm| format!("{dbm} dBm"))),
+                    Cell::from(band_label(
+                        band_from_neighbor(neighbor).unwrap_or(WifiBand::TwoGhz),
+                    )),
+                    Cell::from(neighbor.security.clone().unwrap_or_else(|| "─".to_string())),
+                ])
+                .style(style)
+            })
+            .collect();
+
+        let table = Table::new(
+            rows,
+            [
+                Constraint::Min(16),
+                Constraint::Length(18),
+                Constraint::Length(4),
+                Constraint::Length(11),
+                Constraint::Length(7),
+                Constraint::Length(10),
+            ],
+        )
+        .header(header)
+        .row_highlight_style(theme::table_selected());
+
+        let mut state = self.neighbor_table_state;
+        frame.render_stateful_widget(table, inner, &mut state);
+    }
+
+    fn render_roaming(&self, frame: &mut Frame, area: Rect) {
+        let block = panel_block(" Roaming History ", self.focused);
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
+
+        if self.focused_client_mac().is_none() {
+            frame.render_widget(
+                Paragraph::new(
+                    " Select a wireless client on the Clients tab to inspect roam history. ",
+                )
+                .wrap(Wrap { trim: true })
+                .style(Style::default().fg(theme::text_muted())),
+                inner,
+            );
+            return;
+        }
+
+        let rows = self.parsed_roam_rows();
+        let header = Row::new(vec![
+            Cell::from("Time").style(theme::table_header()),
+            Cell::from("Event").style(theme::table_header()),
+            Cell::from("From").style(theme::table_header()),
+            Cell::from("To").style(theme::table_header()),
+            Cell::from("Signal").style(theme::table_header()),
+            Cell::from("Band").style(theme::table_header()),
+        ]);
+
+        let selected = self.roam_table_state.selected().unwrap_or(0);
+        let table_rows: Vec<Row> = rows
+            .iter()
+            .enumerate()
+            .map(|(index, row)| {
+                Row::new(vec![
+                    Cell::from(row.timestamp.clone()),
+                    Cell::from(row.event.clone()),
+                    Cell::from(row.from_ap.clone()),
+                    Cell::from(row.to_ap.clone()),
+                    Cell::from(row.signal.clone()),
+                    Cell::from(row.band.clone()),
+                ])
+                .style(if index == selected {
+                    theme::table_selected()
+                } else {
+                    theme::table_row()
+                })
+            })
+            .collect();
+
+        let table = Table::new(
+            table_rows,
+            [
+                Constraint::Length(10),
+                Constraint::Length(12),
+                Constraint::Min(14),
+                Constraint::Min(14),
+                Constraint::Length(11),
+                Constraint::Length(8),
+            ],
+        )
+        .header(header)
+        .row_highlight_style(theme::table_selected());
+
+        let mut state = self.roam_table_state;
+        frame.render_stateful_widget(table, inner, &mut state);
+    }
+
+    fn render_ap_table(&self, frame: &mut Frame, area: Rect) {
+        let block = panel_block(" AP Health ", self.focused);
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
+
+        let aps = self.ap_devices();
+        let selected = self.ap_table_state.selected().unwrap_or(0);
+        let compact = area.width < 92;
+        let header = if compact {
+            Row::new(vec![
+                Cell::from("AP").style(theme::table_header()),
+                Cell::from("Health").style(theme::table_header()),
+                Cell::from("Ch").style(theme::table_header()),
+            ])
+        } else {
+            Row::new(vec![
+                Cell::from("AP").style(theme::table_header()),
+                Cell::from("Cli").style(theme::table_header()),
+                Cell::from("Health").style(theme::table_header()),
+                Cell::from("Ch").style(theme::table_header()),
+                Cell::from("Band").style(theme::table_header()),
+            ])
+        };
+
+        let rows: Vec<Row> =
+            aps.iter()
+                .enumerate()
+                .map(|(index, ap)| {
+                    let is_selected = index == selected;
+                    let health = self.ap_health(ap);
+                    let cells = if compact {
+                        vec![
+                            Cell::from(format!(
+                                "{}{}",
+                                if is_selected { "▸" } else { " " },
+                                display_device_name(ap)
+                            )),
+                            Cell::from(health_label(health))
+                                .style(Style::default().fg(health_color(health))),
+                            Cell::from(self.ap_channel_label(ap)),
+                        ]
+                    } else {
+                        vec![
+                            Cell::from(format!(
+                                "{}{}",
+                                if is_selected { "▸" } else { " " },
+                                display_device_name(ap)
+                            )),
+                            Cell::from(self.ap_clients(ap).len().to_string()),
+                            Cell::from(health_label(health))
+                                .style(Style::default().fg(health_color(health))),
+                            Cell::from(self.ap_channel_label(ap)),
+                            Cell::from(self.ap_band(ap).map_or_else(
+                                || "─".to_string(),
+                                |band| band_label(band).to_string(),
+                            )),
+                        ]
+                    };
+
+                    Row::new(cells).style(if is_selected {
+                        theme::table_selected()
+                    } else {
+                        theme::table_row()
+                    })
+                })
+                .collect();
+
+        let widths = if compact {
+            vec![
+                Constraint::Min(18),
+                Constraint::Length(8),
+                Constraint::Length(4),
+            ]
+        } else {
+            vec![
+                Constraint::Min(18),
+                Constraint::Length(5),
+                Constraint::Length(8),
+                Constraint::Length(4),
+                Constraint::Length(7),
+            ]
+        };
+
+        let table = Table::new(rows, widths)
+            .header(header)
+            .row_highlight_style(theme::table_selected());
+
+        let mut state = self.ap_table_state;
+        frame.render_stateful_widget(table, inner, &mut state);
+    }
+
+    fn render_ap_detail(&self, frame: &mut Frame, area: Rect) {
+        let block = panel_block(" AP Detail ", self.focused);
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
+
+        let Some(ap) = self.selected_ap() else {
+            frame.render_widget(
+                Paragraph::new(" No AP selected ").style(Style::default().fg(theme::text_muted())),
+                inner,
+            );
+            return;
+        };
+
+        let health = self.ap_health(ap).unwrap_or_default();
+        let signal = self.ap_signal(ap);
+        let summary = health_summary(health);
+        let mut lines = vec![
+            Line::from(vec![
+                Span::styled(display_device_name(ap), theme::title_style()),
+                Span::styled(
+                    format!("  {} clients", self.ap_clients(ap).len()),
+                    Style::default().fg(theme::text_secondary()),
+                ),
+            ]),
+            Line::from(vec![
+                Span::styled(" Health ", Style::default().fg(theme::text_muted())),
+                Span::styled(
+                    gauge_fill(health, 18),
+                    Style::default().fg(health_color(Some(health))),
+                ),
+                Span::styled(
+                    format!(" {health}/100"),
+                    Style::default().fg(theme::text_secondary()),
+                ),
+            ]),
+            Line::from(vec![
+                Span::styled(" Signal ", Style::default().fg(theme::text_muted())),
+                signal_bars::signal_span(signal),
+                Span::styled(
+                    format!(
+                        "  {}",
+                        signal.map_or_else(|| "─".to_string(), |dbm| format!("{dbm} dBm"))
+                    ),
+                    Style::default().fg(theme::text_secondary()),
+                ),
+            ]),
+            Line::from(vec![Span::styled(
+                summary.0,
+                Style::default().fg(summary.1),
+            )]),
+            Line::from(""),
+            Line::from(Span::styled(" Clients", theme::table_header())),
+        ];
+
+        for client in self.ap_clients(ap).iter().take(6) {
+            let signal = client
+                .wireless
+                .as_ref()
+                .and_then(|wireless| wireless.signal_dbm);
+            let health = client
+                .wireless
+                .as_ref()
+                .and_then(|wireless| wireless.satisfaction)
+                .unwrap_or_default();
+            lines.push(Line::from(vec![
+                Span::styled(
+                    format!("  {}", display_client_name(client)),
+                    Style::default().fg(theme::text_secondary()),
+                ),
+                Span::styled("  ", Style::default()),
+                signal_bars::signal_span(signal),
+                Span::styled(
+                    format!("  {health}%"),
+                    Style::default().fg(health_color(Some(health))),
+                ),
+            ]));
+        }
+
+        frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
+    }
+
+    fn render_client_table(&self, frame: &mut Frame, area: Rect) {
+        let block = panel_block(" Wireless Clients ", self.focused);
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
+
+        let clients = self.wireless_clients();
+        let selected = self.client_table_state.selected().unwrap_or(0);
+        let compact = area.width < 100;
+        let header = if compact {
+            Row::new(vec![
+                Cell::from("Client").style(theme::table_header()),
+                Cell::from("Signal").style(theme::table_header()),
+                Cell::from("Health").style(theme::table_header()),
+            ])
+        } else {
+            Row::new(vec![
+                Cell::from("Client").style(theme::table_header()),
+                Cell::from("AP").style(theme::table_header()),
+                Cell::from("Signal").style(theme::table_header()),
+                Cell::from("Health").style(theme::table_header()),
+                Cell::from("TX/RX").style(theme::table_header()),
+            ])
+        };
+
+        let rows: Vec<Row> = clients
+            .iter()
+            .enumerate()
+            .map(|(index, client)| {
+                let is_selected = index == selected;
+                let signal = client
+                    .wireless
+                    .as_ref()
+                    .and_then(|wireless| wireless.signal_dbm);
+                let health = client
+                    .wireless
+                    .as_ref()
+                    .and_then(|wireless| wireless.satisfaction);
+                let tx = client
+                    .wireless
+                    .as_ref()
+                    .and_then(|wireless| wireless.tx_rate_kbps);
+                let rx = client
+                    .wireless
+                    .as_ref()
+                    .and_then(|wireless| wireless.rx_rate_kbps);
+
+                let cells = if compact {
+                    vec![
+                        Cell::from(format!(
+                            "{}{}",
+                            if is_selected { "▸" } else { " " },
+                            display_client_name(client)
+                        )),
+                        Cell::from(signal_text(signal))
+                            .style(Style::default().fg(signal_color(signal))),
+                        Cell::from(health_label(health))
+                            .style(Style::default().fg(health_color(health))),
+                    ]
+                } else {
+                    vec![
+                        Cell::from(format!(
+                            "{}{}",
+                            if is_selected { "▸" } else { " " },
+                            display_client_name(client)
+                        )),
+                        Cell::from(self.client_ap_name(client)),
+                        Cell::from(signal_text(signal))
+                            .style(Style::default().fg(signal_color(signal))),
+                        Cell::from(health_label(health))
+                            .style(Style::default().fg(health_color(health))),
+                        Cell::from(format!("{}/{} Mbps", kbps_to_mbps(tx), kbps_to_mbps(rx))),
+                    ]
+                };
+
+                Row::new(cells).style(if is_selected {
+                    theme::table_selected()
+                } else {
+                    theme::table_row()
+                })
+            })
+            .collect();
+
+        let widths = if compact {
+            vec![
+                Constraint::Min(20),
+                Constraint::Length(8),
+                Constraint::Length(8),
+            ]
+        } else {
+            vec![
+                Constraint::Min(20),
+                Constraint::Length(16),
+                Constraint::Length(8),
+                Constraint::Length(8),
+                Constraint::Length(14),
+            ]
+        };
+
+        let table = Table::new(rows, widths)
+            .header(header)
+            .row_highlight_style(theme::table_selected());
+
+        let mut state = self.client_table_state;
+        frame.render_stateful_widget(table, inner, &mut state);
+    }
+
+    #[allow(clippy::too_many_lines)]
+    fn render_client_detail(&self, frame: &mut Frame, area: Rect) {
+        let block = panel_block(" WiFi Experience ", self.focused);
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
+
+        let Some(client) = self.selected_client() else {
+            frame.render_widget(
+                Paragraph::new(" No client selected ")
+                    .style(Style::default().fg(theme::text_muted())),
+                inner,
+            );
+            return;
+        };
+
+        let Some(detail) = self.client_detail.as_ref() else {
+            frame.render_widget(
+                Paragraph::new(" Loading WiFi detail... ")
+                    .style(Style::default().fg(theme::text_muted())),
+                inner,
+            );
+            return;
+        };
+
+        let signal = json_i32(detail, &["signal"]);
+        let noise = json_i32(detail, &["noise"]);
+        let channel = json_u64(detail, &["channel"]);
+        let width = json_u64(detail, &["channel_width"]);
+        let band = json_string(detail, &["wlan_band", "band"]).unwrap_or_else(|| "─".to_string());
+        let protocol = json_string(detail, &["radio_protocol"]).unwrap_or_else(|| "─".to_string());
+        let experience = json_u64(detail, &["experience", "wifi_experience"]);
+        let tx = json_u64(detail, &["link_upload_rate_kbps"]);
+        let rx = json_u64(detail, &["link_download_rate_kbps"]);
+
+        let mut lines = vec![
+            Line::from(vec![
+                Span::styled(display_client_name(client), theme::title_style()),
+                Span::styled(
+                    format!("  {}", self.client_ap_name(client)),
+                    Style::default().fg(theme::text_secondary()),
+                ),
+            ]),
+            Line::from(vec![
+                Span::styled(" Health ", Style::default().fg(theme::text_muted())),
+                Span::styled(
+                    experience.map_or_else(|| "─".to_string(), |value| format!("{value}/100")),
+                    Style::default().fg(health_color(
+                        experience.and_then(|value| u8::try_from(value).ok()),
+                    )),
+                ),
+                Span::styled("  SSID ", Style::default().fg(theme::text_muted())),
+                Span::styled(
+                    client
+                        .wireless
+                        .as_ref()
+                        .and_then(|wireless| wireless.ssid.clone())
+                        .unwrap_or_else(|| "─".to_string()),
+                    Style::default().fg(theme::text_secondary()),
+                ),
+            ]),
+            Line::from(vec![
+                Span::styled(" Signal ", Style::default().fg(theme::text_muted())),
+                signal_bars::signal_span(signal),
+                Span::styled(
+                    format!(
+                        "  {}  Noise {}",
+                        signal.map_or_else(|| "─".to_string(), |dbm| format!("{dbm} dBm")),
+                        noise.map_or_else(|| "─".to_string(), |dbm| format!("{dbm} dBm"))
+                    ),
+                    Style::default().fg(theme::text_secondary()),
+                ),
+            ]),
+            Line::from(vec![
+                Span::styled(" Radio ", Style::default().fg(theme::text_muted())),
+                Span::styled(
+                    format!(
+                        "{band}  ch {}{}",
+                        channel.map_or_else(|| "─".to_string(), |value| value.to_string()),
+                        width.map_or_else(String::new, |value| format!(" ({value} MHz)"))
+                    ),
+                    Style::default().fg(theme::text_secondary()),
+                ),
+                Span::styled("  Proto ", Style::default().fg(theme::text_muted())),
+                Span::styled(protocol, Style::default().fg(theme::text_secondary())),
+            ]),
+            Line::from(vec![
+                Span::styled(" TX/RX ", Style::default().fg(theme::text_muted())),
+                Span::styled(
+                    format!("{}/{} Mbps", kbps_to_mbps(tx), kbps_to_mbps(rx)),
+                    Style::default().fg(theme::text_secondary()),
+                ),
+            ]),
+            Line::from(""),
+            Line::from(Span::styled(" Nearest neighbors", theme::table_header())),
+        ];
+
+        for neighbor in detail
+            .get("nearest_neighbors")
+            .and_then(|value| value.as_array())
+            .into_iter()
+            .flatten()
+            .take(5)
+        {
+            let signal = json_i32(neighbor, &["signal"]);
+            let label = json_string(neighbor, &["ssid", "display_name", "bssid"])
+                .unwrap_or_else(|| "neighbor".to_string());
+            let channel = json_u64(neighbor, &["channel"])
+                .map_or_else(|| "─".to_string(), |value| value.to_string());
+            lines.push(Line::from(vec![
+                Span::styled(
+                    format!("  {label}"),
+                    Style::default().fg(theme::text_secondary()),
+                ),
+                Span::styled(
+                    format!(
+                        "  ch {channel}  {}",
+                        signal.map_or_else(|| "─".to_string(), |dbm| format!("{dbm} dBm"))
+                    ),
+                    Style::default().fg(theme::text_muted()),
+                ),
+            ]));
+        }
+
+        frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
+    }
+
+    fn render_channel_map(&self, frame: &mut Frame, area: Rect) {
+        let block = panel_block(" Channels ", self.focused);
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
+
+        let occupancy = self.channel_occupancy();
+        if occupancy.is_empty() {
+            frame.render_widget(
+                Paragraph::new(" Channel data unavailable ")
+                    .style(Style::default().fg(theme::text_muted())),
+                inner,
+            );
+            return;
+        }
+
+        let mut lines = vec![
+            Line::from(vec![
+                Span::styled(" Band ", Style::default().fg(theme::text_muted())),
+                Span::styled(
+                    band_label(self.selected_band),
+                    Style::default()
+                        .fg(theme::accent_secondary())
+                        .add_modifier(Modifier::BOLD),
+                ),
+            ]),
+            Line::from(""),
+        ];
+
+        for row in occupancy {
+            let channel_style = if row.conflict {
+                Style::default()
+                    .fg(theme::warning())
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(theme::accent_secondary())
+            };
+            lines.push(Line::from(vec![
+                Span::styled(format!("{:>4} ", row.channel), channel_style),
+                Span::styled(
+                    if row.yours.is_empty() {
+                        "·".to_string()
+                    } else {
+                        row.yours
+                    },
+                    Style::default().fg(theme::accent_primary()),
+                ),
+                Span::styled(" ", Style::default()),
+                Span::styled(
+                    if row.neighbors.is_empty() {
+                        "·".to_string()
+                    } else {
+                        row.neighbors
+                    },
+                    Style::default().fg(theme::text_muted()),
+                ),
+                Span::styled(
+                    format!(
+                        "  {}",
+                        row.signal
+                            .map_or_else(|| "─".to_string(), |dbm| format!("{dbm} dBm"))
+                    ),
+                    Style::default().fg(theme::text_secondary()),
+                ),
+            ]));
+        }
+
+        frame.render_widget(Paragraph::new(lines), inner);
+    }
+
+    fn tab_line(&self) -> Line<'static> {
+        let mut spans = Vec::new();
+        for (index, tab) in WifiSubTab::ALL.iter().enumerate() {
+            if index > 0 {
+                spans.push(Span::styled("  ", Style::default().fg(theme::text_muted())));
+            }
+            let label = tab.label();
+            let style = if *tab == self.sub_tab {
+                Style::default()
+                    .fg(theme::accent_primary())
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(theme::text_secondary())
+            };
+            spans.push(Span::styled(
+                if *tab == self.sub_tab {
+                    format!("[{label}]")
+                } else {
+                    label.to_string()
+                },
+                style,
+            ));
+        }
+        if let Some(ap) = self.focused_ap_label() {
+            spans.push(Span::styled(
+                "  Focused AP: ",
+                Style::default().fg(theme::text_muted()),
+            ));
+            spans.push(Span::styled(
+                ap,
+                Style::default()
+                    .fg(theme::accent_secondary())
+                    .add_modifier(Modifier::BOLD),
+            ));
+        }
+        if let Some(client) = self.focused_client_label() {
+            spans.push(Span::styled(
+                "  Client: ",
+                Style::default().fg(theme::text_muted()),
+            ));
+            spans.push(Span::styled(
+                client,
+                Style::default()
+                    .fg(theme::accent_secondary())
+                    .add_modifier(Modifier::BOLD),
+            ));
+        }
+        Line::from(spans)
+    }
+
+    fn health_banner(&self) -> Line<'static> {
+        let aps = self.ap_devices();
+        let poor = aps
+            .iter()
+            .filter_map(|ap| self.ap_health(ap))
+            .filter(|health| *health < 50)
+            .count();
+        let attention = aps
+            .iter()
+            .filter_map(|ap| self.ap_health(ap))
+            .filter(|health| (50..80).contains(health))
+            .count();
+
+        let (message, color) = if poor > 0 {
+            (
+                format!("● {poor} access point(s) have poor performance"),
+                theme::error(),
+            )
+        } else if attention > 0 {
+            (
+                format!("● {attention} access point(s) need attention"),
+                theme::warning(),
+            )
+        } else {
+            ("● All access points healthy".to_string(), theme::success())
+        };
+
+        Line::from(Span::styled(
+            format!(" {message} "),
+            Style::default()
+                .fg(theme::bg_base())
+                .bg(color)
+                .add_modifier(Modifier::BOLD),
+        ))
+    }
+
+    fn hint_line(&self) -> Line<'static> {
+        match self.sub_tab {
+            WifiSubTab::Overview => Line::from(vec![
+                Span::styled("  j/k ", key_style()),
+                Span::styled("select  ", hint_style()),
+                Span::styled("Tab ", key_style()),
+                Span::styled("sub-tab  ", hint_style()),
+                Span::styled("Enter ", key_style()),
+                Span::styled("detail  ", hint_style()),
+                Span::styled("c ", key_style()),
+                Span::styled("channels  ", hint_style()),
+                Span::styled("R/L ", key_style()),
+                Span::styled("restart/locate", hint_style()),
+            ]),
+            WifiSubTab::Clients => Line::from(vec![
+                Span::styled("  j/k ", key_style()),
+                Span::styled("select  ", hint_style()),
+                Span::styled("Enter ", key_style()),
+                Span::styled("detail  ", hint_style()),
+                Span::styled("b/u/x ", key_style()),
+                Span::styled("block/unblock/kick", hint_style()),
+            ]),
+            WifiSubTab::Neighbors => Line::from(vec![
+                Span::styled("  j/k ", key_style()),
+                Span::styled("select  ", hint_style()),
+                Span::styled("s ", key_style()),
+                Span::styled("sort  ", hint_style()),
+                Span::styled("f ", key_style()),
+                Span::styled("filter band", hint_style()),
+            ]),
+            WifiSubTab::Roaming => Line::from(vec![
+                Span::styled("  j/k ", key_style()),
+                Span::styled("scroll  ", hint_style()),
+                Span::styled("r ", key_style()),
+                Span::styled("refresh  ", hint_style()),
+                Span::styled("Esc ", key_style()),
+                Span::styled("clear focus", hint_style()),
+            ]),
+        }
+    }
+}
+
+fn panel_block<'a>(title: impl Into<Line<'a>>, focused: bool) -> Block<'a> {
+    Block::default()
+        .title(title)
+        .title_style(theme::title_style())
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(if focused {
+            theme::border_focused()
+        } else {
+            theme::border_default()
+        })
+}
+
+fn gauge_fill(value: u8, width: usize) -> String {
+    let filled = (usize::from(value) * width) / 100;
+    let empty = width.saturating_sub(filled);
+    format!("{}{}", "█".repeat(filled), "░".repeat(empty))
+}
+
+fn health_color(value: Option<u8>) -> ratatui::style::Color {
+    match value {
+        Some(score) if score >= 80 => theme::success(),
+        Some(score) if score >= 50 => theme::warning(),
+        Some(_) => theme::error(),
+        None => theme::text_muted(),
+    }
+}
+
+fn health_label(value: Option<u8>) -> String {
+    value.map_or_else(|| "─".to_string(), |score| format!("{score}%"))
+}
+
+fn health_summary(value: u8) -> (&'static str, ratatui::style::Color) {
+    if value >= 80 {
+        (
+            "Signal: Good  Retries: Low  Satisfaction: High",
+            theme::success(),
+        )
+    } else if value >= 50 {
+        (
+            "Signal: Fair  Retries: Moderate  Satisfaction: Fair",
+            theme::warning(),
+        )
+    } else {
+        (
+            "Signal: Poor  Retries: High  Satisfaction: Low",
+            theme::error(),
+        )
+    }
+}
+
+fn centered_rect(area: Rect, width_pct: u16, height_pct: u16) -> Rect {
+    let vertical = Layout::vertical([
+        Constraint::Percentage((100 - height_pct) / 2),
+        Constraint::Percentage(height_pct),
+        Constraint::Percentage((100 - height_pct) / 2),
+    ])
+    .split(area);
+
+    Layout::horizontal([
+        Constraint::Percentage((100 - width_pct) / 2),
+        Constraint::Percentage(width_pct),
+        Constraint::Percentage((100 - width_pct) / 2),
+    ])
+    .split(vertical[1])[1]
+}
+
+fn band_label(band: WifiBand) -> &'static str {
+    match band {
+        WifiBand::TwoGhz => "2.4G",
+        WifiBand::FiveGhz => "5G",
+        WifiBand::SixGhz => "6G",
+    }
+}
+
+fn signal_text(signal: Option<i32>) -> String {
+    match signal {
+        Some(dbm) if dbm >= -50 => "▂▄▆█".to_string(),
+        Some(dbm) if dbm >= -60 => "▂▄▆ ".to_string(),
+        Some(dbm) if dbm >= -70 => "▂▄  ".to_string(),
+        Some(dbm) if dbm >= -80 => "▂   ".to_string(),
+        Some(_) => "·   ".to_string(),
+        None => "····".to_string(),
+    }
+}
+
+fn signal_color(signal: Option<i32>) -> ratatui::style::Color {
+    match signal {
+        Some(dbm) if dbm >= -50 => theme::success(),
+        Some(dbm) if dbm >= -60 => theme::accent_secondary(),
+        Some(dbm) if dbm >= -70 => theme::warning(),
+        Some(dbm) if dbm >= -80 => theme::accent_tertiary(),
+        Some(_) => theme::error(),
+        None => theme::text_muted(),
+    }
+}
+
+fn kbps_to_mbps(value: Option<u64>) -> String {
+    value.map_or_else(|| "─".to_string(), |kbps| ((kbps + 500) / 1000).to_string())
+}
+
+fn key_style() -> Style {
+    Style::default()
+        .fg(theme::accent_secondary())
+        .add_modifier(Modifier::BOLD)
+}
+
+fn hint_style() -> Style {
+    Style::default().fg(theme::text_muted())
+}

@@ -26,6 +26,7 @@ token
 RESEARCH*.md
 research/
 specs/
+docs/plans/
 
 # ── Docs build ──
 docs/node_modules/
