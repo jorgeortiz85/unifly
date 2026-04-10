@@ -172,7 +172,7 @@ mod tests {
 
     #[test]
     fn tab_navigation_cycles_between_primary_screens() {
-        let mut app = App::new(None, None);
+        let mut app = App::new(None, None, false);
         app.active_screen = ScreenId::Dashboard;
 
         let action = app
@@ -191,7 +191,7 @@ mod tests {
 
     #[test]
     fn search_input_updates_query_and_can_close() {
-        let mut app = App::new(None, None);
+        let mut app = App::new(None, None, false);
         app.active_screen = ScreenId::Dashboard;
         app.search_active = true;
 

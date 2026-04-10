@@ -174,6 +174,7 @@ mod tests {
             demo: false,
             insecure: true,
             timeout: 30,
+            no_effects: false,
         }
     }
 

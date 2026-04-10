@@ -2,6 +2,7 @@ pub mod action;
 pub mod app;
 pub mod component;
 pub mod data_bridge;
+pub mod effects;
 pub mod event;
 pub(crate) mod forms;
 pub mod screen;
@@ -49,11 +50,26 @@ pub async fn launch(global: &GlobalOpts, args: TuiArgs) -> Result<()> {
         .or_else(|| build_controller_from_config(global.profile.as_deref()));
 
     let sanitizer = resolve_sanitizer(global);
+    let effects_enabled = resolve_effects_enabled(global);
 
-    let mut app = app::App::new(controller, sanitizer);
+    let mut app = app::App::new(controller, sanitizer, effects_enabled);
     app.run().await?;
 
     Ok(())
+}
+
+/// Resolve whether TUI effects should run this session.
+///
+/// Resolution order (first "off" wins):
+///   `--no-effects` flag → `NO_EFFECTS` env var → `[defaults].effects` config → default on.
+fn resolve_effects_enabled(global: &GlobalOpts) -> bool {
+    if global.no_effects {
+        return false;
+    }
+    if std::env::var_os("NO_EFFECTS").is_some() {
+        return false;
+    }
+    config::load_config().map_or(true, |c| c.defaults.effects)
 }
 
 fn setup_tracing(verbosity: u8, log_file: &std::path::Path) -> WorkerGuard {

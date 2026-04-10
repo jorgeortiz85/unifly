@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use ratatui::{
     Frame,
     layout::{Constraint, Layout, Rect},
@@ -13,12 +15,26 @@ use crate::tui::theme;
 
 impl App {
     /// Render the full application frame.
-    pub(super) fn render(&self, frame: &mut Frame) {
+    ///
+    /// Takes `&mut self` so we can tick the tachyonfx [`EffectStack`] once
+    /// per frame. The effect stack is applied as buffer post-processing
+    /// after screens + tabs + status bar render, but before overlay chrome
+    /// (notifications, dialogs, help, about) — matching chromacat's layering
+    /// and ensuring effects animate primary content without obscuring
+    /// transient UI.
+    pub(super) fn render(&mut self, frame: &mut Frame) {
+        let now = Instant::now();
+        let delta = now.duration_since(self.last_frame);
+        self.last_frame = now;
+
         let area = frame.area();
 
         if self.active_screen == ScreenId::Setup || self.active_screen == ScreenId::Settings {
             if let Some(screen) = self.screens.get(&self.active_screen) {
                 screen.render(frame, area);
+            }
+            if self.effects_enabled && self.effects.is_active() {
+                self.effects.process(delta, frame.buffer_mut(), area);
             }
             return;
         }
@@ -40,6 +56,10 @@ impl App {
 
         self.render_tab_bar(frame, tab_area);
         self.render_status_bar(frame, status_area);
+
+        if self.effects_enabled && self.effects.is_active() {
+            self.effects.process(delta, frame.buffer_mut(), area);
+        }
 
         if let Some((notification, _)) = &self.notification {
             self.render_notification(frame, area, notification);

@@ -158,6 +158,10 @@ pub struct Defaults {
     /// Whether to show the donate button in the TUI status bar.
     #[serde(default = "default_show_donate")]
     pub show_donate: bool,
+
+    /// Whether tachyonfx animations are enabled in the TUI.
+    #[serde(default = "default_effects")]
+    pub effects: bool,
 }
 
 impl Default for Defaults {
@@ -169,6 +173,7 @@ impl Default for Defaults {
             timeout: default_timeout(),
             theme: None,
             show_donate: default_show_donate(),
+            effects: default_effects(),
         }
     }
 }
@@ -183,6 +188,9 @@ fn default_timeout() -> u64 {
     30
 }
 fn default_show_donate() -> bool {
+    true
+}
+fn default_effects() -> bool {
     true
 }
 

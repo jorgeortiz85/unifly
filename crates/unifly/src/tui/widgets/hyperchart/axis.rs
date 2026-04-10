@@ -1,4 +1,5 @@
-//! Shared chart helpers for stable axes and dense area fills.
+//! Shared axis math for HyperChart widgets: stable rescaling, nice steps,
+//! dense fill interpolation, and fixed-width label builders.
 
 use ratatui::style::Style;
 use ratatui::text::Span;

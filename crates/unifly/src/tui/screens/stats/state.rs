@@ -1,7 +1,7 @@
 use super::{BANDWIDTH_TICK_COUNT, CLIENT_TICK_COUNT, MIN_BANDWIDTH_SCALE, StatsScreen};
 
 use crate::tui::action::{Action, StatsPeriod};
-use crate::tui::widgets::chart;
+use crate::tui::widgets::hyperchart::axis;
 
 impl StatsScreen {
     pub fn new() -> Self {
@@ -47,7 +47,7 @@ impl StatsScreen {
                     .chain(self.bandwidth_rx.iter())
                     .map(|&(_, value)| value)
                     .fold(0.0_f64, f64::max);
-                self.bandwidth_y_max = chart::stable_upper_bound(
+                self.bandwidth_y_max = axis::stable_upper_bound(
                     self.bandwidth_y_max,
                     bandwidth_max,
                     BANDWIDTH_TICK_COUNT,
@@ -59,12 +59,8 @@ impl StatsScreen {
                     .iter()
                     .map(|&(_, value)| value)
                     .fold(0.0_f64, f64::max);
-                self.client_y_max = chart::stable_upper_bound(
-                    self.client_y_max,
-                    client_max,
-                    CLIENT_TICK_COUNT,
-                    1.0,
-                );
+                self.client_y_max =
+                    axis::stable_upper_bound(self.client_y_max, client_max, CLIENT_TICK_COUNT, 1.0);
             }
             _ => {}
         }
@@ -109,18 +105,18 @@ mod tests {
 
         assert_eq!(
             first_bandwidth_max,
-            chart::stable_upper_bound(0.0, 120_000.0, BANDWIDTH_TICK_COUNT, MIN_BANDWIDTH_SCALE)
+            axis::stable_upper_bound(0.0, 120_000.0, BANDWIDTH_TICK_COUNT, MIN_BANDWIDTH_SCALE)
         );
         assert_eq!(
             first_client_max,
-            chart::stable_upper_bound(0.0, 18.0, CLIENT_TICK_COUNT, 1.0)
+            axis::stable_upper_bound(0.0, 18.0, CLIENT_TICK_COUNT, 1.0)
         );
 
         screen.apply_action(&Action::StatsUpdated(sample_stats_data(40_000.0, 8.0)));
 
         assert_eq!(
             screen.bandwidth_y_max,
-            chart::stable_upper_bound(
+            axis::stable_upper_bound(
                 first_bandwidth_max,
                 40_000.0,
                 BANDWIDTH_TICK_COUNT,
@@ -129,7 +125,7 @@ mod tests {
         );
         assert_eq!(
             screen.client_y_max,
-            chart::stable_upper_bound(first_client_max, 8.0, CLIENT_TICK_COUNT, 1.0)
+            axis::stable_upper_bound(first_client_max, 8.0, CLIENT_TICK_COUNT, 1.0)
         );
     }
 }

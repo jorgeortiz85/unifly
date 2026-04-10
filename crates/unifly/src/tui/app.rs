@@ -23,6 +23,7 @@ use unifly_api::Controller;
 use crate::sanitizer::Sanitizer;
 use crate::tui::action::{Action, ConfirmAction, Notification, StatsPeriod};
 use crate::tui::component::Component;
+use crate::tui::effects::EffectStack;
 use crate::tui::event::{Event, EventReader};
 use crate::tui::screen::ScreenId;
 use crate::tui::screens::create_screens;
@@ -85,12 +86,23 @@ pub struct App {
     stats_period: StatsPeriod,
     /// Whether to show the donate button in the status bar.
     show_donate: bool,
+    /// tachyonfx effect stack applied as buffer post-processing.
+    effects: EffectStack,
+    /// Whether effects are enabled this session (flag + env + config).
+    effects_enabled: bool,
+    /// Timestamp of the previous rendered frame — used to compute per-frame
+    /// delta time for the effect stack.
+    last_frame: Instant,
 }
 
 impl App {
     /// Create a new App with all screens. Optionally accepts a [`Controller`]
     /// for live data — if `None`, the TUI shows the onboarding wizard.
-    pub fn new(controller: Option<Controller>, sanitizer: Option<Arc<Sanitizer>>) -> Self {
+    pub fn new(
+        controller: Option<Controller>,
+        sanitizer: Option<Arc<Sanitizer>>,
+        effects_enabled: bool,
+    ) -> Self {
         let show_donate = crate::config::load_config().map_or(true, |c| c.defaults.show_donate);
 
         let (action_tx, action_rx) = mpsc::unbounded_channel();
@@ -131,6 +143,9 @@ impl App {
             last_stats_fetch: None,
             stats_period: StatsPeriod::default(),
             show_donate,
+            effects: EffectStack::new(),
+            effects_enabled,
+            last_frame: Instant::now(),
         }
     }
 
@@ -161,6 +176,13 @@ impl App {
             tokio::spawn(async move {
                 crate::tui::data_bridge::spawn_data_bridge(controller, tx, cancel, sanitizer).await;
             });
+        }
+
+        // Reset the frame clock so the first draw gets a sane delta, then
+        // queue the launch intro effect if effects are enabled this session.
+        self.last_frame = Instant::now();
+        if self.effects_enabled {
+            self.effects.start_intro();
         }
 
         let mut events = EventReader::new(Duration::from_millis(250), Duration::from_millis(33));

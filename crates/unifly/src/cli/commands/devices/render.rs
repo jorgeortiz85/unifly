@@ -230,6 +230,7 @@ mod tests {
             yes: false,
             insecure: false,
             timeout: 30,
+            no_effects: false,
         })
     }
 

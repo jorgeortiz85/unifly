@@ -73,6 +73,10 @@ pub struct GlobalOpts {
     /// Request timeout in seconds
     #[arg(long, env = "UNIFI_TIMEOUT", default_value = "30", global = true)]
     pub timeout: u64,
+
+    /// Disable tachyonfx animations in the TUI (honours `NO_EFFECTS=1`)
+    #[arg(long, global = true)]
+    pub no_effects: bool,
 }
 
 #[derive(Debug, Clone, ValueEnum)]

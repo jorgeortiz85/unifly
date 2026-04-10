@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use crate::tui::action::Action;
-use crate::tui::widgets::chart;
+use crate::tui::widgets::hyperchart::axis;
 use unifly_api::DeviceType;
 
 use super::{
@@ -44,7 +44,7 @@ impl DashboardScreen {
         }
 
         let visible_max = self.bandwidth_scale_reference();
-        self.chart_y_max = chart::stable_upper_bound(
+        self.chart_y_max = axis::stable_upper_bound(
             self.chart_y_max,
             visible_max,
             BANDWIDTH_TICK_COUNT,
