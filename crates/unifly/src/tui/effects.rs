@@ -69,11 +69,13 @@ impl EffectStack {
         self.manager.add_unique_effect(EffectKind::Intro, effect);
     }
 
-    /// Play a short coalesce reveal when the active screen changes.
-    /// Pairs nicely with the instant state swap by materialising the new
-    /// screen's cells from a random spatial pattern over ~350ms.
+    /// Play a subtle foreground fade when the active screen changes.
+    /// A 160ms `fade_from_fg` from black is snappy enough to feel
+    /// responsive while staying calmer than a coalesce scatter — the
+    /// new screen's text/borders fade up from black on the first few
+    /// frames and the transition is done before you finish blinking.
     pub fn start_screen_transition(&mut self) {
-        let effect = fx::coalesce(FxDuration::from_millis(350));
+        let effect = fx::fade_from_fg(Color::Black, FxDuration::from_millis(160));
         self.manager
             .add_unique_effect(EffectKind::ScreenTransition, effect);
     }
