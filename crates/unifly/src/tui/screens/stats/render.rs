@@ -1,5 +1,6 @@
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
+use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Borders, Paragraph};
 
@@ -8,15 +9,52 @@ use super::{
     MIN_BANDWIDTH_SCALE, StatsScreen,
 };
 use crate::tui::theme;
+use crate::tui::widgets::bytes_fmt;
 use crate::tui::widgets::hyperchart::{
     Denominator, Domain, HyperBars, HyperChart, Renderer, Row, Series, ValueFormat,
 };
 use crate::tui::widgets::sub_tabs;
 
+const STATS_BANDWIDTH_GUTTER: u16 = 7;
+const STATS_CLIENT_GUTTER: u16 = 6;
+
 impl StatsScreen {
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        clippy::as_conversions
+    )]
     pub(super) fn render_bandwidth_chart(&self, frame: &mut Frame, area: Rect) {
         let y_max = self.bandwidth_y_max.max(MIN_BANDWIDTH_SCALE);
         let x_bounds = bandwidth_x_bounds(&self.bandwidth_tx, &self.bandwidth_rx);
+
+        let current_tx = self.bandwidth_tx.last().map_or(0, |&(_, v)| v as u64);
+        let current_rx = self.bandwidth_rx.last().map_or(0, |&(_, v)| v as u64);
+        let peak = self
+            .bandwidth_tx
+            .iter()
+            .chain(self.bandwidth_rx.iter())
+            .map(|&(_, v)| v)
+            .fold(0.0_f64, f64::max) as u64;
+
+        let title = Line::from(vec![
+            Span::styled(" WAN Bandwidth ", theme::title_style()),
+            Span::styled("── ", Style::default().fg(theme::border_unfocused())),
+            Span::styled(
+                format!("TX {} ↑", bytes_fmt::fmt_rate(current_tx)),
+                Style::default().fg(theme::accent_secondary()),
+            ),
+            Span::styled("  ", Style::default()),
+            Span::styled(
+                format!("RX {} ↓", bytes_fmt::fmt_rate(current_rx)),
+                Style::default().fg(theme::accent_tertiary()),
+            ),
+            Span::styled(
+                format!("  Peak {} ", bytes_fmt::fmt_rate(peak)),
+                Style::default().fg(theme::border_unfocused()),
+            ),
+        ]);
 
         let series = [
             Series {
@@ -33,11 +71,13 @@ impl StatsScreen {
             },
         ];
 
-        let chart = HyperChart::new(Line::from(" WAN Bandwidth "), &series, x_bounds, y_max)
+        let chart = HyperChart::new(title, &series, x_bounds, y_max)
             .domain(Domain::Rate)
             .tick_count(BANDWIDTH_TICK_COUNT)
             .label_width(BANDWIDTH_LABEL_WIDTH)
-            .renderer(Renderer::Tiled)
+            .renderer(Renderer::Canvas {
+                gutter_width: STATS_BANDWIDTH_GUTTER,
+            })
             .empty_message("No bandwidth data yet");
 
         frame.render_widget(chart, area);
@@ -62,7 +102,9 @@ impl StatsScreen {
             .domain(Domain::Count)
             .tick_count(CLIENT_TICK_COUNT)
             .label_width(CLIENT_LABEL_WIDTH)
-            .renderer(Renderer::Tiled)
+            .renderer(Renderer::Canvas {
+                gutter_width: STATS_CLIENT_GUTTER,
+            })
             .empty_message("No client data yet");
 
         frame.render_widget(chart, area);

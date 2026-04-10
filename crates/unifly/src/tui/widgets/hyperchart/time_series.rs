@@ -250,17 +250,13 @@ impl Widget for HyperChart<'_> {
                     Paragraph::new(Line::from(label.clone())).render(label_area, buf);
                 }
 
+                // Always interpolate so line-only series (fill_color = None)
+                // still have a dense path for the line overlay pass.
                 let plot_density = (usize::from(plot_area.width.max(1)) * 4).max(160);
-                let fill_paths: Vec<Vec<(f64, f64)>> = self
+                let paths: Vec<Vec<(f64, f64)>> = self
                     .series
                     .iter()
-                    .map(|series| {
-                        if series.fill_color.is_some() {
-                            axis::interpolate_fill(series.data, plot_density)
-                        } else {
-                            Vec::new()
-                        }
-                    })
+                    .map(|series| axis::interpolate_fill(series.data, plot_density))
                     .collect();
 
                 let canvas = Canvas::default()
@@ -277,11 +273,12 @@ impl Widget for HyperChart<'_> {
                             color: theme::border_unfocused(),
                         });
 
-                        for (series, fill_path) in self.series.iter().zip(fill_paths.iter()) {
+                        // Pass 1: area fills for series that opt in.
+                        for (series, path) in self.series.iter().zip(paths.iter()) {
                             let Some(fill_color) = series.fill_color else {
                                 continue;
                             };
-                            for &(x, y) in fill_path {
+                            for &(x, y) in path {
                                 ctx.draw(&CanvasLine {
                                     x1: x,
                                     y1: 0.0,
@@ -294,11 +291,12 @@ impl Widget for HyperChart<'_> {
 
                         ctx.layer();
 
-                        for (series, fill_path) in self.series.iter().zip(fill_paths.iter()) {
-                            if fill_path.is_empty() {
+                        // Pass 2: line overlays for every series (filled or not).
+                        for (series, path) in self.series.iter().zip(paths.iter()) {
+                            if path.is_empty() {
                                 continue;
                             }
-                            for pair in fill_path.windows(2) {
+                            for pair in path.windows(2) {
                                 let [(x1, y1), (x2, y2)] = pair else {
                                     continue;
                                 };
