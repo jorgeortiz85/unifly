@@ -56,11 +56,12 @@ pub struct HyperBars<'a> {
     label_width: usize,
     empty_message: &'a str,
     focused: bool,
+    show_rank: bool,
 }
 
 impl<'a> HyperBars<'a> {
     /// Construct a new `HyperBars` with sensible defaults (MaxObserved
-    /// denominator, Bytes format, 14-character label column).
+    /// denominator, Bytes format, 14-character label column, rank numbers on).
     pub fn new(title: Line<'a>, rows: &'a [Row<'a>]) -> Self {
         Self {
             title,
@@ -70,6 +71,7 @@ impl<'a> HyperBars<'a> {
             label_width: 14,
             empty_message: "No data",
             focused: false,
+            show_rank: true,
         }
     }
 
@@ -102,6 +104,13 @@ impl<'a> HyperBars<'a> {
         self.focused = focused;
         self
     }
+
+    /// Toggle the leading rank column (`1.`, `2.`, …). On by default.
+    #[must_use]
+    pub fn show_rank(mut self, show: bool) -> Self {
+        self.show_rank = show;
+        self
+    }
 }
 
 impl Widget for HyperBars<'_> {
@@ -121,13 +130,14 @@ impl Widget for HyperBars<'_> {
             return;
         }
 
-        // Column widths: leading gap (2) + label + space (1) + bar + space (1) + value
+        // Column widths: leading gap (2) + optional rank (3) + label + space (1) + bar + space (1) + value
         let value_width: usize = match self.value_format {
             ValueFormat::Bytes => 6,
             ValueFormat::Percent => 4,
             ValueFormat::Count => 7,
         };
-        let gutter = 2 + self.label_width + 1 + 1 + value_width;
+        let rank_width: usize = if self.show_rank { 3 } else { 0 };
+        let gutter = 2 + rank_width + self.label_width + 1 + 1 + value_width;
         let bar_budget = usize::from(inner.width).saturating_sub(gutter);
 
         let colors = theme::chart_series();
@@ -174,17 +184,28 @@ impl Widget for HyperBars<'_> {
             };
 
             let label_width = self.label_width;
-            lines.push(Line::from(vec![
-                Span::styled(
+            let mut spans: Vec<Span> = Vec::with_capacity(4);
+            if self.show_rank {
+                spans.push(Span::styled(
+                    format!("  {:>2}", idx + 1),
+                    Style::default().fg(theme::text_muted()),
+                ));
+                spans.push(Span::styled(
+                    format!(" {display_label:<label_width$} "),
+                    Style::default().fg(theme::text_secondary()),
+                ));
+            } else {
+                spans.push(Span::styled(
                     format!("  {display_label:<label_width$} "),
                     Style::default().fg(theme::text_secondary()),
-                ),
-                Span::styled(bar, Style::default().fg(color)),
-                Span::styled(
-                    format!(" {value_str}"),
-                    Style::default().fg(theme::text_secondary()),
-                ),
-            ]));
+                ));
+            }
+            spans.push(Span::styled(bar, Style::default().fg(color)));
+            spans.push(Span::styled(
+                format!(" {value_str}"),
+                Style::default().fg(theme::text_secondary()),
+            ));
+            lines.push(Line::from(spans));
         }
 
         Paragraph::new(lines).render(inner, buf);
