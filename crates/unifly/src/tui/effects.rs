@@ -69,6 +69,15 @@ impl EffectStack {
         self.manager.add_unique_effect(EffectKind::Intro, effect);
     }
 
+    /// Play a short coalesce reveal when the active screen changes.
+    /// Pairs nicely with the instant state swap by materialising the new
+    /// screen's cells from a random spatial pattern over ~350ms.
+    pub fn start_screen_transition(&mut self) {
+        let effect = fx::coalesce(FxDuration::from_millis(350));
+        self.manager
+            .add_unique_effect(EffectKind::ScreenTransition, effect);
+    }
+
     /// Register a custom effect under the given kind, cancelling any prior
     /// effect of the same kind.
     pub fn add_unique(&mut self, kind: EffectKind, effect: Effect) {
@@ -102,6 +111,13 @@ mod tests {
     fn intro_activates_stack() {
         let mut stack = EffectStack::new();
         stack.start_intro();
+        assert!(stack.is_active());
+    }
+
+    #[test]
+    fn screen_transition_activates_stack() {
+        let mut stack = EffectStack::new();
+        stack.start_screen_transition();
         assert!(stack.is_active());
     }
 

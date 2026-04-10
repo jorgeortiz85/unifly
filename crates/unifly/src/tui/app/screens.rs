@@ -24,6 +24,10 @@ impl App {
         self.previous_screen = Some(self.active_screen);
         self.set_active_screen(target);
 
+        if self.effects_enabled {
+            self.effects.start_screen_transition();
+        }
+
         if target == ScreenId::Stats {
             self.action_tx
                 .send(Action::RequestStats(StatsPeriod::default()))?;
