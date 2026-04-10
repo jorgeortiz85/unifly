@@ -258,20 +258,22 @@ impl App {
         );
     }
 
-    /// Render the help overlay centered on screen with dimmed background.
+    /// Render the help overlay centered on screen. The underlying screen
+    /// stays visible around the modal — we only clear the overlay's own
+    /// rect so the rest of the TUI shows through.
     #[allow(clippy::unused_self)]
     fn render_help_overlay(&self, frame: &mut Frame, area: Rect) {
-        frame.render_widget(Clear, area);
-        frame.render_widget(
-            Block::default().style(Style::default().bg(theme::bg_base())),
-            area,
-        );
-
         let help_width = 60u16.min(area.width.saturating_sub(4));
         let help_height = 22u16.min(area.height.saturating_sub(4));
         let x = (area.width.saturating_sub(help_width)) / 2;
         let y = (area.height.saturating_sub(help_height)) / 2;
         let help_area = Rect::new(area.x + x, area.y + y, help_width, help_height);
+
+        frame.render_widget(Clear, help_area);
+        frame.render_widget(
+            Block::default().style(Style::default().bg(theme::bg_base())),
+            help_area,
+        );
 
         let block = Block::default()
             .title(" Keyboard Shortcuts ")
@@ -360,20 +362,22 @@ impl App {
         frame.render_widget(Paragraph::new(help_text), inner);
     }
 
-    /// Render a centered confirmation dialog with dimmed background.
+    /// Render a centered confirmation dialog. The underlying screen
+    /// stays visible around the dialog — only the dialog's own rect is
+    /// cleared so context behind the prompt remains legible.
     #[allow(clippy::unused_self)]
     fn render_confirm_dialog(&self, frame: &mut Frame, area: Rect, confirm: &ConfirmAction) {
-        frame.render_widget(Clear, area);
-        frame.render_widget(
-            Block::default().style(Style::default().bg(theme::bg_base())),
-            area,
-        );
-
         let width = 50u16.min(area.width.saturating_sub(4));
         let height = 5u16;
         let x = (area.width.saturating_sub(width)) / 2;
         let y = (area.height.saturating_sub(height)) / 2;
         let dialog_area = Rect::new(area.x + x, area.y + y, width, height);
+
+        frame.render_widget(Clear, dialog_area);
+        frame.render_widget(
+            Block::default().style(Style::default().bg(theme::bg_base())),
+            dialog_area,
+        );
 
         let block = Block::default()
             .title(" Confirm ")
