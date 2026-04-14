@@ -1,5 +1,27 @@
 use crate::command::requests::TrafficFilterSpec;
 
+fn build_port_filter_json(ports: &[String]) -> serde_json::Value {
+    let items: Vec<serde_json::Value> = ports
+        .iter()
+        .map(|p| {
+            if p.contains('-') {
+                let range: Vec<&str> = p.splitn(2, '-').collect();
+                let start: u16 = range[0].parse().unwrap_or(0);
+                let end: u16 = range.get(1).unwrap_or(&"0").parse().unwrap_or(0);
+                serde_json::json!({ "type": "PORT_NUMBER_RANGE", "startPort": start, "endPort": end })
+            } else {
+                let port: u16 = p.parse().unwrap_or(0);
+                serde_json::json!({ "type": "PORT_NUMBER", "value": port })
+            }
+        })
+        .collect();
+    serde_json::json!({
+        "type": "PORTS",
+        "items": items,
+        "matchOpposite": false,
+    })
+}
+
 pub(in super::super) fn build_endpoint_json(
     zone_id: &str,
     filter: Option<&TrafficFilterSpec>,
@@ -11,18 +33,26 @@ pub(in super::super) fn build_endpoint_json(
             TrafficFilterSpec::Network {
                 network_ids,
                 match_opposite,
+                ports,
             } => {
-                serde_json::json!({
+                let mut v = serde_json::json!({
                     "type": "NETWORK",
                     "networkFilter": {
                         "networkIds": network_ids,
                         "matchOpposite": match_opposite,
                     }
-                })
+                });
+                if let Some(ports) = ports {
+                    v.as_object_mut()
+                        .expect("json! produces object")
+                        .insert("portFilter".into(), build_port_filter_json(ports));
+                }
+                v
             }
             TrafficFilterSpec::IpAddress {
                 addresses,
                 match_opposite,
+                ports,
             } => {
                 let items: Vec<serde_json::Value> = addresses
                     .iter()
@@ -37,40 +67,32 @@ pub(in super::super) fn build_endpoint_json(
                         }
                     })
                     .collect();
-                serde_json::json!({
-                    "type": "IP_ADDRESSES",
+                let mut v = serde_json::json!({
+                    "type": "IP_ADDRESS",
                     "ipAddressFilter": {
                         "type": "IP_ADDRESSES",
                         "items": items,
                         "matchOpposite": match_opposite,
                     }
-                })
+                });
+                if let Some(ports) = ports {
+                    v.as_object_mut()
+                        .expect("json! produces object")
+                        .insert("portFilter".into(), build_port_filter_json(ports));
+                }
+                v
             }
             TrafficFilterSpec::Port {
                 ports,
                 match_opposite,
             } => {
-                let items: Vec<serde_json::Value> = ports
-                    .iter()
-                    .map(|p| {
-                        if p.contains('-') {
-                            let parts: Vec<&str> = p.splitn(2, '-').collect();
-                            let start: u16 = parts[0].parse().unwrap_or(0);
-                            let end: u16 = parts.get(1).unwrap_or(&"0").parse().unwrap_or(0);
-                            serde_json::json!({ "type": "PORT_RANGE", "startPort": start, "endPort": end })
-                        } else {
-                            let port: u16 = p.parse().unwrap_or(0);
-                            serde_json::json!({ "type": "PORT_NUMBER", "value": port })
-                        }
-                    })
-                    .collect();
+                let mut pf = build_port_filter_json(ports);
+                pf.as_object_mut()
+                    .expect("json! produces object")
+                    .insert("matchOpposite".into(), (*match_opposite).into());
                 serde_json::json!({
                     "type": "PORT",
-                    "portFilter": {
-                        "type": "PORTS",
-                        "items": items,
-                        "matchOpposite": match_opposite,
-                    }
+                    "portFilter": pf,
                 })
             }
         };
@@ -100,7 +122,8 @@ pub(in super::super) fn traffic_matching_list_items(
 
 #[cfg(test)]
 mod tests {
-    use super::traffic_matching_list_items;
+    use super::{build_endpoint_json, traffic_matching_list_items};
+    use crate::command::requests::TrafficFilterSpec;
     use serde_json::json;
 
     #[test]
@@ -108,5 +131,50 @@ mod tests {
         let raw_items = [json!({"type": "PORT_NUMBER", "value": 443})];
         let items = traffic_matching_list_items(&["80".into()], Some(&raw_items));
         assert_eq!(items, vec![json!({"type": "PORT_NUMBER", "value": 443})]);
+    }
+
+    #[test]
+    fn build_endpoint_json_ip_with_port_nests_port_filter() {
+        let spec = TrafficFilterSpec::IpAddress {
+            addresses: vec!["10.0.40.10".into()],
+            match_opposite: false,
+            ports: Some(vec!["80".into()]),
+        };
+        let result = build_endpoint_json("zone-uuid", Some(&spec));
+        let tf = result.get("trafficFilter").expect("trafficFilter present");
+        assert_eq!(tf.get("type").and_then(|v| v.as_str()), Some("IP_ADDRESS"));
+        // ipAddressFilter should be present
+        let ip_filter = tf.get("ipAddressFilter").expect("ipAddressFilter present");
+        assert_eq!(
+            ip_filter
+                .get("items")
+                .and_then(|v| v.as_array())
+                .map(Vec::len),
+            Some(1)
+        );
+        // portFilter should be nested alongside ipAddressFilter
+        let port_filter = tf.get("portFilter").expect("portFilter present");
+        assert_eq!(
+            port_filter
+                .get("items")
+                .and_then(|v| v.as_array())
+                .map(Vec::len),
+            Some(1)
+        );
+        let port_item = &port_filter["items"][0];
+        assert_eq!(port_item["type"].as_str(), Some("PORT_NUMBER"));
+        assert_eq!(port_item["value"].as_u64(), Some(80));
+    }
+
+    #[test]
+    fn build_endpoint_json_ip_without_port_omits_port_filter() {
+        let spec = TrafficFilterSpec::IpAddress {
+            addresses: vec!["10.0.0.1".into()],
+            match_opposite: false,
+            ports: None,
+        };
+        let result = build_endpoint_json("zone-uuid", Some(&spec));
+        let tf = result.get("trafficFilter").expect("trafficFilter present");
+        assert!(tf.get("portFilter").is_none());
     }
 }

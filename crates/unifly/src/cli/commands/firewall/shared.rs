@@ -18,21 +18,11 @@ pub(super) fn build_filter_spec(
     ips: Option<Vec<String>>,
     ports: Option<Vec<String>>,
 ) -> Result<Option<TrafficFilterSpec>, CliError> {
-    let selected = [
-        networks.as_ref().map(|_| "network"),
-        ips.as_ref().map(|_| "ip"),
-        ports.as_ref().map(|_| "port"),
-    ]
-    .into_iter()
-    .flatten()
-    .collect::<Vec<_>>();
-
-    if selected.len() > 1 {
+    // network + ip is invalid; port can combine with either
+    if networks.is_some() && ips.is_some() {
         return Err(CliError::Validation {
             field: format!("{field_prefix}-filter"),
-            reason: format!(
-                "choose only one of --{field_prefix}-network, --{field_prefix}-ip, or --{field_prefix}-port"
-            ),
+            reason: format!("cannot combine --{field_prefix}-network and --{field_prefix}-ip"),
         });
     }
 
@@ -40,11 +30,13 @@ pub(super) fn build_filter_spec(
         Some(TrafficFilterSpec::Network {
             network_ids,
             match_opposite: false,
+            ports,
         })
     } else if let Some(addresses) = ips {
         Some(TrafficFilterSpec::IpAddress {
             addresses,
             match_opposite: false,
+            ports,
         })
     } else {
         ports.map(|ports| TrafficFilterSpec::Port {
@@ -94,6 +86,27 @@ mod tests {
             Err(CliError::Validation { field, .. }) => assert_eq!(field, "src-filter"),
             Ok(_) => panic!("expected validation error, got success"),
             Err(other) => panic!("expected validation error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn build_filter_spec_combines_ip_and_port() {
+        let spec = build_filter_spec(
+            "dst",
+            None,
+            Some(vec!["10.0.40.10".into()]),
+            Some(vec!["80".into()]),
+        )
+        .expect("ip + port should succeed");
+
+        match spec {
+            Some(TrafficFilterSpec::IpAddress {
+                addresses, ports, ..
+            }) => {
+                assert_eq!(addresses, vec!["10.0.40.10"]);
+                assert_eq!(ports, Some(vec!["80".into()]));
+            }
+            other => panic!("expected IpAddress with ports, got {other:?}"),
         }
     }
 

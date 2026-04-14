@@ -281,6 +281,7 @@ pub enum Command {
 #[derive(Debug)]
 pub enum CommandResult {
     Ok,
+    CreatedId(EntityId),
     Device(Device),
     Client(Client),
     Network(Network),
