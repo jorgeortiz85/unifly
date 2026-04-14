@@ -16,9 +16,10 @@ pub use network::{
     UpdateWifiBroadcastRequest,
 };
 pub use policy::{
-    CreateAclRuleRequest, CreateFirewallPolicyRequest, CreateFirewallZoneRequest,
-    CreateNatPolicyRequest, TrafficFilterSpec, UpdateAclRuleRequest, UpdateFirewallPolicyRequest,
-    UpdateFirewallZoneRequest, UpdateNatPolicyRequest,
+    CreateAclRuleRequest, CreateFirewallGroupRequest, CreateFirewallPolicyRequest,
+    CreateFirewallZoneRequest, CreateNatPolicyRequest, TrafficFilterSpec, UpdateAclRuleRequest,
+    UpdateFirewallGroupRequest, UpdateFirewallPolicyRequest, UpdateFirewallZoneRequest,
+    UpdateNatPolicyRequest,
 };
 pub use traffic::{CreateTrafficMatchingListRequest, UpdateTrafficMatchingListRequest};
 pub use vouchers::CreateVouchersRequest;
