@@ -41,6 +41,16 @@ pub struct CreateFirewallPolicyRequest {
     pub dst_ip: Option<Vec<String>>,
     #[serde(default, skip_serializing)]
     pub dst_port: Option<Vec<String>>,
+
+    // Group reference shorthands (resolved by CLI to source/destination_filter)
+    #[serde(default, skip_serializing)]
+    pub src_port_group: Option<String>,
+    #[serde(default, skip_serializing)]
+    pub dst_port_group: Option<String>,
+    #[serde(default, skip_serializing)]
+    pub src_address_group: Option<String>,
+    #[serde(default, skip_serializing)]
+    pub dst_address_group: Option<String>,
 }
 
 fn default_true() -> bool {
@@ -83,6 +93,16 @@ pub struct UpdateFirewallPolicyRequest {
     pub dst_ip: Option<Vec<String>>,
     #[serde(default, skip_serializing)]
     pub dst_port: Option<Vec<String>>,
+
+    // Group reference shorthands (resolved by CLI to source/destination_filter)
+    #[serde(default, skip_serializing)]
+    pub src_port_group: Option<String>,
+    #[serde(default, skip_serializing)]
+    pub dst_port_group: Option<String>,
+    #[serde(default, skip_serializing)]
+    pub src_address_group: Option<String>,
+    #[serde(default, skip_serializing)]
+    pub dst_address_group: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -107,6 +127,18 @@ pub enum TrafficFilterSpec {
     },
     Port {
         ports: Vec<String>,
+        #[serde(default)]
+        match_opposite: bool,
+    },
+    /// Port filter referencing a firewall group (port-group) by its external_id.
+    PortMatchingList {
+        list_id: String,
+        #[serde(default)]
+        match_opposite: bool,
+    },
+    /// IP address filter referencing a firewall group (address-group) by its external_id.
+    IpMatchingList {
+        list_id: String,
         #[serde(default)]
         match_opposite: bool,
     },
@@ -574,5 +606,112 @@ mod tests {
             Some("DEVICE")
         );
         assert_eq!(value.get("rule_type"), None);
+    }
+
+    // ── Group shorthand tests ──────────────────────────────────────
+
+    #[test]
+    fn group_shorthand_fields_deserialize() {
+        let req: CreateFirewallPolicyRequest = serde_json::from_value(serde_json::json!({
+            "name": "HA IoT Services",
+            "action": "Allow",
+            "source_zone_id": "aaa",
+            "destination_zone_id": "bbb",
+            "dst_port_group": "HA",
+            "src_address_group": "Cloud IOT"
+        }))
+        .expect("group shorthands should deserialize");
+
+        assert_eq!(req.dst_port_group.as_deref(), Some("HA"));
+        assert_eq!(req.src_address_group.as_deref(), Some("Cloud IOT"));
+        assert!(req.destination_filter.is_none());
+        assert!(req.source_filter.is_none());
+    }
+
+    #[test]
+    fn group_shorthand_fields_skip_serializing() {
+        let req: CreateFirewallPolicyRequest = serde_json::from_value(serde_json::json!({
+            "name": "Test",
+            "action": "Allow",
+            "source_zone_id": "aaa",
+            "destination_zone_id": "bbb",
+            "dst_port_group": "HA",
+            "dst_address_group": "Cloud IOT"
+        }))
+        .expect("should deserialize");
+
+        let value = serde_json::to_value(&req).expect("should serialize");
+        assert!(
+            value.get("dst_port_group").is_none(),
+            "dst_port_group must not serialize"
+        );
+        assert!(
+            value.get("dst_address_group").is_none(),
+            "dst_address_group must not serialize"
+        );
+        assert!(
+            value.get("src_port_group").is_none(),
+            "src_port_group must not serialize"
+        );
+        assert!(
+            value.get("src_address_group").is_none(),
+            "src_address_group must not serialize"
+        );
+    }
+
+    #[test]
+    fn update_group_shorthand_fields_deserialize() {
+        let req: UpdateFirewallPolicyRequest = serde_json::from_value(serde_json::json!({
+            "dst_port_group": "HA"
+        }))
+        .expect("update group shorthand should deserialize");
+
+        assert_eq!(req.dst_port_group.as_deref(), Some("HA"));
+    }
+
+    // ── TrafficFilterSpec matching list variants ───────────────────
+
+    #[test]
+    fn port_matching_list_round_trips() {
+        let spec = TrafficFilterSpec::PortMatchingList {
+            list_id: "24740a56-9cb9-4890-a5ac-589d30914a55".into(),
+            match_opposite: false,
+        };
+        let json = serde_json::to_value(&spec).expect("should serialize");
+        assert_eq!(
+            json.get("type").and_then(|v| v.as_str()),
+            Some("port_matching_list")
+        );
+        assert_eq!(
+            json.get("list_id").and_then(|v| v.as_str()),
+            Some("24740a56-9cb9-4890-a5ac-589d30914a55")
+        );
+
+        let round_tripped: TrafficFilterSpec =
+            serde_json::from_value(json).expect("should deserialize");
+        assert!(matches!(
+            round_tripped,
+            TrafficFilterSpec::PortMatchingList { .. }
+        ));
+    }
+
+    #[test]
+    fn ip_matching_list_round_trips() {
+        let spec = TrafficFilterSpec::IpMatchingList {
+            list_id: "b777b27c-410c-4b40-8489-a61bf1a536d4".into(),
+            match_opposite: true,
+        };
+        let json = serde_json::to_value(&spec).expect("should serialize");
+        assert_eq!(
+            json.get("type").and_then(|v| v.as_str()),
+            Some("ip_matching_list")
+        );
+
+        let round_tripped: TrafficFilterSpec =
+            serde_json::from_value(json).expect("should deserialize");
+        match round_tripped {
+            TrafficFilterSpec::IpMatchingList { match_opposite, .. } => assert!(match_opposite),
+            other => panic!("expected IpMatchingList, got {other:?}"),
+        }
     }
 }

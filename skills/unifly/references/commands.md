@@ -221,6 +221,33 @@ unifly firewall zones delete <id>
 - `--networks` accepts comma-separated network IDs or names.
 - `--from-file` is now supported on zones (recent addition).
 
+### Groups `[S]`
+
+```bash
+unifly firewall groups list [--type port-group|address-group|ipv6-address-group] [--all]
+unifly firewall groups get <id>
+unifly firewall groups create --name NAME [--type port-group|address-group] --members 80,443,8000-8002 [-F payload.json]
+unifly firewall groups update <id> [--name NAME] [--members ...] [-F payload.json]
+unifly firewall groups delete <id>
+```
+
+**Gotchas:**
+
+- Groups use the **Session API** (`rest/firewallgroup`), not Integration.
+  Requires `ensure_session_access` — API key mode on UniFi OS is sufficient.
+- `--type` defaults to `port-group` on create. Possible types:
+  `port-group`, `address-group`, `ipv6-address-group`.
+- `--members` is comma-separated: `"80,443,8000-8002"` for port groups,
+  `"10.0.30.0/24,10.0.40.1"` for address groups.
+- The response includes both `_id` (Session) and `external_id` (UUID) —
+  the `external_id` is what firewall policies reference when using group
+  filters.
+- Policies can reference groups by name using `--dst-port-group`,
+  `--src-port-group`, `--dst-address-group`, `--src-address-group` flags
+  or `dst_port_group` / `dst_address_group` fields in `--from-file` JSON.
+  The CLI resolves the name to the group's `external_id` at create/update
+  time.
+
 ## NAT `[I]`
 
 ```bash

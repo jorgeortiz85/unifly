@@ -1,5 +1,8 @@
-use unifly_api::model::FirewallAction as ModelFirewallAction;
-use unifly_api::{EntityId, TrafficFilterSpec};
+use unifly_api::model::{FirewallAction as ModelFirewallAction, FirewallGroupType};
+use unifly_api::{
+    Controller, CreateFirewallPolicyRequest, EntityId, TrafficFilterSpec,
+    UpdateFirewallPolicyRequest,
+};
 
 use crate::cli::args::FirewallAction;
 use crate::cli::error::CliError;
@@ -59,6 +62,193 @@ pub(super) fn parse_reorder_zone_pair(
             reason: "firewall policy reordering requires both --source-zone and --dest-zone".into(),
         }),
     }
+}
+
+/// Resolve group name shorthands (`src_port_group`, `dst_port_group`,
+/// `src_address_group`, `dst_address_group`) into `TrafficFilterSpec` filters
+/// on a `CreateFirewallPolicyRequest`.
+///
+/// Must be called *before* `resolve_filters()`.
+pub(super) fn resolve_group_refs_create(
+    controller: &Controller,
+    req: &mut CreateFirewallPolicyRequest,
+) -> Result<(), CliError> {
+    let groups = controller.firewall_groups_snapshot();
+
+    if let Some(name) = req.src_port_group.take() {
+        check_no_conflict(
+            "src",
+            req.source_filter.is_some(),
+            req.src_port.as_ref(),
+            req.src_ip.as_ref(),
+        )?;
+        req.source_filter = Some(resolve_port_group(&name, &groups)?);
+    }
+    if let Some(name) = req.src_address_group.take() {
+        check_no_conflict(
+            "src",
+            req.source_filter.is_some(),
+            req.src_port.as_ref(),
+            req.src_ip.as_ref(),
+        )?;
+        req.source_filter = Some(resolve_address_group(&name, &groups)?);
+    }
+    if let Some(name) = req.dst_port_group.take() {
+        check_no_conflict(
+            "dst",
+            req.destination_filter.is_some(),
+            req.dst_port.as_ref(),
+            req.dst_ip.as_ref(),
+        )?;
+        req.destination_filter = Some(resolve_port_group(&name, &groups)?);
+    }
+    if let Some(name) = req.dst_address_group.take() {
+        check_no_conflict(
+            "dst",
+            req.destination_filter.is_some(),
+            req.dst_port.as_ref(),
+            req.dst_ip.as_ref(),
+        )?;
+        req.destination_filter = Some(resolve_address_group(&name, &groups)?);
+    }
+    Ok(())
+}
+
+/// Same as [`resolve_group_refs_create`] but for update requests.
+pub(super) fn resolve_group_refs_update(
+    controller: &Controller,
+    req: &mut UpdateFirewallPolicyRequest,
+) -> Result<(), CliError> {
+    let groups = controller.firewall_groups_snapshot();
+
+    if let Some(name) = req.src_port_group.take() {
+        check_no_conflict(
+            "src",
+            req.source_filter.is_some(),
+            req.src_port.as_ref(),
+            req.src_ip.as_ref(),
+        )?;
+        req.source_filter = Some(resolve_port_group(&name, &groups)?);
+    }
+    if let Some(name) = req.src_address_group.take() {
+        check_no_conflict(
+            "src",
+            req.source_filter.is_some(),
+            req.src_port.as_ref(),
+            req.src_ip.as_ref(),
+        )?;
+        req.source_filter = Some(resolve_address_group(&name, &groups)?);
+    }
+    if let Some(name) = req.dst_port_group.take() {
+        check_no_conflict(
+            "dst",
+            req.destination_filter.is_some(),
+            req.dst_port.as_ref(),
+            req.dst_ip.as_ref(),
+        )?;
+        req.destination_filter = Some(resolve_port_group(&name, &groups)?);
+    }
+    if let Some(name) = req.dst_address_group.take() {
+        check_no_conflict(
+            "dst",
+            req.destination_filter.is_some(),
+            req.dst_port.as_ref(),
+            req.dst_ip.as_ref(),
+        )?;
+        req.destination_filter = Some(resolve_address_group(&name, &groups)?);
+    }
+    Ok(())
+}
+
+fn check_no_conflict(
+    side: &str,
+    has_filter: bool,
+    ports: Option<&Vec<String>>,
+    ips: Option<&Vec<String>>,
+) -> Result<(), CliError> {
+    if has_filter {
+        return Err(CliError::Validation {
+            field: format!("{side}_group"),
+            reason: format!("cannot combine {side}_*_group with {side} filter"),
+        });
+    }
+    if ports.is_some() || ips.is_some() {
+        return Err(CliError::Validation {
+            field: format!("{side}_group"),
+            reason: format!(
+                "cannot combine {side}_*_group with {side}_port or {side}_ip shorthands"
+            ),
+        });
+    }
+    Ok(())
+}
+
+fn resolve_port_group(
+    name: &str,
+    groups: &[std::sync::Arc<unifly_api::model::FirewallGroup>],
+) -> Result<TrafficFilterSpec, CliError> {
+    let group = groups
+        .iter()
+        .find(|g| g.name == name)
+        .ok_or_else(|| CliError::Validation {
+            field: "port_group".into(),
+            reason: format!("firewall group \"{name}\" not found"),
+        })?;
+    if group.group_type != FirewallGroupType::PortGroup {
+        return Err(CliError::Validation {
+            field: "port_group".into(),
+            reason: format!(
+                "firewall group \"{name}\" is a {}, not a port-group",
+                group.group_type
+            ),
+        });
+    }
+    let list_id = group
+        .external_id
+        .as_ref()
+        .ok_or_else(|| CliError::Validation {
+            field: "port_group".into(),
+            reason: format!("firewall group \"{name}\" has no external_id"),
+        })?;
+    Ok(TrafficFilterSpec::PortMatchingList {
+        list_id: list_id.clone(),
+        match_opposite: false,
+    })
+}
+
+fn resolve_address_group(
+    name: &str,
+    groups: &[std::sync::Arc<unifly_api::model::FirewallGroup>],
+) -> Result<TrafficFilterSpec, CliError> {
+    let group = groups
+        .iter()
+        .find(|g| g.name == name)
+        .ok_or_else(|| CliError::Validation {
+            field: "address_group".into(),
+            reason: format!("firewall group \"{name}\" not found"),
+        })?;
+    if group.group_type != FirewallGroupType::AddressGroup
+        && group.group_type != FirewallGroupType::Ipv6AddressGroup
+    {
+        return Err(CliError::Validation {
+            field: "address_group".into(),
+            reason: format!(
+                "firewall group \"{name}\" is a {}, not an address-group",
+                group.group_type
+            ),
+        });
+    }
+    let list_id = group
+        .external_id
+        .as_ref()
+        .ok_or_else(|| CliError::Validation {
+            field: "address_group".into(),
+            reason: format!("firewall group \"{name}\" has no external_id"),
+        })?;
+    Ok(TrafficFilterSpec::IpMatchingList {
+        list_id: list_id.clone(),
+        match_opposite: false,
+    })
 }
 
 #[cfg(test)]

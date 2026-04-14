@@ -11,7 +11,10 @@ use crate::cli::args::{FirewallPoliciesCommand, GlobalOpts, OutputFormat};
 use crate::cli::error::CliError;
 use crate::cli::output;
 
-use super::shared::{build_filter_spec, map_fw_action, parse_reorder_zone_pair};
+use super::shared::{
+    build_filter_spec, map_fw_action, parse_reorder_zone_pair, resolve_group_refs_create,
+    resolve_group_refs_update,
+};
 use super::util;
 
 #[derive(Tabled)]
@@ -159,6 +162,10 @@ pub(super) async fn handle(
             dst_network,
             dst_ip,
             dst_port,
+            src_port_group,
+            dst_port_group,
+            src_address_group,
+            dst_address_group,
             states,
             ip_version,
             after_system,
@@ -181,6 +188,10 @@ pub(super) async fn handle(
                 dst_network,
                 dst_ip,
                 dst_port,
+                src_port_group,
+                dst_port_group,
+                src_address_group,
+                dst_address_group,
                 states,
                 ip_version,
                 after_system,
@@ -198,6 +209,10 @@ pub(super) async fn handle(
             dst_network,
             dst_ip,
             dst_port,
+            src_port_group,
+            dst_port_group,
+            src_address_group,
+            dst_address_group,
             states,
             ip_version,
         } => {
@@ -213,6 +228,10 @@ pub(super) async fn handle(
                 dst_network,
                 dst_ip,
                 dst_port,
+                src_port_group,
+                dst_port_group,
+                src_address_group,
+                dst_address_group,
                 states,
                 ip_version,
             )
@@ -357,13 +376,18 @@ async fn handle_create(
     dst_network: Option<Vec<String>>,
     dst_ip: Option<Vec<String>>,
     dst_port: Option<Vec<String>>,
+    src_port_group: Option<String>,
+    dst_port_group: Option<String>,
+    src_address_group: Option<String>,
+    dst_address_group: Option<String>,
     states: Option<Vec<String>>,
     ip_version: Option<String>,
     after_system: bool,
 ) -> Result<(), CliError> {
-    let req = if let Some(path) = from_file.as_ref() {
+    let mut req = if let Some(path) = from_file.as_ref() {
         let mut req: CreateFirewallPolicyRequest =
             serde_json::from_value(util::read_json_file(path)?)?;
+        resolve_group_refs_create(controller, &mut req)?;
         req.resolve_filters()
             .map_err(|reason| CliError::Validation {
                 field: "filter".into(),
@@ -392,8 +416,21 @@ async fn handle_create(
             dst_network: None,
             dst_ip: None,
             dst_port: None,
+            src_port_group,
+            dst_port_group,
+            src_address_group,
+            dst_address_group,
         }
     };
+
+    // Resolve group references (from CLI flags or --from-file shorthands)
+    if req.src_port_group.is_some()
+        || req.dst_port_group.is_some()
+        || req.src_address_group.is_some()
+        || req.dst_address_group.is_some()
+    {
+        resolve_group_refs_create(controller, &mut req)?;
+    }
 
     let source_zone_id = req.source_zone_id.clone();
     let destination_zone_id = req.destination_zone_id.clone();
@@ -429,6 +466,10 @@ async fn handle_update(
     dst_network: Option<Vec<String>>,
     dst_ip: Option<Vec<String>>,
     dst_port: Option<Vec<String>>,
+    src_port_group: Option<String>,
+    dst_port_group: Option<String>,
+    src_address_group: Option<String>,
+    dst_address_group: Option<String>,
     states: Option<Vec<String>>,
     ip_version: Option<String>,
 ) -> Result<(), CliError> {
@@ -440,6 +481,10 @@ async fn handle_update(
         && dst_network.is_none()
         && dst_ip.is_none()
         && dst_port.is_none()
+        && src_port_group.is_none()
+        && dst_port_group.is_none()
+        && src_address_group.is_none()
+        && dst_address_group.is_none()
         && states.is_none()
         && ip_version.is_none()
     {
@@ -449,9 +494,10 @@ async fn handle_update(
         });
     }
 
-    let update = if let Some(path) = from_file.as_ref() {
+    let mut update = if let Some(path) = from_file.as_ref() {
         let mut update: UpdateFirewallPolicyRequest =
             serde_json::from_value(util::read_json_file(path)?)?;
+        resolve_group_refs_update(controller, &mut update)?;
         update
             .resolve_filters()
             .map_err(|reason| CliError::Validation {
@@ -466,9 +512,22 @@ async fn handle_update(
             destination_filter: build_filter_spec("dst", dst_network, dst_ip, dst_port)?,
             connection_states: states,
             ip_version,
+            src_port_group,
+            dst_port_group,
+            src_address_group,
+            dst_address_group,
             ..UpdateFirewallPolicyRequest::default()
         }
     };
+
+    // Resolve group references (from CLI flags)
+    if update.src_port_group.is_some()
+        || update.dst_port_group.is_some()
+        || update.src_address_group.is_some()
+        || update.dst_address_group.is_some()
+    {
+        resolve_group_refs_update(controller, &mut update)?;
+    }
 
     controller
         .execute(CoreCommand::UpdateFirewallPolicy {
