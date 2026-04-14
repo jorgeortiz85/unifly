@@ -73,9 +73,9 @@ pub use stream::EntityStream;
 
 pub use model::{
     AclRule, Admin, Alarm, Client, ClientType, Country, Device, DeviceState, DeviceType,
-    DpiApplication, DpiCategory, EntityId, Event, EventCategory, EventSeverity, FirewallPolicy,
-    FirewallZone, HealthSummary, IpsecSa, MacAddress, MagicSiteToSiteVpnConfig, NatPolicy, NatType,
-    Network, RadiusProfile, RemoteAccessVpnServer, Site, SiteToSiteVpn, SysInfo, SystemInfo,
-    TrafficMatchingList, VpnClientConnection, VpnClientProfile, VpnServer, VpnSetting, VpnTunnel,
-    WanInterface, WireGuardPeer,
+    DpiApplication, DpiCategory, EntityId, Event, EventCategory, EventSeverity, FirewallGroup,
+    FirewallGroupType, FirewallPolicy, FirewallZone, HealthSummary, IpsecSa, MacAddress,
+    MagicSiteToSiteVpnConfig, NatPolicy, NatType, Network, RadiusProfile, RemoteAccessVpnServer,
+    Site, SiteToSiteVpn, SysInfo, SystemInfo, TrafficMatchingList, VpnClientConnection,
+    VpnClientProfile, VpnServer, VpnSetting, VpnTunnel, WanInterface, WireGuardPeer,
 };
