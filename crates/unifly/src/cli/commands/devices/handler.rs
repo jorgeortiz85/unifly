@@ -214,6 +214,7 @@ pub(super) async fn handle(
         }
 
         DevicesCommand::Ports { device } => {
+            util::ensure_session_access(controller, "devices ports").await?;
             let mac = util::resolve_device_mac(controller, &device)?;
             let profiles = controller.list_device_ports(&mac).await?;
             let out = output::render_list(
@@ -266,6 +267,7 @@ async fn handle_port_set(
     poe: Option<PoeArg>,
     speed: Option<SpeedArg>,
 ) -> Result<(), CliError> {
+    util::ensure_session_access(controller, "devices port-set").await?;
     let mac = util::resolve_device_mac(controller, device)?;
 
     if mode.is_none()

@@ -142,6 +142,24 @@ pub enum PortSpeedSetting {
     Mbps10000,
 }
 
+impl PortSpeedSetting {
+    /// Numeric link speed in Mbps, or `None` for `Auto`.
+    ///
+    /// Useful for comparing a configured pinned speed against the live
+    /// negotiated speed without round-tripping through strings.
+    pub fn as_mbps(self) -> Option<u32> {
+        match self {
+            Self::Auto => None,
+            Self::Mbps10 => Some(10),
+            Self::Mbps100 => Some(100),
+            Self::Mbps1000 => Some(1000),
+            Self::Mbps2500 => Some(2500),
+            Self::Mbps5000 => Some(5000),
+            Self::Mbps10000 => Some(10000),
+        }
+    }
+}
+
 /// VLAN and physical profile for a switch port, merged from the Session API's
 /// `port_table` (live state) and `port_overrides` (user configuration).
 #[derive(Debug, Clone, Serialize, Deserialize)]

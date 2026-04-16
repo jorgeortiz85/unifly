@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use tabled::Tabled;
-use unifly_api::model::PortState;
-use unifly_api::{Device, PoeMode, PortMode, PortProfile, PortSpeedSetting, StpState};
+use unifly_api::{Device, PoeMode, PortMode, PortProfile, PortSpeedSetting, PortState, StpState};
 
 use crate::cli::output::Painter;
 
@@ -299,22 +298,22 @@ fn format_poe(mode: Option<PoeMode>) -> &'static str {
 }
 
 fn format_speed(profile: &PortProfile) -> String {
-    let configured = match profile.speed_setting {
-        Some(PortSpeedSetting::Auto) => Some("auto".to_owned()),
-        Some(PortSpeedSetting::Mbps10) => Some("10".to_owned()),
-        Some(PortSpeedSetting::Mbps100) => Some("100".to_owned()),
-        Some(PortSpeedSetting::Mbps1000) => Some("1000".to_owned()),
-        Some(PortSpeedSetting::Mbps2500) => Some("2500".to_owned()),
-        Some(PortSpeedSetting::Mbps5000) => Some("5000".to_owned()),
-        Some(PortSpeedSetting::Mbps10000) => Some("10000".to_owned()),
-        None => None,
-    };
-    match (configured, profile.link_speed_mbps) {
-        (Some(cfg), Some(live)) if cfg == live.to_string() => cfg,
-        (Some(cfg), Some(live)) => format!("{cfg} ({live})"),
-        (Some(cfg), None) => cfg,
-        (None, Some(live)) => live.to_string(),
-        (None, None) => "-".into(),
+    let cfg_label = profile.speed_setting.map(|s| match s {
+        PortSpeedSetting::Auto => "auto".to_owned(),
+        other => other
+            .as_mbps()
+            .map_or_else(|| "auto".to_owned(), |mbps| mbps.to_string()),
+    });
+    match (profile.speed_setting, cfg_label, profile.link_speed_mbps) {
+        (Some(cfg), Some(label), Some(live))
+            if cfg.as_mbps().is_some_and(|pinned| pinned == live) =>
+        {
+            label
+        }
+        (_, Some(label), Some(live)) => format!("{label} ({live})"),
+        (_, Some(label), None) => label,
+        (_, None, Some(live)) => live.to_string(),
+        (_, None, None) => "-".into(),
     }
 }
 

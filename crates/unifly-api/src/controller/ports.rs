@@ -72,9 +72,11 @@ impl Controller {
             .cloned()
             .unwrap_or_default();
 
-        let override_map: HashMap<u32, &Value> = overrides
+        // Owned map avoids coupling the lookup's lifetime to the `overrides`
+        // Vec — the fallback branch below consumes `overrides` directly.
+        let override_map: HashMap<u32, Value> = overrides
             .iter()
-            .filter_map(|o| port_idx(o).map(|idx| (idx, o)))
+            .filter_map(|o| port_idx(o).map(|idx| (idx, o.clone())))
             .collect();
 
         // If the switch reports no port_table, fall back to overrides as the
@@ -95,7 +97,7 @@ impl Controller {
                     Some(build_profile(
                         idx,
                         Some(row),
-                        override_map.get(&idx).copied(),
+                        override_map.get(&idx),
                         &network_lookup,
                     ))
                 })

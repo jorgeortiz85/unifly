@@ -76,7 +76,7 @@ pub use model::{
     DpiApplication, DpiCategory, EntityId, Event, EventCategory, EventSeverity, FirewallGroup,
     FirewallGroupType, FirewallPolicy, FirewallZone, HealthSummary, IpsecSa, MacAddress,
     MagicSiteToSiteVpnConfig, NatPolicy, NatType, Network, PoeMode, PortMode, PortProfile,
-    PortSpeedSetting, RadiusProfile, RemoteAccessVpnServer, Site, SiteToSiteVpn, StpState, SysInfo,
-    SystemInfo, TrafficMatchingList, VpnClientConnection, VpnClientProfile, VpnServer, VpnSetting,
-    VpnTunnel, WanInterface, WireGuardPeer,
+    PortSpeedSetting, PortState, RadiusProfile, RemoteAccessVpnServer, Site, SiteToSiteVpn,
+    StpState, SysInfo, SystemInfo, TrafficMatchingList, VpnClientConnection, VpnClientProfile,
+    VpnServer, VpnSetting, VpnTunnel, WanInterface, WireGuardPeer,
 };
