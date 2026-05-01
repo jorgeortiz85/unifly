@@ -13,9 +13,9 @@ use crate::model::{
 };
 
 pub use requests::{
-    CreateAclRuleRequest, CreateDnsPolicyRequest, CreateFirewallPolicyRequest,
-    CreateFirewallZoneRequest, CreateNatPolicyRequest, CreateNetworkRequest,
-    CreateRemoteAccessVpnServerRequest, CreateSiteToSiteVpnRequest,
+    ApplyPortEntry, ApplyPortsRequest, CreateAclRuleRequest, CreateDnsPolicyRequest,
+    CreateFirewallPolicyRequest, CreateFirewallZoneRequest, CreateNatPolicyRequest,
+    CreateNetworkRequest, CreateRemoteAccessVpnServerRequest, CreateSiteToSiteVpnRequest,
     CreateTrafficMatchingListRequest, CreateVouchersRequest, CreateVpnClientProfileRequest,
     CreateWifiBroadcastRequest, CreateWireGuardPeerRequest, TrafficFilterSpec,
     UpdateAclRuleRequest, UpdateDnsPolicyRequest, UpdateFirewallPolicyRequest,
