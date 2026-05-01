@@ -285,6 +285,16 @@ async fn handle_port_set(
         });
     }
 
+    if matches!(mode, Some(PortModeArg::Access))
+        && tagged_vlans.as_ref().is_some_and(|v| !v.is_empty())
+    {
+        return Err(CliError::Validation {
+            field: "tagged-vlans".into(),
+            reason: "access mode cannot carry tagged VLANs; use --mode trunk with --tagged-vlans"
+                .into(),
+        });
+    }
+
     let native_network_id = match native_vlan {
         Some(name) => Some(controller.resolve_network_session_id(&name).await?.0),
         None => None,

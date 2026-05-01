@@ -291,7 +291,7 @@ fn format_poe(mode: Option<PoeMode>) -> &'static str {
         Some(PoeMode::Auto) => "auto",
         Some(PoeMode::Off) => "off",
         Some(PoeMode::Passive24V) => "pasv24",
-        Some(PoeMode::Passthrough) => "passthru",
+        Some(PoeMode::Passthrough) => "passthrough",
         Some(PoeMode::Other) => "other",
         None => "-",
     }

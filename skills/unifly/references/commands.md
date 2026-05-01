@@ -63,17 +63,23 @@ unifly devices tags [subcommands]
   `--on false` clears. Idempotent for automation.
 - `upgrade --url` allows side-loading custom firmware URLs.
 - `port-cycle` port index is zero-based.
-- `ports` / `port-set` are **Session-API-only** (the Integration API does
-  not expose port VLAN configuration). `--native-vlan` / `--tagged-vlans`
-  accept network names or session `_id`s; names are resolved via
-  `rest/networkconf`, so ambiguous names error out rather than pick one.
-  `--mode trunk` without `--tagged-vlans` trunks all VLANs (UniFi's
-  `tagged_vlan_mgmt=auto`); passing `--tagged-vlans` switches to `custom`.
-  `port-set` preserves every other port's overrides — only the target
-  port's fields are merged.
+- `ports` / `port-set` use **Session API routes** (the Integration API
+  does not expose port VLAN configuration), but they are reachable using
+  a UniFi OS Integration API key — the session client sends `X-API-KEY`
+  on UniFi OS session HTTP endpoints, so `port-set` works in ApiKey mode
+  on UniFi OS controllers without a username/password. `--native-vlan` /
+  `--tagged-vlans` accept network names or session `_id`s; names are
+  resolved via `rest/networkconf`, so ambiguous names error out rather
+  than pick one. `--mode trunk` without `--tagged-vlans` trunks all
+  VLANs (UniFi's `tagged_vlan_mgmt=auto`); passing `--tagged-vlans`
+  switches to `custom`. `port-set` preserves every other port's
+  overrides — only the target port's fields are merged.
 - All device _commands_ (adopt, remove, restart, locate, port-cycle,
-  port-set, upgrade, provision, speedtest) require Session API. Only
-  `list`/`get`/`ports` read paths are Hybrid-safe.
+  port-set, upgrade, provision, speedtest) require Session API access.
+  Only `list`/`get`/`ports` read paths are Hybrid-safe; `port-set`
+  writes through Session API routes but can be used with UniFi OS
+  API-key auth (per the bullet above), so it is not exclusive to
+  Hybrid/Credentials mode on UniFi OS.
 
 ## Clients `[H for list/find/get, L for roams/wifi + commands/reservations]`
 

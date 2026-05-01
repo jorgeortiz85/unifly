@@ -172,6 +172,12 @@ impl Controller {
         port_idx_target: u32,
         update: &PortProfileUpdate,
     ) -> Result<(), CoreError> {
+        if port_idx_target == 0 {
+            return Err(CoreError::ValidationFailed {
+                message: "port index must be 1-based (UniFi switches number ports starting at 1)"
+                    .to_owned(),
+            });
+        }
         let guard = self.inner.session_client.lock().await;
         let session = require_session(guard.as_ref())?;
 
